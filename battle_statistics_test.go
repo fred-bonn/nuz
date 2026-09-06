@@ -101,7 +101,7 @@ func TestLearningAiPrefersGuaranteedKillMovesOverSaferActions(t *testing.T) {
 	la.scores[stateKey] = map[string]float64{"move:safe": 0, "move:killer": 0}
 	la.counts[stateKey] = map[string]int{"move:safe": 1, "move:killer": 1}
 
-	got, _ := la.evaluateActions(bs, []*moveAction{{userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: safeMove}, {userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: killMove}})
+	got, _ := la.evaluateActions(bs, nil, []*moveAction{{userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: safeMove}, {userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: killMove}})
 	if got.move != killMove {
 		t.Fatalf("learning AI should prefer a guaranteed KO over a non-killing move; got %s", got.move.Name)
 	}
@@ -120,7 +120,7 @@ func TestLearningAiChoosesSafeStateActionByScore(t *testing.T) {
 	la.policy[stateKey] = []string{"move:safe", "move:risky"}
 	la.scores[stateKey] = map[string]float64{"move:safe": 200, "move:risky": -2000}
 
-	got, _ := la.evaluateActions(bs, []*moveAction{{userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: safeMove}, {userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: riskyMove}})
+	got, _ := la.evaluateActions(bs, nil, []*moveAction{{userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: safeMove}, {userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: riskyMove}})
 	if got.move != safeMove {
 		t.Fatalf("learning AI chose risky action despite negative score; got %+v", got.move)
 	}
@@ -411,7 +411,7 @@ func TestLoadedPolicyUsesStaticScores(t *testing.T) {
 
 	// An unknown state has no recorded evidence, so it should match learningAi
 	// and choose the first available action.
-	if got, _ := ai.evaluateActions(nil, []*moveAction{{move: &Move{Name: "Bubble Beam"}}, {move: &Move{Name: "Twister"}}}); got == nil || got.move.Name != "Bubble Beam" {
+	if got, _ := ai.evaluateActions(nil, nil, []*moveAction{{move: &Move{Name: "Bubble Beam"}}, {move: &Move{Name: "Twister"}}}); got == nil || got.move.Name != "Bubble Beam" {
 		t.Fatalf("expected first action for unknown state, got %v", got)
 	}
 

@@ -24,7 +24,7 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*po
 	return false
 }
 
-func (rnb rnbAi) evaluateActions(bs battleState, actions []*moveAction) (*moveAction, int) {
+func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	scores := make([]int, len(actions))
 	damage := make([]int, len(actions))
 	kills := make([]bool, len(actions))

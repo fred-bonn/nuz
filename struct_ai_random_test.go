@@ -14,7 +14,7 @@ func TestLearningAiReturnsAndRecordsFirstActionForState(t *testing.T) {
 	other := &Move{Name: "other", Power: 100, PP: 1, Class: physicalClass}
 	player.moves = []*Move{preferred, other}
 	la := newLearningAi()
-	got, _ := la.evaluateActions(bs, []*moveAction{
+	got, _ := la.evaluateActions(bs, nil, []*moveAction{
 		{userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: preferred},
 		{userSlot: bs.activePlayerSlot, targetSlot: bs.activeOpponentSlot, move: other},
 	})

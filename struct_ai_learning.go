@@ -349,12 +349,12 @@ func newStaticPolicyAiFromPolicy(policy *savedPolicy) *staticPolicyAi {
 	}
 }
 
-func (spa *staticPolicyAi) evaluateActions(bs battleState, actions []*moveAction) (*moveAction, int) {
+func (spa *staticPolicyAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	if len(actions) == 0 {
 		return nil, 0
 	}
 	stateKey := discretizeBattleState(bs).key()
-	fallbackAction, fallbackScore := rnbAi{}.evaluateActions(bs, actions)
+	fallbackAction, fallbackScore := rnbAi{}.evaluateActions(bs, slot, actions)
 	hasRecordedEvidence := false
 	for _, action := range actions {
 		key := actionKey(action)
@@ -678,17 +678,17 @@ func (la *learningAi) recordBattleOutcome(stats *battleStatistics) {
 	la.seen = make(map[string]map[string]bool)
 }
 
-func (la *learningAi) evaluateActions(bs battleState, actions []*moveAction) (*moveAction, int) {
+func (la *learningAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	if len(actions) == 0 {
 		return nil, 0
 	}
 	if la == nil {
-		return rnbAi{}.evaluateActions(bs, actions)
+		return rnbAi{}.evaluateActions(bs, slot, actions)
 	}
 	stateKey := discretizeBattleState(bs).key()
 	la.ensureState(stateKey)
 	firstAction := actions[0]
-	fallbackAction, fallbackScore := rnbAi{}.evaluateActions(bs, actions)
+	fallbackAction, fallbackScore := rnbAi{}.evaluateActions(bs, slot, actions)
 	for _, action := range actions {
 		key := actionKey(action)
 		la.policy[stateKey] = appendUnique(la.policy[stateKey], key)

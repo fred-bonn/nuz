@@ -3,14 +3,14 @@ package main
 import "math/rand"
 
 type ai interface {
-	evaluateActions(bs battleState, actions []*moveAction) (*moveAction, int)
+	evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int)
 	evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon
 	shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool
 }
 
 type randomAi struct{}
 
-func (ra randomAi) evaluateActions(bs battleState, actions []*moveAction) (*moveAction, int) {
+func (ra randomAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	return actions[rand.Intn(len(actions))], 1
 }
 
@@ -19,7 +19,7 @@ func (ra randomAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlo
 }
 
 func (ra randomAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
-	return roll(1, 5)
+	return roll(1, 10)
 }
 
 func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI ai) action {
@@ -48,20 +48,8 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 			}
 		}
 	}
-	if guided, ok := decisionAI.(guidedActionChooser); ok {
-		chosenAction := guided.chooseAction(bs, slot, party, possibleActions)
-		if guidedAI, ok := decisionAI.(*guidedAi); ok && guidedAI.err != nil {
-			bs.setError(guidedAI.err)
-			return &dummyAction{}
-		}
-		return chosenAction
-	}
 
-	chosenAction, score := decisionAI.evaluateActions(bs, possibleActions)
-	if guided, ok := decisionAI.(*guidedAi); ok && guided.err != nil {
-		bs.setError(guided.err)
-		return &dummyAction{}
-	}
+	chosenAction, score := decisionAI.evaluateActions(bs, slot, possibleActions)
 	if slot.mon.item.state.isChoice() {
 		slot.mon.lockedMove = chosenAction.move
 	}
@@ -96,13 +84,10 @@ func chooseSwitchIn(bs battleState, slot *slot, party []*pokemon, decisionAI ai)
 		return nil
 	}
 	chosenMon := decisionAI.evaluteSwitchIns(bs, possibleMons, bs.getOpponentSlot(slot))
-	if guided, ok := decisionAI.(*guidedAi); ok && guided.err != nil {
-		bs.setError(guided.err)
-		return nil
-	}
 	if la, ok := decisionAI.(*learningAi); ok {
 		la.recordStateAction(discretizeBattleState(bs).key(), actionKeyForSwitch(chosenMon))
 	}
+
 	return chosenMon
 }
 
