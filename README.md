@@ -19,7 +19,7 @@ This project simulates Pokémon battles, learns a per-state action policy for th
 - persisted policy storage under a `policies/` directory
 - command-line support for training, saving, and reusing learned policies
 
-## CLI usage
+## CLI usage 
 
 The main entrypoint is in [main.go](main.go). Supported flags are:
 
