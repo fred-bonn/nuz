@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/parser"
+	"github.com/fred-bonn/nuz/internal/parser"
 )
 
 func TestRunReturnsTheExpectedExitCodeForCLIArguments(t *testing.T) {

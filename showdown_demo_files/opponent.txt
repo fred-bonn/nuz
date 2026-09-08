@@ -1,0 +1,30 @@
+Dwebble @ Salac Berry
+Level: 17
+Adamant Nature
+Ability: Sturdy
+- Knock Off
+- Sticky Web
+
+Sandygast @ Rindo Berry
+Level: 17
+Lonely Nature
+Ability: Water Compaction
+- Bulldoze
+- Dark Pulse
+- Mega Drain
+- Hypnosis
+
+Mawile @ Leftovers
+Level: 17
+Adamant Nature
+Ability: Intimidate
+- Covet
+- Metal Claw
+- Fire Fang
+
+Munchlax @ Salac Berry
+Level: 17
+Jolly Nature
+Ability: Gluttony
+- Headbutt
+- Belly Drum

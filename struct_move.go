@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/pokeapi"
+	"github.com/fred-bonn/nuz/internal/pokeapi"
 )
 
 type moveClass int

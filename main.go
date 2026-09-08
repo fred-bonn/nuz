@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/pokeapi"
+	"github.com/fred-bonn/nuz/internal/pokeapi"
 	"github.com/spf13/pflag"
 )
 

@@ -1,0 +1,39 @@
+Horsea @ Oran Berry
+Level: 17
+Modest Nature
+Ability: Swift Swim
+- Bubble Beam
+- Twister
+
+Staravia @ Oran Berry
+Level: 17
+Jolly Nature
+Ability: Intimidate
+- Endeavor
+- Quick Attack
+- Aerial Ace
+
+Monferno @ Oran Berry
+Level: 17
+Naive Nature
+Ability: Vital Spirit
+- Flame Wheel
+- Ember
+- Mach Punch
+- Low Sweep
+
+Roselia @ Chesto Berry
+Level: 17
+Timid Nature
+Ability: Poison Point
+- Sludge
+- Absorb
+
+Ponyta @ Oran Berry
+Level: 17
+Adamant Nature
+Ability: Flame Body
+- Flame Wheel
+- Ember
+- Stomp
+- Tail Whip

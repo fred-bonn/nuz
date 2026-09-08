@@ -8,13 +8,12 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/parser"
+	"github.com/fred-bonn/nuz/internal/parser"
 )
 
 const (
 	learnRewardWinBonus            = 5000000.0
-	learnRewardLossPenalty         = 5000000.0
-	learnRewardDeadMonPenalty      = 1500000.0
+	learnRewardDeadMonPenalty      = 1000000.0
 	learnRewardGuaranteedKillBonus = 750.0
 	learnRewardCritRiskPenalty     = 3200.0
 	learnRewardStateRiskPenalty    = 1500.0
@@ -647,9 +646,6 @@ func (la *learningAi) recordBattleOutcome(stats *battleStatistics) {
 	reward := stats.outcomeScore()
 	if stats.winCount == stats.battleCount {
 		reward += learnRewardWinBonus
-	}
-	if stats.winCount == 0 {
-		reward -= learnRewardLossPenalty
 	}
 	for _, survivors := range stats.pokemonSurvivors {
 		if survivors < stats.battleCount {

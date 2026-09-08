@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/pokeapi"
+	"github.com/fred-bonn/nuz/internal/pokeapi"
 )
 
 func TestMoveParsingAllowsMovesWithNoAilment(t *testing.T) {

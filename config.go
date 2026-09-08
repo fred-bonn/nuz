@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/parser"
-	"github.com/fred-bonn/nuzlocke-verifier/internal/pokeapi"
+	"github.com/fred-bonn/nuz/internal/parser"
+	"github.com/fred-bonn/nuz/internal/pokeapi"
 )
 
 type config struct {

@@ -1,4 +1,4 @@
-module github.com/fred-bonn/nuzlocke-verifier
+module github.com/fred-bonn/nuz
 
 go 1.26.1
 

@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/fred-bonn/nuzlocke-verifier/internal/pokeapi"
+	"github.com/fred-bonn/nuz/internal/pokeapi"
 )
 
 type BasePokemon struct {
