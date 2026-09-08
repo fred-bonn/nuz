@@ -1,4 +1,4 @@
-OUT_PATH=./bin/myprog
+OUT_PATH=./bin/nuz
 
 all: run
 

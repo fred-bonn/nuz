@@ -20,7 +20,7 @@ func run(args []string) int {
 	fs := pflag.NewFlagSet("nuzlocke-verifier", pflag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: %s [flags] <player_showdown> <opponent_showdown>\n\nExamples:\n  %s -p -s -i 250 player.txt opponent.txt\n  %s -f policies/player__vs__opponent.json -i 1\n\n", os.Args[0], os.Args[0], os.Args[0])
+		fmt.Fprintf(fs.Output(), "Usage: %s [flags] <player_showdown> <opponent_showdown>\n\nExamples:\n  %s -p -i 250 player.txt opponent.txt\n  %s -f policies/player__vs__opponent.json -i 1\n\n", os.Args[0], os.Args[0], os.Args[0])
 		fs.PrintDefaults()
 	}
 	verbose = fs.BoolP("verbose", "v", false, "verbose logging")
@@ -28,7 +28,6 @@ func run(args []string) int {
 	playerUsesLearningAI := fs.BoolP("player-learning-ai", "p", false, "use the learning AI for the player trainer while the opponent keeps the rnb AI")
 	playerUsesGuidedAI := fs.BoolP("player-guided-ai", "g", false, "prompt for the player's action each turn")
 	policyFile := fs.StringP("policy-file", "f", "", "path to a saved policy JSON file to load and use for the player trainer; the player and opponent parties embedded in the policy are used, so <player_showdown> <opponent_showdown> must not be given")
-	savePolicy := fs.BoolP("save-policy", "s", false, "save the learned policy under policies/ using the input file names")
 	iterations := fs.IntP("iterations", "i", 1, "number of times to run the same battle scenario for statistics or training")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, pflag.ErrHelp) {
@@ -155,7 +154,7 @@ func run(args []string) int {
 		}
 	}
 
-	if *savePolicy && playerLearning != nil {
+	if playerLearning != nil {
 		if err := savePolicyToDisk(playerLearning, parsedArgs[0], parsedArgs[1]); err != nil {
 			log.Printf("error: failed saving policy: %s", err)
 		} else {

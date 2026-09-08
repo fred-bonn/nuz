@@ -344,7 +344,7 @@ func TestPolicyCliEndToEndSmoke(t *testing.T) {
 	}
 	defer func() { _ = os.Chdir(cwd) }()
 
-	cmdSave := exec.Command("go", "run", ".", "--player-learning-ai", "--save-policy", "--iterations", "10", "data/player.txt", "data/rnb_trainer_1.txt")
+	cmdSave := exec.Command("go", "run", ".", "--player-learning-ai", "--iterations", "10", "data/player.txt", "data/rnb_trainer_1.txt")
 	cmdSave.Dir = cwd
 	output, err := cmdSave.CombinedOutput()
 	if err != nil {

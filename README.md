@@ -143,3 +143,6 @@ If you'd like to contribute, please fork the repository and open a pull request 
 - more exhaustive coverage of abilities and items; several common competitive abilities/items are missing (e.g. Multiscale, Protean, priority-negating abilities)
 - support for double battles; only single 1v1 slots per side
 - more exhaustive coverage of field effects and interactive moves; screens and abilities that breaks them (e.g. Brick Break), Defog
+- separate the battle engine from the front-end so it can be re-used for other purposes
+- improving the policy creation; better/less coarse discrete states
+- learning from guided examples
