@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/fred-bonn/nuz/internal/engine"
 	"github.com/fred-bonn/nuz/internal/parser"
 	"github.com/fred-bonn/nuz/internal/pokeapi"
 )
@@ -15,7 +16,7 @@ type config struct {
 	client pokeapi.Client
 }
 
-func (cfg *config) validateInput(trainerPath string) ([]*pokemon, error) {
+func (cfg *config) validateInput(trainerPath string) ([]*engine.Pokemon, error) {
 	trainerFullPath, err := filepath.Abs(trainerPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed getting absolute path: %w", err)
@@ -39,7 +40,7 @@ func (cfg *config) validateInput(trainerPath string) ([]*pokemon, error) {
 
 // validateInputContent parses Showdown-style party text embedded directly in a saved policy,
 // rather than reading it from a file on disk.
-func (cfg *config) validateInputContent(content string) ([]*pokemon, error) {
+func (cfg *config) validateInputContent(content string) ([]*engine.Pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(content)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
@@ -56,18 +57,18 @@ func (cfg *config) validateInputContent(content string) ([]*pokemon, error) {
 	return trainerParty, nil
 }
 
-func (cfg *config) loadShowdown(mons []parser.ParsedPokemon) ([]*pokemon, error) {
-	var res []*pokemon
+func (cfg *config) loadShowdown(mons []parser.ParsedPokemon) ([]*engine.Pokemon, error) {
+	var res []*engine.Pokemon
 
 	for _, mon := range mons {
-		var moves []*Move
+		var moves []*engine.Move
 
 		basePokemon, err := cfg.loadPokemon(apiName(mon.Name))
 		if err != nil {
 			return nil, err
 		}
 
-		basePokemon.Name = cleanName(mon.Name)
+		basePokemon.Name = engine.CleanName(mon.Name)
 
 		for _, moveName := range mon.Moves {
 			baseMove, err := cfg.loadMove(apiName(moveName))
@@ -75,28 +76,28 @@ func (cfg *config) loadShowdown(mons []parser.ParsedPokemon) ([]*pokemon, error)
 				return nil, err
 			}
 
-			if mb, ok := moveBalanceMap[baseMove.Name]; ok {
-				mb.apply(&baseMove)
+			if mb, ok := engine.MoveBalanceMap[baseMove.Name]; ok {
+				mb.Apply(&baseMove)
 			}
 
-			baseMove.Name = cleanName(moveName)
+			baseMove.Name = engine.CleanName(moveName)
 
 			moves = append(moves, &baseMove)
 		}
 
-		finalPokemon, err := initPokemon(basePokemon, mon.Level, mon.IVs, mon.Nature, moves, mon.HP, stringToAilmentState(mon.Status))
+		finalPokemon, err := engine.InitPokemon(basePokemon, mon.Level, mon.IVs, mon.Nature, moves, mon.HP, engine.StringToAilmentState(mon.Status))
 		if err != nil {
 			return nil, err
 		}
 
-		item, err := registerItem(stringToItemState(strings.ToLower(mon.Item)), &finalPokemon)
+		item, err := engine.RegisterItem(engine.StringToItemState(strings.ToLower(mon.Item)), &finalPokemon)
 		if err != nil {
 			return nil, err
 		}
-		finalPokemon.item = item
+		finalPokemon.Item = item
 
-		finalPokemon.ability = stringToAbility(strings.ToLower(mon.Ability))
-		if finalPokemon.ability == noneAbility {
+		finalPokemon.Ability = engine.StringToAbility(strings.ToLower(mon.Ability))
+		if finalPokemon.Ability == engine.NoneAbility {
 			return nil, fmt.Errorf("%s is not a valid ability for %s", strings.ToLower(mon.Ability), mon.Name)
 		}
 
@@ -106,17 +107,16 @@ func (cfg *config) loadShowdown(mons []parser.ParsedPokemon) ([]*pokemon, error)
 	return res, nil
 }
 
-func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
-	var p BasePokemon
+func (cfg *config) loadPokemon(name string) (engine.BasePokemon, error) {
+	var p engine.BasePokemon
 
 	data, err := os.ReadFile(fmt.Sprintf("data/pokemon/%s.json", name))
 	if err == nil {
 		// If the file exists and is read successfully, unmarshal it into a Pokemon struct
 		err = json.Unmarshal(data, &p)
 		if err != nil {
-			return BasePokemon{}, fmt.Errorf("failed unmarshaling '%s' Pokemon data: %w", name, err)
+			return engine.BasePokemon{}, fmt.Errorf("failed unmarshaling '%s' Pokemon data: %w", name, err)
 		}
-		fmt.Printf("Loaded '%s' from file\n", name)
 
 		return p, nil
 	}
@@ -124,34 +124,34 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	// Otherwise, fetch the Pokemon data from the API
 	pokemonJSON, err := cfg.client.FetchPokemon(name)
 	if err != nil {
-		return BasePokemon{}, fmt.Errorf("failed fetching Pokemon '%s': %w", name, err)
+		return engine.BasePokemon{}, fmt.Errorf("failed fetching Pokemon '%s': %w", name, err)
 	}
 	fmt.Printf("Fetched '%s' from API\n", name)
 
-	p, err = toPokemon(pokemonJSON)
+	p, err = engine.ToPokemon(pokemonJSON)
 	if err != nil {
-		return BasePokemon{}, err
+		return engine.BasePokemon{}, err
 	}
 
 	// Save the fetched Pokemon data to a file for future use
 	data, err = json.Marshal(p)
 	if err != nil {
-		return BasePokemon{}, fmt.Errorf("failed marshaling Pokemon JSON data '%s' to file: %w", name, err)
+		return engine.BasePokemon{}, fmt.Errorf("failed marshaling Pokemon JSON data '%s' to file: %w", name, err)
 	}
 	writeToFile(fmt.Sprintf("data/pokemon/%s.json", name), data)
 
 	return p, nil
 }
 
-func (cfg *config) loadMove(name string) (Move, error) {
-	var m Move
+func (cfg *config) loadMove(name string) (engine.Move, error) {
+	var m engine.Move
 
 	if strings.HasPrefix(name, "hidden-power") {
 		// If the move is Hidden Power, generate it
 		var err error
 		m, err = generateHiddenPower(name)
 		if err != nil {
-			return Move{}, err
+			return engine.Move{}, err
 		}
 		return m, nil
 	}
@@ -161,9 +161,8 @@ func (cfg *config) loadMove(name string) (Move, error) {
 		// If the file exists and is read successfully, unmarshal it into a Move struct
 		err = json.Unmarshal(data, &m)
 		if err != nil {
-			return Move{}, fmt.Errorf("failed unmarshaling Move '%s' data: %w", name, err)
+			return engine.Move{}, fmt.Errorf("failed unmarshaling Move '%s' data: %w", name, err)
 		}
-		fmt.Printf("Loaded '%s' from file\n", name)
 
 		return m, nil
 	}
@@ -171,13 +170,13 @@ func (cfg *config) loadMove(name string) (Move, error) {
 	// Otherwise, fetch the Move data from the API
 	moveJson, err := cfg.client.FetchMove(name)
 	if err != nil {
-		return Move{}, fmt.Errorf("failed fetching Move '%s': %w", name, err)
+		return engine.Move{}, fmt.Errorf("failed fetching Move '%s': %w", name, err)
 	}
 	fmt.Printf("Fetched '%s' from API\n", name)
 
-	m, err = toMove(moveJson)
+	m, err = engine.ToMove(moveJson)
 	if err != nil {
-		return Move{}, err
+		return engine.Move{}, err
 	}
 
 	// Save the fetched Move data using the internal Move struct to a file for future use
@@ -190,23 +189,23 @@ func (cfg *config) loadMove(name string) (Move, error) {
 	return m, nil
 }
 
-func generateHiddenPower(name string) (Move, error) {
+func generateHiddenPower(name string) (engine.Move, error) {
 	parts := strings.Split(name, "-")
 	if len(parts) != 3 {
-		return Move{}, fmt.Errorf("type not specified for hidden power")
+		return engine.Move{}, fmt.Errorf("type not specified for hidden power")
 	}
 
-	moveType := stringToPokemonType(parts[2])
-	if moveType == noType {
-		return Move{}, fmt.Errorf("%s is not a valid type for %s", parts[2], name)
+	moveType := engine.StringToPokemonType(parts[2])
+	if moveType == engine.NoType {
+		return engine.Move{}, fmt.Errorf("%s is not a valid type for %s", parts[2], name)
 	}
 
-	move := Move{
+	move := engine.Move{
 		Name:     "hidden power",
 		Type:     moveType,
 		Power:    60,
 		Accuracy: 100,
-		Class:    specialClass,
+		Class:    engine.SpecialClass,
 	}
 
 	return move, nil
@@ -227,52 +226,4 @@ func apiName(name string) string {
 	name = strings.ReplaceAll(name, ".", "")
 	name = strings.ReplaceAll(name, "’", "")
 	return name
-}
-
-func cleanName(name string) string {
-	name = strings.ToLower(name)
-	if !hasHyphen(name) && !isRegionalPokemon(name) {
-		name = strings.ReplaceAll(name, "-", " ")
-	}
-
-	return name
-}
-
-func hasHyphen(name string) bool {
-	var withHyphen = map[string]struct{}{
-		"ho-oh":     {},
-		"porygon-z": {},
-		"jangmo-o":  {},
-		"hakamo-o":  {},
-		"kommo-o":   {},
-		"ting-lu":   {},
-		"chien-pao": {},
-		"wo-chien":  {},
-		"chi-yu":    {},
-	}
-
-	if _, ok := withHyphen[name]; ok {
-		return true
-	}
-
-	return false
-}
-
-func isRegionalPokemon(name string) bool {
-	regions := []string{
-		"-alola",
-		"-galar",
-		"-hisui",
-		"-paldea",
-	}
-
-	name = strings.ToLower(name)
-
-	for _, region := range regions {
-		if strings.HasSuffix(name, region) {
-			return true
-		}
-	}
-
-	return false
 }

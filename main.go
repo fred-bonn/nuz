@@ -6,6 +6,7 @@ import (
 	"log"
 	"os"
 
+	"github.com/fred-bonn/nuz/internal/engine"
 	"github.com/fred-bonn/nuz/internal/pokeapi"
 	"github.com/spf13/pflag"
 )
@@ -24,7 +25,7 @@ func run(args []string) int {
 		fs.PrintDefaults()
 	}
 	verbose = fs.BoolP("verbose", "v", false, "verbose logging")
-	weather := fs.IntP("weather", "w", int(noneWeather), "weather\n 0: None (default)\n 1: Rain\n 2: Sun\n 3: Sandstorm\n 4: Hail")
+	weather := fs.IntP("weather", "w", int(engine.NoneWeather), "weather\n 0: None (default)\n 1: Rain\n 2: Sun\n 3: Sandstorm\n 4: Hail")
 	playerUsesLearningAI := fs.BoolP("player-learning-ai", "p", false, "use the learning AI for the player trainer while the opponent keeps the rnb AI")
 	playerUsesGuidedAI := fs.BoolP("player-guided-ai", "g", false, "prompt for the player's action each turn")
 	policyFile := fs.StringP("policy-file", "f", "", "path to a saved policy JSON file to load and use for the player trainer; the player and opponent parties embedded in the policy are used, so <player_showdown> <opponent_showdown> must not be given")
@@ -61,11 +62,11 @@ func run(args []string) int {
 		client: pokeapi.NewClient(),
 	}
 
-	var policy *savedPolicy
-	var playerParty, opponentParty []*pokemon
+	var policy *engine.SavedPolicy
+	var playerParty, opponentParty []*engine.Pokemon
 	if usingPolicyFile {
 		var err error
-		policy, err = loadPolicyFromDisk(*policyFile)
+		policy, err = engine.LoadPolicyFromDisk(*policyFile)
 		if err != nil {
 			log.Printf("error: failed loading policy '%s': %s", *policyFile, err)
 			return 1
@@ -98,55 +99,56 @@ func run(args []string) int {
 		}
 	}
 
-	var playerLearning *learningAi
-	playerAI := ai(rnbAi{})
+	var playerLearning *engine.LearningAI
+	playerAI := engine.AI(engine.RnbAi{})
 	if *playerUsesGuidedAI {
 		*verbose = true
-		playerAI = newGuidedAi(os.Stdin, os.Stdout)
+		engine.Verbose = true
+		playerAI = engine.NewGuidedAI(os.Stdin, os.Stdout)
 	} else if usingPolicyFile {
-		if err := validatePolicyCompatibility(policy, playerParty, opponentParty); err != nil {
+		if err := engine.ValidatePolicyCompatibility(policy, playerParty, opponentParty); err != nil {
 			log.Printf("error: policy incompatible with input parties: %s", err)
 			return 1
 		}
-		playerAI = newStaticPolicyAiFromPolicy(policy)
+		playerAI = engine.NewStaticPolicyAIFromPolicy(policy)
 		playerLearning = nil
-		log.Printf("loaded policy from %s: %d states, %d scored actions, %d observed actions", *policyFile, len(policy.Policy), countScoreEntries(policy.Scores), countCountEntries(policy.Counts))
+		log.Printf("loaded policy from %s: %d states, %d scored actions, %d observed actions", *policyFile, len(policy.Policy), engine.CountScoreEntries(policy.Scores), engine.CountCountEntries(policy.Counts))
 	} else if *playerUsesLearningAI {
-		playerLearning = newLearningAi()
+		playerLearning = engine.NewLearningAI()
 		playerAI = playerLearning
 	}
 
-	var bs battleState = initSingleBattleState(
-		trainer{
-			ai:           playerAI,
-			player:       true,
-			fieldEffects: make(map[fieldEffect]int),
+	var bs engine.BattleState = engine.InitSingleBattleState(
+		engine.Trainer{
+			AI:           playerAI,
+			Player:       true,
+			FieldEffects: make(map[engine.FieldEffect]int),
 		},
-		trainer{
-			ai:           rnbAi{},
-			fieldEffects: make(map[fieldEffect]int),
+		engine.Trainer{
+			AI:           engine.RnbAi{},
+			FieldEffects: make(map[engine.FieldEffect]int),
 		},
 		playerParty,
 		opponentParty,
-		weatherState(*weather),
+		engine.WeatherState(*weather),
 	)
 
 	for i := 0; i < *iterations; i++ {
-		if err := bs.reset(); err != nil {
+		if err := bs.Reset(); err != nil {
 			log.Fatal(err)
 		}
-		if err := bs.execute(); err != nil {
+		if err := bs.Execute(); err != nil {
 			log.Fatal(err)
 		}
-		bs.recordStatistics()
-		if learning, ok := bs.(*singleBattleState); ok {
-			if playerAI, ok := learning.player.ai.(*learningAi); ok {
-				playerAI.recordBattleOutcome(learning.getStatistics())
-				if playerAI.policySaturated() {
+		bs.RecordStatistics()
+		if learning, ok := bs.(*engine.SingleBattleState); ok {
+			if playerAI, ok := learning.Player.AI.(*engine.LearningAI); ok {
+				playerAI.RecordBattleOutcome(learning.GetStatistics())
+				if playerAI.PolicySaturated() {
 					log.Printf("training policy saturated after %d battle(s)", i+1)
 					break
 				}
-				if learning.getStatistics().allPartySurvived() {
+				if learning.GetStatistics().AllPartySurvived() {
 					log.Printf("training target reached: all party members survived after %d battle(s)", i+1)
 					break
 				}
@@ -155,13 +157,13 @@ func run(args []string) int {
 	}
 
 	if playerLearning != nil {
-		if err := savePolicyToDisk(playerLearning, parsedArgs[0], parsedArgs[1]); err != nil {
+		if err := engine.SavePolicyToDisk(playerLearning, parsedArgs[0], parsedArgs[1]); err != nil {
 			log.Printf("error: failed saving policy: %s", err)
 		} else {
-			log.Printf("policy saved to %s", policyPathForInputs(parsedArgs[0], parsedArgs[1]))
+			log.Printf("policy saved to %s", engine.PolicyPathForInputs(parsedArgs[0], parsedArgs[1]))
 		}
 	}
 
-	bs.printStatistics()
+	bs.PrintStatistics()
 	return 0
 }
