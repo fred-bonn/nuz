@@ -25,7 +25,7 @@ go install github.com/fred-bonn/nuz
 ```
 
 ```bash
-nuz showdown_demo_files/player.text showdown_demo_files/opponent.txt
+nuz showdown_demo_files/player.text showdown_demo_files/opponent.txt -v
 ```
 
 ### Input party format
