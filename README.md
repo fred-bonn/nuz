@@ -74,7 +74,7 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 
 | Flag | Meaning |
 | --- | --- |
-| `-v | Verbose logging |
+| `-v` | Verbose logging |
 | `-a <0..3>` | AI override for the player: `0=rnb`, `1=learning` + 1000 iterations, `2=guided` + default verbose, `3=random` | 
 | `-f <path>` | Load a saved policy JSON and use it as a static policy for the player; uses the player/opponent parties embedded in the policy |
 | `-i <n>` | Number of battle repetitions to run for training or statistics; default 1 |
