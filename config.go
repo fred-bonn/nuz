@@ -26,32 +26,27 @@ func (cfg *config) validateInput(trainerPath string) ([]*engine.Pokemon, error) 
 	if err != nil {
 		return nil, fmt.Errorf("failed reading showdown file: %w", err)
 	}
+
+	return cfg.validateParsedInput(trainerPokemon)
+}
+
+func (cfg *config) validateInputContent(trainerContent string) ([]*engine.Pokemon, error) {
+	trainerPokemon, err := parser.ParseShowdown(trainerContent)
+	if err != nil {
+		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
+	}
+
+	return cfg.validateParsedInput(trainerPokemon)
+}
+
+func (cfg *config) validateParsedInput(trainerPokemon []parser.ParsedPokemon) ([]*engine.Pokemon, error) {
 	if len(trainerPokemon) == 0 {
-		return nil, err
+		return nil, fmt.Errorf("showdown party is empty")
 	}
 
 	trainerParty, err := cfg.loadShowdown(trainerPokemon)
 	if err != nil {
 		return nil, fmt.Errorf("failed loading showdown file: %w", err)
-	}
-
-	return trainerParty, nil
-}
-
-// validateInputContent parses Showdown-style party text embedded directly in a saved policy,
-// rather than reading it from a file on disk.
-func (cfg *config) validateInputContent(content string) ([]*engine.Pokemon, error) {
-	trainerPokemon, err := parser.ParseShowdown(content)
-	if err != nil {
-		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
-	}
-	if len(trainerPokemon) == 0 {
-		return nil, fmt.Errorf("no pokemon parsed from showdown content")
-	}
-
-	trainerParty, err := cfg.loadShowdown(trainerPokemon)
-	if err != nil {
-		return nil, fmt.Errorf("failed loading showdown content: %w", err)
 	}
 
 	return trainerParty, nil

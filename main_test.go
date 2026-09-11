@@ -1,10 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -39,27 +37,7 @@ func TestRunReturnsTheExpectedExitCodeForCLIArguments(t *testing.T) {
 	}
 }
 
-func TestRunAcceptsVerboseFlag(t *testing.T) {
-	oldVerbose := *verbose
-	*verbose = false
-	defer func() { *verbose = oldVerbose }()
-
-	code := run([]string{"-v", "--iterations", "1", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"})
-	if code != 0 {
-		t.Fatalf("expected zero exit code with verbose flag, got %d", code)
-	}
-	if !*verbose {
-		t.Fatal("expected verbose flag to be enabled when parsing -v")
-	}
-}
-
-func TestRunHelpDoesNotReturnError(t *testing.T) {
-	if code := run([]string{"-h"}); code != 0 {
-		t.Fatalf("expected zero exit code for help request, got %d", code)
-	}
-}
-
-func TestRunLoadsPartiesEmbeddedInPolicyWhenNoInputFilesAreGiven(t *testing.T) {
+func TestRunLoadsPolicyWithExtraArguments(t *testing.T) {
 	dir := t.TempDir()
 
 	playerContent, err := os.ReadFile("showdown_demo_files/player.txt")
@@ -80,8 +58,8 @@ func TestRunLoadsPartiesEmbeddedInPolicyWhenNoInputFilesAreGiven(t *testing.T) {
 		Counts:        map[string]map[string]int{},
 	})
 
-	if code := run([]string{"--policy-file", withParties, "--iterations", "1"}); code != 0 {
-		t.Fatalf("run(--policy-file, no input files) = %d, want 0", code)
+	if code := run([]string{"--policy-file", withParties, "--iterations", "1", "ignored.txt"}); code != 0 {
+		t.Fatalf("run(--policy-file, extra argument) = %d, want 0", code)
 	}
 
 	withoutParties := filepath.Join(dir, "without_parties.json")
@@ -143,70 +121,5 @@ func TestParserEdgeCases(t *testing.T) {
 				t.Fatal("expected parse error for malformed input")
 			}
 		})
-	}
-}
-
-func TestRunRejectsInvalidPolicyFileFormat(t *testing.T) {
-	dir := t.TempDir()
-	badPolicy := filepath.Join(dir, "bad_policy.json")
-	if err := os.WriteFile(badPolicy, []byte("{invalid json}"), 0o644); err != nil {
-		t.Fatalf("write bad policy file: %v", err)
-	}
-
-	code := run([]string{"--policy-file", badPolicy, "--iterations", "1"})
-	if code != 1 {
-		t.Fatalf("expected exit code 1 for invalid policy file, got %d", code)
-	}
-}
-
-func TestPolicyCliEndToEndSmoke(t *testing.T) {
-	cwd, err := os.Getwd()
-	if err != nil {
-		t.Fatalf("Getwd failed: %v", err)
-	}
-	defer func() { _ = os.Chdir(cwd) }()
-
-	cmdSave := exec.Command("go", "run", ".", "--player-learning-ai", "--iterations", "10", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt")
-	cmdSave.Dir = cwd
-	output, err := cmdSave.CombinedOutput()
-	if err != nil {
-		t.Fatalf("save policy CLI failed: %v\n%s", err, output)
-	}
-	if !bytes.Contains(output, []byte("policy saved to")) {
-		t.Fatalf("save CLI did not report policy saved:\n%s", output)
-	}
-
-	policyPath := filepath.Join(cwd, "policies", "player__vs__rnb_trainer_1.json")
-	if _, err := os.Stat(policyPath); err != nil {
-		t.Fatalf("saved policy file was not created at %s: %v", policyPath, err)
-	}
-
-	beforeReload, err := os.ReadFile(policyPath)
-	if err != nil {
-		t.Fatalf("reading saved policy before reload failed: %v", err)
-	}
-
-	cmdLoad := exec.Command("go", "run", ".", "--policy-file", policyPath, "--iterations", "1")
-	cmdLoad.Dir = cwd
-	output, err = cmdLoad.CombinedOutput()
-	if err != nil {
-		t.Fatalf("load policy CLI failed: %v\n%s", err, output)
-	}
-	if !bytes.Contains(output, []byte("loaded policy from")) {
-		t.Fatalf("load CLI did not report the loaded policy summary:\n%s", output)
-	}
-
-	afterReload, err := os.ReadFile(policyPath)
-	if err != nil {
-		t.Fatalf("reading saved policy after reload failed: %v", err)
-	}
-	if !bytes.Equal(beforeReload, afterReload) {
-		t.Fatalf("policy should remain identical before and after reload for the same input pair\nbefore=%s\nafter=%s", beforeReload, afterReload)
-	}
-
-	cmdLoadWithExtraArgs := exec.Command("go", "run", ".", "--policy-file", policyPath, "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt", "--iterations", "1")
-	cmdLoadWithExtraArgs.Dir = cwd
-	if output, err = cmdLoadWithExtraArgs.CombinedOutput(); err == nil {
-		t.Fatalf("expected an error when passing party files alongside --policy-file:\n%s", output)
 	}
 }

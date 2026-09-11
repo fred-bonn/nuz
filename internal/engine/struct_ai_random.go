@@ -8,17 +8,17 @@ type AI interface {
 	shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool
 }
 
-type randomAi struct{}
+type RandomAi struct{}
 
-func (ra randomAi) evaluateActions(bs BattleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (ra RandomAi) evaluateActions(bs BattleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	return actions[rand.Intn(len(actions))], 1
 }
 
-func (ra randomAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (ra RandomAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
 	return mons[rand.Intn(len(mons))]
 }
 
-func (ra randomAi) shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool {
+func (ra RandomAi) shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool {
 	return roll(1, 10)
 }
 

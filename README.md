@@ -74,19 +74,18 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 
 | Flag | Meaning |
 | --- | --- |
-| `-p` | Train the player using the learning AI while the opponent keeps the RNB AI logic |
-| `-g` | Prompt for the player's action each turn |
+| `-v | Verbose logging |
+| `-a <0..3>` | AI override for the player: `0=rnb`, `1=learning` + 1000 iterations, `2=guided` + default verbose, `3=random` | 
 | `-f <path>` | Load a saved policy JSON and use it as a static policy for the player; uses the player/opponent parties embedded in the policy |
 | `-i <n>` | Number of battle repetitions to run for training or statistics; default 1 |
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default none |
-| `-v | Verbose logging |
 
 Examples:
 
 Train and save a policy:
 
 ```bash
-nuz -p -i 250 showdown_demo_files/player.text showdown_demo_files/opponent.txt
+nuz -a 1 showdown_demo_files/player.text showdown_demo_files/opponent.txt
 ```
 
 Load a saved policy and use it statically:
@@ -98,7 +97,7 @@ nuz -f policies/player__vs__opponent.json
 Simulate the battle as REPL, prompting the player's action each turn:
 
 ```bash
-nuz -g showdown_demo_files/player.text showdown_demo_files/opponent.txt
+nuz -a 2 showdown_demo_files/player.text showdown_demo_files/opponent.txt
 ```
 
 ## Contributing
