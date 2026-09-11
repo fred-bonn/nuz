@@ -73,12 +73,12 @@ Ability: Swift Swim
 The main entrypoint is in [main.go](main.go). Supported flags are:
 
 | Flag | Meaning |
-| --- | --- |
+| ---- | --- |
 | `-v` | Verbose logging |
-| `-a <0..3>` | AI override for the player: `0=rnb`, `1=learning` + 1000 iterations, `2=guided` + default verbose, `3=random` | 
-| `-f <path>` | Load a saved policy JSON and use it as a static policy for the player; uses the player/opponent parties embedded in the policy |
-| `-i <n>` | Number of battle repetitions to run for training or statistics; default 1 |
-| `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default none |
+| `-a <0..3>` | AI override for the player: `0=rnb`, `1=learning`, `2=guided`, `3=random`; default `0` | 
+| `-f <path>` | Load a saved policy JSON and use it as a static policy for the player |
+| `-i <n>` | Number of battle repetitions; default `1` |
+| `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
 
 Examples:
 
