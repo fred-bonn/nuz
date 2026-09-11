@@ -13,7 +13,11 @@ import (
 func TestConfigValidateInputLoadsShowdownPartyFromLocalData(t *testing.T) {
 	cfg := &config{client: pokeapi.NewClient()}
 
-	party, err := cfg.validateInput("showdown_demo_files/player.txt")
+	playerData, err := os.ReadFile("showdown_demo_files/player.txt")
+	if err != nil {
+		t.Fatalf("failed reading player party file: %v", err)
+	}
+	party, err := cfg.validateInput(string(playerData))
 	if err != nil {
 		t.Fatalf("validateInput returned unexpected error: %v", err)
 	}

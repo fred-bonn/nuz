@@ -89,23 +89,33 @@ func run(args []string) int {
 	var err error
 	var playerParty, opponentParty []*engine.Pokemon
 	if !usingPolicyFile {
-		playerParty, err = cfg.validateInput(parsedArgs[0])
+		playerFileData, err := os.ReadFile(parsedArgs[0])
+		if err != nil {
+			log.Printf("error: failed reading player party file '%s': %s", parsedArgs[0], err)
+			return 1
+		}
+		playerParty, err = cfg.validateInput(string(playerFileData))
 		if err != nil {
 			log.Printf("error: failed validating player party '%s': %s", parsedArgs[0], err)
 			return 1
 		}
-		opponentParty, err = cfg.validateInput(parsedArgs[1])
+		opponentFileData, err := os.ReadFile(parsedArgs[1])
 		if err != nil {
-			log.Printf("error: failed validating opponent party '%s': %s", parsedArgs[1], err)
+			log.Printf("error: failed reading opponent party file '%s': %s", parsedArgs[0], err)
+			return 1
+		}
+		opponentParty, err = cfg.validateInput(string(opponentFileData))
+		if err != nil {
+			log.Printf("error: failed validating player party '%s': %s", parsedArgs[0], err)
 			return 1
 		}
 	} else {
-		playerParty, err = cfg.validateInputContent(policy.PlayerParty)
+		playerParty, err = cfg.validateInput(policy.PlayerParty)
 		if err != nil {
 			log.Printf("error: failed validating player party embedded in policy '%s': %s", *policyFile, err)
 			return 1
 		}
-		opponentParty, err = cfg.validateInputContent(policy.OpponentParty)
+		opponentParty, err = cfg.validateInput(policy.OpponentParty)
 		if err != nil {
 			log.Printf("error: failed validating opponent party embedded in policy '%s': %s", *policyFile, err)
 			return 1

@@ -16,21 +16,7 @@ type config struct {
 	client pokeapi.Client
 }
 
-func (cfg *config) validateInput(trainerPath string) ([]*engine.Pokemon, error) {
-	trainerFullPath, err := filepath.Abs(trainerPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed getting absolute path: %w", err)
-	}
-
-	trainerPokemon, err := parser.ReadShowdownFile(trainerFullPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed reading showdown file: %w", err)
-	}
-
-	return cfg.validateParsedInput(trainerPokemon)
-}
-
-func (cfg *config) validateInputContent(trainerContent string) ([]*engine.Pokemon, error) {
+func (cfg *config) validateInput(trainerContent string) ([]*engine.Pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(trainerContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
