@@ -112,8 +112,8 @@ func (sbs *singleBattleState) PrintStatistics() {
 }
 
 func (sbs *singleBattleState) reset() error {
-	playerParty := ClonePokemonParty(sbs.initialPlayer.PokemonParty)
-	opponentParty := ClonePokemonParty(sbs.initialOpponent.PokemonParty)
+	playerParty := clonePokemonParty(sbs.initialPlayer.PokemonParty)
+	opponentParty := clonePokemonParty(sbs.initialOpponent.PokemonParty)
 	resetPokemonPartyPPs(playerParty)
 	resetPokemonPartyPPs(opponentParty)
 
@@ -174,8 +174,8 @@ func InitSingleBattleState(player, opponent trainer, playerParty, opponentParty 
 		statistics:      newBattleStatistics(playerParty),
 	}
 
-	res.initialPlayer.PokemonParty = ClonePokemonParty(playerParty)
-	res.initialOpponent.PokemonParty = ClonePokemonParty(opponentParty)
+	res.initialPlayer.PokemonParty = clonePokemonParty(playerParty)
+	res.initialOpponent.PokemonParty = clonePokemonParty(opponentParty)
 	res.initialPlayer.FieldEffects = cloneFieldEffects(player.FieldEffects)
 	res.initialOpponent.FieldEffects = cloneFieldEffects(opponent.FieldEffects)
 	res.Player.PokemonParty = playerParty

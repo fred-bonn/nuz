@@ -44,7 +44,7 @@ func chooseNextAction(bs battleState, slot *slot, party []*Pokemon, decisionAI a
 	if len(possibleActions) == 0 {
 		for _, opponentSlot := range bs.getOtherSlots(slot) {
 			if opponentSlot.Trainer != slot.Trainer {
-				possibleActions = append(possibleActions, &moveAction{userSlot: slot, targetSlot: opponentSlot, move: &struggleMove})
+				possibleActions = append(possibleActions, &moveAction{userSlot: slot, targetSlot: opponentSlot, move: getStruggleMove()})
 			}
 		}
 	}

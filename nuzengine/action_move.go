@@ -73,7 +73,7 @@ func (ma *moveAction) invoke(bs battleState) {
 			confusion.Turns -= 1
 			vprintf("%s is confused", ma.userSlot.mon.Base.Name)
 			if roll(1, 3) {
-				damage := calculateDamage(ma.userSlot.mon, ma.userSlot.mon, &confusionMove, new(false), bs.getWeather(), false, false, false)
+				damage := calculateDamage(ma.userSlot.mon, ma.userSlot.mon, getConfusionMove(), new(false), bs.getWeather(), false, false, false)
 				ma.userSlot.invulnerableAction = nil
 				vprintMove(ma.prio(bs), ma.speed(bs), "%s hit itself in confusion for %d damage", ma.userSlot.mon.Base.Name, damage)
 				ma.userSlot.mon.HP -= int(damage)

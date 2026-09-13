@@ -11,15 +11,15 @@ func cloneFieldEffects(src map[fieldEffect]int) map[fieldEffect]int {
 	return clone
 }
 
-func ClonePokemonParty(src []*Pokemon) []*Pokemon {
+func clonePokemonParty(src []*Pokemon) []*Pokemon {
 	clone := make([]*Pokemon, len(src))
 	for i, mon := range src {
-		clone[i] = ClonePokemon(mon)
+		clone[i] = clonePokemon(mon)
 	}
 	return clone
 }
 
-func ClonePokemon(p *Pokemon) *Pokemon {
+func clonePokemon(p *Pokemon) *Pokemon {
 	if p == nil {
 		return nil
 	}
