@@ -5,7 +5,7 @@ type switchAction struct {
 	new     *Pokemon
 }
 
-func (sa *switchAction) invoke(bs BattleState) {
+func (sa *switchAction) invoke(bs battleState) {
 	for _, slot := range bs.getOtherSlots(sa.oldSlot) {
 		if ailment := slot.mon.hasAilment(infatuationAilment); ailment != nil && ailment.afflictedBy == sa.oldSlot {
 			delete(slot.mon.Ailments, infatuationAilment)
@@ -31,10 +31,10 @@ func (sa *switchAction) invoke(bs BattleState) {
 	}
 }
 
-func (sa *switchAction) prio(bs BattleState) int {
+func (sa *switchAction) prio(bs battleState) int {
 	return 10
 }
 
-func (sa *switchAction) speed(bs BattleState) int {
+func (sa *switchAction) speed(bs battleState) int {
 	return sa.oldSlot.mon.effectiveSpeed(bs)
 }

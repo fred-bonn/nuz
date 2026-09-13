@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
+	"runtime"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
@@ -123,13 +125,19 @@ func ToMove(mj pokeapi.MoveJSON) (Move, error) {
 }
 
 func initContactMoves() error {
-	var moves []string
+	_, filename, _, ok := runtime.Caller(0)
+	if !ok {
+		return fmt.Errorf("unable to determine source file location")
+	}
+	dir := filepath.Dir(filename)
+	filePath := filepath.Join(dir, "contact_moves.json")
 
-	data, err := os.ReadFile("./contact_moves.json")
+	data, err := os.ReadFile(filePath)
 	if err != nil {
 		return err
 	}
 
+	var moves []string
 	err = json.Unmarshal(data, &moves)
 	if err != nil {
 		return err

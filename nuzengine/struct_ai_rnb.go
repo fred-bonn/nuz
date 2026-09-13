@@ -6,7 +6,7 @@ import (
 
 type rnbAi struct{}
 
-func (rnb rnbAi) shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool {
+func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
 	opponent := bs.getOpponentSlot(slot).mon
 	for _, mon := range party {
 		if mon == slot.mon || mon.fainted {
@@ -24,7 +24,7 @@ func (rnb rnbAi) shouldSwitch(bs BattleState, slot *slot, score int, party []*Po
 	return false
 }
 
-func (rnb rnbAi) evaluateActions(bs BattleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	scores := make([]int, len(actions))
 	damage := make([]int, len(actions))
 	kills := make([]bool, len(actions))
@@ -210,7 +210,7 @@ func (rnb rnbAi) evaluateActions(bs BattleState, slot *slot, actions []*moveActi
 	return actions[bestIndices[resultIndex]], scores[bestIndices[resultIndex]]
 }
 
-func (rnb rnbAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
 	if len(mons) == 1 {
 		return mons[0]
 	}
@@ -265,7 +265,7 @@ func (rnb rnbAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot 
 	return mons[bestIndex]
 }
 
-func calculateMaxDamage(bs BattleState, user, target *Pokemon, checkChoice bool) int {
+func calculateMaxDamage(bs battleState, user, target *Pokemon, checkChoice bool) int {
 	var maxDmg, dmg int
 	rolls := 1
 	for _, move := range user.Moves {

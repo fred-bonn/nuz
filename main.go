@@ -91,7 +91,7 @@ func run(args []string) int {
 		return 1
 	}
 
-	err = battleState.Execute(*iterations)
+	err = nuzengine.Execute(battleState, *iterations)
 	if err != nil {
 		log.Printf("error: failed executing battle state: %s", err)
 		return 1

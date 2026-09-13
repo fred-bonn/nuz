@@ -13,7 +13,7 @@ type slot struct {
 	unnerved           bool
 }
 
-func (s *slot) setMon(bs BattleState, new *Pokemon) {
+func (s *slot) setMon(bs battleState, new *Pokemon) {
 	s.mon.switchReset()
 	s.firstTurn = true
 	s.suckerPunch = false

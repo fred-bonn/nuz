@@ -21,7 +21,7 @@ func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
 	return &guidedAi{input: bufio.NewReader(input), output: output}
 }
 
-func (ga *guidedAi) evaluateActions(bs BattleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	ga.print("Choose an action:\n")
 	for i, action := range actions {
 		ga.print("%d. %s against %s\n", i+1, action.move.Name, action.targetSlot.mon.Base.Name)
@@ -59,7 +59,7 @@ func (ga *guidedAi) evaluateActions(bs BattleState, slot *slot, actions []*moveA
 	}
 }
 
-func (ga *guidedAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
 	ga.print("Choose a Pokemon to switch in:\n")
 	for i, mon := range mons {
 		ga.print("%d. %s (%d/%d HP)\n", i+1, mon.Base.Name, mon.HP, mon.MaxHP())
@@ -88,7 +88,7 @@ func (ga *guidedAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSl
 	}
 }
 
-func (ga *guidedAi) shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool {
+func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
 	return score == -1
 }
 

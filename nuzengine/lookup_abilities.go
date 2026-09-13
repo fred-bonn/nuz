@@ -458,7 +458,7 @@ func (a abilityState) blocksSleep() bool {
 	return a >= insomniaAbility && a <= sweetVeilAbility
 }
 
-var onSwitchAbilities = map[abilityState]func(s *slot, bs BattleState, switchIn bool){
+var onSwitchAbilities = map[abilityState]func(s *slot, bs battleState, switchIn bool){
 	traceAbility:       trace,
 	unnerveAbility:     unnerve,
 	intimidateAbility:  intimidate,
@@ -470,7 +470,7 @@ var onSwitchAbilities = map[abilityState]func(s *slot, bs BattleState, switchIn 
 	sandStreamAbility:  sandStream,
 }
 
-func trace(s *slot, bs BattleState, switchIn bool) {
+func trace(s *slot, bs battleState, switchIn bool) {
 	if !switchIn {
 		return
 	}
@@ -488,7 +488,7 @@ func trace(s *slot, bs BattleState, switchIn bool) {
 	vprintf("%s traced %s", s.mon.Base.Name, s.mon.Ability)
 }
 
-func unnerve(s *slot, bs BattleState, switchIn bool) {
+func unnerve(s *slot, bs battleState, switchIn bool) {
 	for _, otherSlot := range bs.getOtherSlots(s) {
 		if s.Trainer != otherSlot.Trainer {
 			otherSlot.mon.unnerved = switchIn
@@ -497,7 +497,7 @@ func unnerve(s *slot, bs BattleState, switchIn bool) {
 	}
 }
 
-func intimidate(s *slot, bs BattleState, switchIn bool) {
+func intimidate(s *slot, bs battleState, switchIn bool) {
 	if !switchIn {
 		return
 	}
@@ -513,7 +513,7 @@ func intimidate(s *slot, bs BattleState, switchIn bool) {
 	}
 }
 
-func regenerator(s *slot, bs BattleState, switchIn bool) {
+func regenerator(s *slot, bs battleState, switchIn bool) {
 	if switchIn || s.mon.fainted {
 		return
 	}
@@ -521,7 +521,7 @@ func regenerator(s *slot, bs BattleState, switchIn bool) {
 	s.mon.ChangeHpBy(s.mon.MaxHP() / 3)
 }
 
-func naturalCure(s *slot, bs BattleState, switchIn bool) {
+func naturalCure(s *slot, bs battleState, switchIn bool) {
 	if switchIn {
 		return
 	}
@@ -531,7 +531,7 @@ func naturalCure(s *slot, bs BattleState, switchIn bool) {
 	}
 }
 
-func drizzle(s *slot, bs BattleState, switchIn bool) {
+func drizzle(s *slot, bs battleState, switchIn bool) {
 	if !switchIn {
 		return
 	}
@@ -539,7 +539,7 @@ func drizzle(s *slot, bs BattleState, switchIn bool) {
 	bs.setWeather(rainWeather)
 }
 
-func drought(s *slot, bs BattleState, switchIn bool) {
+func drought(s *slot, bs battleState, switchIn bool) {
 	if !switchIn {
 		return
 	}
@@ -547,7 +547,7 @@ func drought(s *slot, bs BattleState, switchIn bool) {
 	bs.setWeather(sunWeather)
 }
 
-func snowWarning(s *slot, bs BattleState, switchIn bool) {
+func snowWarning(s *slot, bs battleState, switchIn bool) {
 	if !switchIn {
 		return
 	}
@@ -555,7 +555,7 @@ func snowWarning(s *slot, bs BattleState, switchIn bool) {
 	bs.setWeather(hailWeather)
 }
 
-func sandStream(s *slot, bs BattleState, switchIn bool) {
+func sandStream(s *slot, bs battleState, switchIn bool) {
 	if !switchIn {
 		return
 	}

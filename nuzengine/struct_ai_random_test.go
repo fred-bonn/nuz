@@ -91,7 +91,7 @@ func contains(value, substring string) bool {
 }
 
 func TestSingleBattleStateResetRestoresInitialBattleState(t *testing.T) {
-	playerAI := &learningAI{policy: map[string][]string{}}
+	playerAI := &learningAi{policy: map[string][]string{}}
 	playerParty := []*Pokemon{{
 		Base:  BasePokemon{Name: "player mon"},
 		Stats: []int{100, 10, 10, 10, 10, 10},
@@ -118,7 +118,7 @@ func TestSingleBattleStateResetRestoresInitialBattleState(t *testing.T) {
 	sbs.Player.lost = true
 	sbs.activeOpponentSlot.mon.HP = 2
 	sbs.opponent.lost = true
-	if err := sbs.Reset(); err != nil {
+	if err := sbs.reset(); err != nil {
 		t.Fatalf("reset returned error: %v", err)
 	}
 
@@ -131,7 +131,7 @@ func TestSingleBattleStateResetRestoresInitialBattleState(t *testing.T) {
 	if !sbs.activePlayerSlot.firstTurn || !sbs.activeOpponentSlot.firstTurn {
 		t.Fatal("reset did not restore first-turn state")
 	}
-	if got := len(sbs.Player.AI.(*learningAI).policy); got != 0 {
+	if got := len(sbs.Player.AI.(*learningAi).policy); got != 0 {
 		t.Fatalf("reset unexpectedly changed learning policy: got %d entries", got)
 	}
 }

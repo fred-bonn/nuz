@@ -5,9 +5,9 @@ import (
 )
 
 type action interface {
-	invoke(bs BattleState)
-	prio(bs BattleState) int
-	speed(bs BattleState) int
+	invoke(bs battleState)
+	prio(bs battleState) int
+	speed(bs battleState) int
 }
 
 type priorityQueue[T any] []T
@@ -64,7 +64,7 @@ type actionQueue struct {
 	queue priorityQueue[action]
 }
 
-func (a *actionQueue) sort(bs BattleState) {
+func (a *actionQueue) sort(bs battleState) {
 	cmp := func(b, c action) int {
 		if b.prio(bs) > c.prio(bs) {
 			return 1

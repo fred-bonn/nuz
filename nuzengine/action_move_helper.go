@@ -199,7 +199,7 @@ func rollInt(numerator int, denominator int) int {
 	return 0
 }
 
-func accuracyRoll(bs BattleState, user *Pokemon, target *Pokemon, move *Move) bool {
+func accuracyRoll(bs battleState, user *Pokemon, target *Pokemon, move *Move) bool {
 	if user.Ability == noGuardAbility || target.Ability == noGuardAbility {
 		return true
 	} else if move.Name == "toxic" && user.hasType(poisonType) {
@@ -281,7 +281,7 @@ func determineCritRate(user *Pokemon, move *Move) int {
 	return rate
 }
 
-func monFainted(bs BattleState, slot *slot, pursuit bool) {
+func monFainted(bs battleState, slot *slot, pursuit bool) {
 	if slot.mon.fainted {
 		return
 	}

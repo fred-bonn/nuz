@@ -6,18 +6,18 @@ type replaceAction struct {
 	midTurn bool
 }
 
-func (ra *replaceAction) prio(bs BattleState) int {
+func (ra *replaceAction) prio(bs battleState) int {
 	if ra.midTurn {
 		return 10
 	}
 	return -10
 }
 
-func (ra *replaceAction) speed(bs BattleState) int {
+func (ra *replaceAction) speed(bs battleState) int {
 	return ra.oldSlot.mon.effectiveSpeed(bs)
 }
 
-func (ra *replaceAction) invoke(bs BattleState) {
+func (ra *replaceAction) invoke(bs battleState) {
 	if ra.midTurn {
 		if a, ok := bs.getActions().queue.fetchBy(fetchPursuitMiddleware(ra.oldSlot.mon.Base.Name)); ok {
 			p, _ := a.(*moveAction)

@@ -8,7 +8,7 @@ type trainer struct {
 	lost         bool
 }
 
-func (t *trainer) canReplace(bs BattleState) bool {
+func (t *trainer) canReplace(bs battleState) bool {
 	count := 0
 	for _, mon := range t.PokemonParty {
 		if !mon.fainted {

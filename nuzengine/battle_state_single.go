@@ -1,8 +1,6 @@
 package nuzengine
 
-import "log"
-
-type SingleBattleState struct {
+type singleBattleState struct {
 	activePlayerSlot   *slot
 	activeOpponentSlot *slot
 	Player             *trainer
@@ -17,45 +15,7 @@ type SingleBattleState struct {
 	statistics         battleStatistics
 }
 
-func (sbs *SingleBattleState) Execute(iterations int) error {
-	var learningAi *learningAI
-	if ai, ok := sbs.activePlayerSlot.Trainer.AI.(*learningAI); ok {
-		learningAi = ai
-	}
-
-	for range iterations {
-		if err := sbs.Reset(); err != nil {
-			return err
-		}
-
-		if err := sbs.executeIteration(); err != nil {
-			return err
-		}
-
-		sbs.RecordStatistics()
-
-		if learningAi != nil {
-			learningAi.RecordBattleOutcome(sbs.GetStatistics())
-		}
-	}
-
-	if learningAi != nil {
-		if err := learningAi.savePolicyToDisk(); err != nil {
-			log.Printf("error: failed saving policy: %s", err)
-		} else {
-			log.Printf("policy saved to policites/policy.json")
-		}
-
-	}
-
-	if iterations > 1 {
-		sbs.PrintStatistics()
-	}
-
-	return nil
-}
-
-func (sbs *SingleBattleState) executeIteration() error {
+func (sbs *singleBattleState) execute() error {
 	vprintln("\nStarting battle...")
 
 	for k := 0; !sbs.Player.lost && !sbs.opponent.lost; k++ {
@@ -88,66 +48,70 @@ func (sbs *SingleBattleState) executeIteration() error {
 	return nil
 }
 
-func (sbs *SingleBattleState) setError(err error) {
+func (sbs *singleBattleState) setError(err error) {
 	sbs.err = err
 }
 
-func (sbs *SingleBattleState) gatherActions() {
+func (sbs *singleBattleState) gatherActions() {
 	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activePlayerSlot, sbs.Player.PokemonParty, sbs.Player.AI))
 	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activeOpponentSlot, sbs.opponent.PokemonParty, sbs.opponent.AI))
 }
 
-func (sbs *SingleBattleState) getAllSlots() []*slot {
+func (sbs *singleBattleState) getAllSlots() []*slot {
 	return []*slot{
 		sbs.activePlayerSlot,
 		sbs.activeOpponentSlot,
 	}
 }
 
-func (sbs *SingleBattleState) getOtherSlots(s *slot) []*slot {
+func (sbs *singleBattleState) getOtherSlots(s *slot) []*slot {
 	if s == sbs.activePlayerSlot {
 		return []*slot{sbs.activeOpponentSlot}
 	}
 	return []*slot{sbs.activePlayerSlot}
 }
 
-func (sbs *SingleBattleState) getOpponentSlot(s *slot) *slot {
+func (sbs *singleBattleState) getOpponentSlot(s *slot) *slot {
 	if s == sbs.activePlayerSlot {
 		return sbs.activeOpponentSlot
 	}
 	return sbs.activePlayerSlot
 }
 
-func (sbs *SingleBattleState) getActions() *actionQueue {
+func (sbs *singleBattleState) getPlayerTrainer() *trainer {
+	return sbs.Player
+}
+
+func (sbs *singleBattleState) getActions() *actionQueue {
 	return &sbs.actions
 }
 
-func (sbs *SingleBattleState) getWeather() weatherState {
+func (sbs *singleBattleState) getWeather() weatherState {
 	return sbs.weather
 }
 
-func (sbs *SingleBattleState) setWeather(w weatherState) {
+func (sbs *singleBattleState) setWeather(w weatherState) {
 	sbs.weather = w
 	w.onset()
 }
 
-func (sbs *SingleBattleState) getFieldEffects() map[fieldEffect]int {
+func (sbs *singleBattleState) getFieldEffects() map[fieldEffect]int {
 	return sbs.fieldEffects
 }
 
-func (sbs *SingleBattleState) GetStatistics() *battleStatistics {
+func (sbs *singleBattleState) GetStatistics() *battleStatistics {
 	return &sbs.statistics
 }
 
-func (sbs *SingleBattleState) RecordStatistics() {
+func (sbs *singleBattleState) RecordStatistics() {
 	sbs.statistics.record(sbs.Player)
 }
 
-func (sbs *SingleBattleState) PrintStatistics() {
+func (sbs *singleBattleState) PrintStatistics() {
 	sbs.statistics.print(sbs.initialPlayer.PokemonParty)
 }
 
-func (sbs *SingleBattleState) Reset() error {
+func (sbs *singleBattleState) reset() error {
 	playerParty := ClonePokemonParty(sbs.initialPlayer.PokemonParty)
 	opponentParty := ClonePokemonParty(sbs.initialOpponent.PokemonParty)
 	resetPokemonPartyPPs(playerParty)
@@ -184,11 +148,11 @@ func (sbs *SingleBattleState) Reset() error {
 	return nil
 }
 
-func InitSingleBattleState(player, opponent trainer, playerParty, opponentParty []*Pokemon, weather weatherState) *SingleBattleState {
+func InitSingleBattleState(player, opponent trainer, playerParty, opponentParty []*Pokemon, weather weatherState) *singleBattleState {
 	player.PokemonParty = playerParty
 	opponent.PokemonParty = opponentParty
 
-	res := SingleBattleState{
+	res := singleBattleState{
 		activePlayerSlot: &slot{
 			mon:       playerParty[0],
 			Trainer:   &player,

@@ -2,19 +2,21 @@ package nuzengine
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
 
-type BattleState interface {
-	Execute(iterations int) error
-	Reset() error
+type battleState interface {
+	execute() error
+	reset() error
 	setError(error)
 	gatherActions()
 	getAllSlots() []*slot
 	getOtherSlots(slot *slot) []*slot
 	getOpponentSlot(slot *slot) *slot
+	getPlayerTrainer() *trainer
 	getActions() *actionQueue
 	getWeather() weatherState
 	setWeather(weatherState)
@@ -24,23 +26,16 @@ type BattleState interface {
 	PrintStatistics()
 }
 
-type BattleStateType int
-
-const (
-	SingleBattle BattleStateType = iota
-)
-
-func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (BattleState, error) {
+func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
 	cfg := &config{
 		client: pokeapi.NewClient(),
 	}
 
-	if battleStateInt < int(SingleBattle) || battleStateInt > int(SingleBattle) {
+	if battleStateInt < 0 || battleStateInt > 1 {
 		return nil, fmt.Errorf("invalid battle state type: %d", battleStateInt)
 	}
-	battleStateType := BattleStateType(battleStateInt)
 
-	if weatherInt < int(noneWeather) || weatherInt > int(hailWeather) {
+	if weatherInt < 0 || weatherInt > 4 {
 		return nil, fmt.Errorf("invalid weather type: %d", weatherInt)
 	}
 	weather := weatherState(weatherInt)
@@ -48,7 +43,6 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	if aiInt < 0 || aiInt > 3 {
 		return nil, fmt.Errorf("invalid AI type: %d", aiInt)
 	}
-
 	var playerAi ai
 	if policyFile != "" {
 		policy, err := loadPolicyFromDisk(policyFile)
@@ -84,10 +78,10 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 		return nil, fmt.Errorf("failed validating opponent party: %s", err)
 	}
 
-	var battleState BattleState
+	var battleState battleState
 
-	switch battleStateType {
-	case SingleBattle:
+	switch battleStateInt {
+	case 0:
 		battleState = InitSingleBattleState(
 			trainer{
 				AI:           playerAi,
@@ -107,7 +101,45 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	return battleState, nil
 }
 
-func injectReplaceAction(bs BattleState, slot *slot, midTurn bool) {
+func Execute(bs battleState, iterations int) error {
+	var learning *learningAi
+	if ai, ok := bs.getPlayerTrainer().AI.(*learningAi); ok {
+		learning = ai
+	}
+
+	for range iterations {
+		if err := bs.reset(); err != nil {
+			return err
+		}
+
+		if err := bs.execute(); err != nil {
+			return err
+		}
+
+		bs.RecordStatistics()
+
+		if learning != nil {
+			learning.RecordBattleOutcome(bs.GetStatistics())
+		}
+	}
+
+	if learning != nil {
+		if err := learning.savePolicyToDisk(); err != nil {
+			log.Printf("error: failed saving policy: %s", err)
+		} else {
+			log.Printf("policy saved to policites/policy.json")
+		}
+
+	}
+
+	if iterations > 1 {
+		bs.PrintStatistics()
+	}
+
+	return nil
+}
+
+func injectReplaceAction(bs battleState, slot *slot, midTurn bool) {
 	bs.getActions().queue.push(&replaceAction{
 		oldSlot: slot,
 		Trainer: slot.Trainer,
@@ -116,7 +148,7 @@ func injectReplaceAction(bs BattleState, slot *slot, midTurn bool) {
 	bs.getActions().sort(bs)
 }
 
-func resolveEndOfTurn(bs BattleState) {
+func resolveEndOfTurn(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
 		// resolve end of return effects from ailments and statuses
 		for _, ailment := range slot.mon.Ailments {
@@ -181,7 +213,7 @@ func resolveEndOfTurn(bs BattleState) {
 	}
 }
 
-func takeResidualDamage(bs BattleState, slot *slot, effect string, num, den int) int {
+func takeResidualDamage(bs battleState, slot *slot, effect string, num, den int) int {
 	if slot.mon.fainted {
 		return 0
 	}
@@ -197,7 +229,7 @@ func takeResidualDamage(bs BattleState, slot *slot, effect string, num, den int)
 	return change
 }
 
-func resolveOnEntry(bs BattleState) {
+func resolveOnEntry(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
 		if f, ok := onSwitchAbilities[slot.mon.Ability]; ok {
 			f(slot, bs, true)

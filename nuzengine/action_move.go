@@ -13,7 +13,7 @@ type moveAction struct {
 	pursuit    bool
 }
 
-func (ma *moveAction) prio(bs BattleState) int {
+func (ma *moveAction) prio(bs battleState) int {
 	bonus := 0
 	if ma.userSlot.mon.Ability == pranksterAbility && ma.move.Class == statusClass {
 		bonus++
@@ -22,11 +22,11 @@ func (ma *moveAction) prio(bs BattleState) int {
 	return ma.move.Priority + bonus
 }
 
-func (ma *moveAction) speed(bs BattleState) int {
+func (ma *moveAction) speed(bs battleState) int {
 	return ma.userSlot.mon.effectiveSpeed(bs)
 }
 
-func (ma *moveAction) invoke(bs BattleState) {
+func (ma *moveAction) invoke(bs battleState) {
 	if ma.userSlot.mon.fainted {
 		return
 	}
@@ -179,7 +179,7 @@ func (ma *moveAction) invoke(bs BattleState) {
 	}
 }
 
-func (ma *moveAction) applyStatusMove(bs BattleState, target *Pokemon, offensive bool) {
+func (ma *moveAction) applyStatusMove(bs battleState, target *Pokemon, offensive bool) {
 	if isProtectMove(ma.move.Name) {
 		ma.userSlot.resolveProtect()
 		return
@@ -236,7 +236,7 @@ func (ma *moveAction) applyStatusMove(bs BattleState, target *Pokemon, offensive
 	}
 }
 
-func (ma *moveAction) applyDamageMove(bs BattleState) {
+func (ma *moveAction) applyDamageMove(bs battleState) {
 	target := ma.targetSlot.mon
 	if target.fainted {
 		return
@@ -258,7 +258,7 @@ func (ma *moveAction) applyDamageMove(bs BattleState) {
 	}
 }
 
-func (ma *moveAction) resolveDamage(bs BattleState) bool {
+func (ma *moveAction) resolveDamage(bs battleState) bool {
 	user := ma.userSlot.mon
 	target := ma.targetSlot.mon
 

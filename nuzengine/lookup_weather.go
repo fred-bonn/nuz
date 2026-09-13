@@ -50,7 +50,7 @@ func (ws weatherState) affectsMon(mon *Pokemon) bool {
 	return false
 }
 
-func (ws weatherState) activateMonAbility(bs BattleState, slot *slot) {
+func (ws weatherState) activateMonAbility(bs battleState, slot *slot) {
 	mon := slot.mon
 
 	switch ws {

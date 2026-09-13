@@ -206,7 +206,7 @@ func (p *Pokemon) effectiveStat(stat statState, crit bool) int {
 	return base * 2 / (2 - stage)
 }
 
-func (p *Pokemon) effectiveSpeed(bs BattleState) int {
+func (p *Pokemon) effectiveSpeed(bs battleState) int {
 	stage := p.Stages[Speed]
 	base := p.Stats[Speed]
 	p.checkItemTrigger(false, makeChoiceItemEvent(nil, Speed, &base))
@@ -248,7 +248,7 @@ func (p *Pokemon) effectiveSpeed(bs BattleState) int {
 	return base * 2 / (2 - stage)
 }
 
-func (p *Pokemon) isFasterThan(bs BattleState, mon *Pokemon) bool {
+func (p *Pokemon) isFasterThan(bs battleState, mon *Pokemon) bool {
 	return p.effectiveSpeed(bs) >= mon.effectiveSpeed(bs)
 }
 

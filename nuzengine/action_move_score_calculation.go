@@ -1,6 +1,6 @@
 package nuzengine
 
-func (ma *moveAction) scoreActionMove(bs BattleState) (int, bool) {
+func (ma *moveAction) scoreActionMove(bs battleState) (int, bool) {
 	if ma.move.Class == statusClass {
 		return ma.scoreStatusMove(bs), false
 	}
@@ -25,7 +25,7 @@ func (ma *moveAction) scoreActionMove(bs BattleState) (int, bool) {
 	return damageRoll, damageRoll >= ma.targetSlot.mon.HP
 }
 
-func (ma *moveAction) scoreStatusMove(bs BattleState) int {
+func (ma *moveAction) scoreStatusMove(bs battleState) int {
 	if ma.move.Category == "heal" {
 		if ma.userSlot.mon.HP > ma.userSlot.mon.MaxHP()*85/100 {
 			return -64
@@ -85,7 +85,7 @@ func (ma *moveAction) scoreStatusMove(bs BattleState) int {
 	return 6
 }
 
-func (ma *moveAction) shouldMonHeal(bs BattleState) bool {
+func (ma *moveAction) shouldMonHeal(bs battleState) bool {
 	if ma.userSlot.mon.hasAilment(toxicAilment) != nil {
 		return false
 	}
@@ -116,7 +116,7 @@ func (ma *moveAction) shouldMonHeal(bs BattleState) bool {
 	return false
 }
 
-func (ma *moveAction) scoreParalysisMove(bs BattleState) int {
+func (ma *moveAction) scoreParalysisMove(bs battleState) int {
 	target := ma.targetSlot.mon
 	user := ma.userSlot.mon
 
@@ -140,7 +140,7 @@ func (ma *moveAction) scoreParalysisMove(bs BattleState) int {
 	return score + rollInt(1, 2)
 }
 
-func (ma *moveAction) scoreSleepMove(bs BattleState) int {
+func (ma *moveAction) scoreSleepMove(bs battleState) int {
 	target := ma.targetSlot.mon
 	user := ma.userSlot.mon
 
@@ -183,7 +183,7 @@ func (ma *moveAction) scoreSleepMove(bs BattleState) int {
 	return score
 }
 
-func (ma *moveAction) scoreToxic(bs BattleState) int {
+func (ma *moveAction) scoreToxic(bs battleState) int {
 	target := ma.targetSlot.mon
 	user := ma.userSlot.mon
 
@@ -218,7 +218,7 @@ func (ma *moveAction) scoreToxic(bs BattleState) int {
 	return score
 }
 
-func (ma *moveAction) scoreProtectMove(bs BattleState) int {
+func (ma *moveAction) scoreProtectMove(bs battleState) int {
 	user := ma.userSlot.mon
 	target := ma.targetSlot.mon
 
@@ -245,7 +245,7 @@ func (ma *moveAction) scoreProtectMove(bs BattleState) int {
 	return score
 }
 
-func deadToSecondaryDamage(mon *Pokemon, bs BattleState) bool {
+func deadToSecondaryDamage(mon *Pokemon, bs battleState) bool {
 	if mon.Ability == magicGuardAbility {
 		return false
 	}
@@ -290,7 +290,7 @@ func (ma *moveAction) scoreCritStatus() int {
 	return 6
 }
 
-func (ma *moveAction) scoreBellyDrum(bs BattleState) int {
+func (ma *moveAction) scoreBellyDrum(bs battleState) int {
 	user := ma.userSlot.mon
 	target := ma.targetSlot.mon
 

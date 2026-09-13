@@ -19,7 +19,6 @@ const (
 	learnRewardDiscountFactor      = 0.9
 	learnRewardDecayFactor         = 0.98
 	learnRewardLearningRate        = 0.25
-	learnRewardStableThreshold     = 2
 )
 
 type discreteBattleState struct {
@@ -30,7 +29,7 @@ type discreteBattleState struct {
 }
 
 // discretizeBattleState returns a canonical structured representation suitable for a tabular policy.
-func discretizeBattleState(bs BattleState) discreteBattleState {
+func discretizeBattleState(bs battleState) discreteBattleState {
 	state := discreteBattleState{}
 	if bs == nil {
 		return state
@@ -73,7 +72,7 @@ func mustMarshalDiscreteState(state discreteBattleState) []byte {
 	return encoded
 }
 
-func opponentHasMoveThatKills(bs BattleState, user, target *Pokemon) bool {
+func opponentHasMoveThatKills(bs battleState, user, target *Pokemon) bool {
 	for _, move := range user.Moves {
 		if move == nil || move.PP <= 0 || move.Class == statusClass {
 			continue
@@ -88,7 +87,7 @@ func opponentHasMoveThatKills(bs BattleState, user, target *Pokemon) bool {
 	return false
 }
 
-func moveCanKill(bs BattleState, user, target *Pokemon, move *Move) bool {
+func moveCanKill(bs battleState, user, target *Pokemon, move *Move) bool {
 	rolls := 1
 	if move.MaxHits == 5 {
 		rolls = 3
@@ -107,7 +106,7 @@ func moveCanKill(bs BattleState, user, target *Pokemon, move *Move) bool {
 	return damage >= target.HP
 }
 
-func moveCanCritKill(bs BattleState, user, target *Pokemon, move *Move) bool {
+func moveCanCritKill(bs battleState, user, target *Pokemon, move *Move) bool {
 	if move == nil || move.PP <= 0 || move.Class == statusClass {
 		return false
 	}
@@ -139,7 +138,7 @@ func moveCanCritKill(bs BattleState, user, target *Pokemon, move *Move) bool {
 	return damage >= target.HP
 }
 
-type learningAI struct {
+type learningAi struct {
 	policy              map[string][]string
 	scores              map[string]map[string]float64
 	counts              map[string]map[string]int
@@ -171,8 +170,8 @@ type savedPolicy struct {
 	Version       int                           `json:"version"`
 }
 
-func newLearningAI() *learningAI {
-	return &learningAI{
+func newLearningAI() *learningAi {
+	return &learningAi{
 		policy:         make(map[string][]string),
 		scores:         make(map[string]map[string]float64),
 		counts:         make(map[string]map[string]int),
@@ -181,12 +180,6 @@ func newLearningAI() *learningAI {
 		learningRate:   learnRewardLearningRate,
 		discountFactor: learnRewardDiscountFactor,
 	}
-}
-
-func policyPathForInputs(playerInput, opponentInput string) string {
-	playerName := strings.TrimSuffix(filepath.Base(playerInput), filepath.Ext(playerInput))
-	opponentName := strings.TrimSuffix(filepath.Base(opponentInput), filepath.Ext(opponentInput))
-	return filepath.Join("policies", fmt.Sprintf("%s__vs__%s.json", playerName, opponentName))
 }
 
 func loadPolicyFromDisk(path string) (*savedPolicy, error) {
@@ -210,7 +203,7 @@ func loadPolicyFromDisk(path string) (*savedPolicy, error) {
 	return policy, nil
 }
 
-func (la *learningAI) savePolicyToDisk() error {
+func (la *learningAi) savePolicyToDisk() error {
 	path := filepath.Join("policies", "policy.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -276,51 +269,6 @@ func cloneCountMap(source map[string]map[string]int) map[string]map[string]int {
 	return clone
 }
 
-func countScoreEntries(scores map[string]map[string]float64) int {
-	count := 0
-	for _, actions := range scores {
-		count += len(actions)
-	}
-	return count
-}
-
-func countCountEntries(counts map[string]map[string]int) int {
-	count := 0
-	for _, actions := range counts {
-		count += len(actions)
-	}
-	return count
-}
-
-func loadLearningAIFromPolicy(policy *savedPolicy) *learningAI {
-	if policy == nil {
-		return newLearningAI()
-	}
-	la := &learningAI{
-		policy:      cloneActionMap(policy.Policy),
-		scores:      cloneScoreMap(policy.Scores),
-		counts:      cloneCountMap(policy.Counts),
-		seen:        make(map[string]map[string]bool),
-		decayFactor: 0.98,
-	}
-	if la.policy == nil {
-		la.policy = make(map[string][]string)
-	}
-	if la.scores == nil {
-		la.scores = make(map[string]map[string]float64)
-	}
-	if la.counts == nil {
-		la.counts = make(map[string]map[string]int)
-	}
-	for stateKey, actions := range la.policy {
-		la.seen[stateKey] = make(map[string]bool)
-		for _, action := range actions {
-			la.seen[stateKey][action] = true
-		}
-	}
-	return la
-}
-
 type staticPolicyAi struct {
 	policy map[string][]string
 	scores map[string]map[string]float64
@@ -338,7 +286,7 @@ func newStaticPolicyAIFromPolicy(policy *savedPolicy) *staticPolicyAi {
 	}
 }
 
-func (spa *staticPolicyAi) evaluateActions(bs BattleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (spa *staticPolicyAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	if len(actions) == 0 {
 		return nil, 0
 	}
@@ -390,7 +338,7 @@ func (spa *staticPolicyAi) evaluateActions(bs BattleState, slot *slot, actions [
 	return bestAction, int(bestScore)
 }
 
-func (spa *staticPolicyAi) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (spa *staticPolicyAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
 	if len(mons) == 0 {
 		return nil
 	}
@@ -434,7 +382,7 @@ recordedSwitchEvidence:
 	return bestMon
 }
 
-func (spa *staticPolicyAi) shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool {
+func (spa *staticPolicyAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
 	if spa == nil || len(party) <= 1 {
 		return false
 	}
@@ -484,7 +432,7 @@ func (spa *staticPolicyAi) scoreFor(stateKey, actionKey string) float64 {
 	return -1e18
 }
 
-func (la *learningAI) ensureState(stateKey string) {
+func (la *learningAi) ensureState(stateKey string) {
 	if la == nil {
 		return
 	}
@@ -514,7 +462,7 @@ func (la *learningAI) ensureState(stateKey string) {
 	}
 }
 
-func (la *learningAI) decayScores(factor float64) {
+func (la *learningAi) decayScores(factor float64) {
 	if la == nil {
 		return
 	}
@@ -534,7 +482,7 @@ func (la *learningAI) decayScores(factor float64) {
 	}
 }
 
-func (la *learningAI) policySignature() string {
+func (la *learningAi) policySignature() string {
 	if la == nil {
 		return ""
 	}
@@ -557,7 +505,7 @@ func (la *learningAI) policySignature() string {
 	return b.String()
 }
 
-func (la *learningAI) PolicySaturated() bool {
+func (la *learningAi) PolicySaturated() bool {
 	if la == nil || len(la.policy) == 0 {
 		return false
 	}
@@ -579,7 +527,7 @@ func (la *learningAI) PolicySaturated() bool {
 	return false
 }
 
-func (la *learningAI) recordStateAction(stateKey string, action string) {
+func (la *learningAi) recordStateAction(stateKey string, action string) {
 	if la == nil || stateKey == "" || action == "" {
 		return
 	}
@@ -593,7 +541,7 @@ func (la *learningAI) recordStateAction(stateKey string, action string) {
 	la.history = append(la.history, stateActionEntry{stateKey: stateKey, action: action})
 }
 
-func (la *learningAI) RecordBattleOutcome(stats *battleStatistics) {
+func (la *learningAi) RecordBattleOutcome(stats *battleStatistics) {
 	if la == nil || stats == nil {
 		return
 	}
@@ -630,7 +578,7 @@ func (la *learningAI) RecordBattleOutcome(stats *battleStatistics) {
 	la.seen = make(map[string]map[string]bool)
 }
 
-func (la *learningAI) evaluateActions(bs BattleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (la *learningAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	if len(actions) == 0 {
 		return nil, 0
 	}
@@ -700,7 +648,7 @@ func (la *learningAI) evaluateActions(bs BattleState, slot *slot, actions []*mov
 	return bestAction, int(bestScore)
 }
 
-func (la *learningAI) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
 	if len(mons) == 0 {
 		return nil
 	}
@@ -762,7 +710,7 @@ func (la *learningAI) evaluteSwitchIns(bs BattleState, mons []*Pokemon, opponent
 	return bestMon
 }
 
-func (la *learningAI) shouldSwitch(bs BattleState, slot *slot, score int, party []*Pokemon) bool {
+func (la *learningAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
 	if la == nil || len(party) <= 1 {
 		return false
 	}

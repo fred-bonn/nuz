@@ -62,9 +62,7 @@ func (c *Client) FetchMove(name string) (MoveJSON, error) {
 		return MoveJSON{}, fmt.Errorf("error fetching Move data from API: %w", err)
 	}
 
-	fmt.Println("Fetched move:", move.Name)
 	move.Name = cleanName(move.Name)
-	fmt.Println("Fetched move:", move.Name)
 
 	return move, nil
 }
