@@ -99,15 +99,15 @@ func (sbs *singleBattleState) getFieldEffects() map[fieldEffect]int {
 	return sbs.fieldEffects
 }
 
-func (sbs *singleBattleState) GetStatistics() *battleStatistics {
+func (sbs *singleBattleState) getStatistics() *battleStatistics {
 	return &sbs.statistics
 }
 
-func (sbs *singleBattleState) RecordStatistics() {
+func (sbs *singleBattleState) recordStatistics() {
 	sbs.statistics.record(sbs.Player)
 }
 
-func (sbs *singleBattleState) PrintStatistics() {
+func (sbs *singleBattleState) printStatistics() {
 	sbs.statistics.print(sbs.initialPlayer.PokemonParty)
 }
 
@@ -148,7 +148,7 @@ func (sbs *singleBattleState) reset() error {
 	return nil
 }
 
-func InitSingleBattleState(player, opponent trainer, playerParty, opponentParty []*Pokemon, weather weatherState) *singleBattleState {
+func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*Pokemon, weather weatherState) *singleBattleState {
 	player.PokemonParty = playerParty
 	opponent.PokemonParty = opponentParty
 

@@ -21,9 +21,9 @@ type battleState interface {
 	getWeather() weatherState
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
-	GetStatistics() *battleStatistics
-	RecordStatistics()
-	PrintStatistics()
+	getStatistics() *battleStatistics
+	recordStatistics()
+	printStatistics()
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
@@ -82,7 +82,7 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 
 	switch battleStateInt {
 	case 0:
-		battleState = InitSingleBattleState(
+		battleState = initSingleBattleState(
 			trainer{
 				AI:           playerAi,
 				Player:       true,
@@ -116,10 +116,10 @@ func Execute(bs battleState, iterations int) error {
 			return err
 		}
 
-		bs.RecordStatistics()
+		bs.recordStatistics()
 
 		if learning != nil {
-			learning.RecordBattleOutcome(bs.GetStatistics())
+			learning.RecordBattleOutcome(bs.getStatistics())
 		}
 	}
 
@@ -133,7 +133,7 @@ func Execute(bs battleState, iterations int) error {
 	}
 
 	if iterations > 1 {
-		bs.PrintStatistics()
+		bs.printStatistics()
 	}
 
 	return nil

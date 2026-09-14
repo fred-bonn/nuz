@@ -56,7 +56,7 @@ func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int
 }
 
 func testSwitchBattleState(current, replacement, opponent *Pokemon) *singleBattleState {
-	return InitSingleBattleState(
+	return initSingleBattleState(
 		trainer{AI: rnbAi{}, FieldEffects: make(map[fieldEffect]int)},
 		trainer{AI: rnbAi{}, FieldEffects: make(map[fieldEffect]int)},
 		[]*Pokemon{current, replacement},

@@ -33,6 +33,6 @@ func (bs *dummyBattleState) getWeather() weatherState             { return bs.we
 func (bs *dummyBattleState) setWeather(weatherState)              {}
 func (bs *dummyBattleState) getFieldEffects() map[fieldEffect]int { return nil }
 func (bs *dummyBattleState) reset() error                         { return nil }
-func (bs *dummyBattleState) GetStatistics() *battleStatistics     { return nil }
-func (bs *dummyBattleState) RecordStatistics()                    {}
-func (bs *dummyBattleState) PrintStatistics()                     {}
+func (bs *dummyBattleState) getStatistics() *battleStatistics     { return nil }
+func (bs *dummyBattleState) recordStatistics()                    {}
+func (bs *dummyBattleState) printStatistics()                     {}

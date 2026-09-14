@@ -105,7 +105,7 @@ func TestSingleBattleStateResetRestoresInitialBattleState(t *testing.T) {
 		Moves: []*Move{{Name: "tackle"}},
 	}}
 
-	sbs := InitSingleBattleState(
+	sbs := initSingleBattleState(
 		trainer{AI: playerAI, Player: true, FieldEffects: make(map[fieldEffect]int)},
 		trainer{AI: rnbAi{}, FieldEffects: make(map[fieldEffect]int)},
 		playerParty,
