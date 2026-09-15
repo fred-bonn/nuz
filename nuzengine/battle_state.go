@@ -21,9 +21,6 @@ type battleState interface {
 	getWeather() weatherState
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
-	getStatistics() *battleStatistics
-	recordStatistics()
-	printStatistics()
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
@@ -107,6 +104,7 @@ func Execute(bs battleState, iterations int) error {
 		learning = ai
 	}
 
+	statistics := newBattleStatistics(bs)
 	for range iterations {
 		if err := bs.reset(); err != nil {
 			return err
@@ -116,10 +114,11 @@ func Execute(bs battleState, iterations int) error {
 			return err
 		}
 
-		bs.recordStatistics()
+		statistics.record()
+		fmt.Println(*statistics)
 
 		if learning != nil {
-			learning.RecordBattleOutcome(bs.getStatistics())
+			learning.RecordBattleOutcome(statistics)
 		}
 	}
 
@@ -133,7 +132,7 @@ func Execute(bs battleState, iterations int) error {
 	}
 
 	if iterations > 1 {
-		bs.printStatistics()
+		statistics.print()
 	}
 
 	return nil

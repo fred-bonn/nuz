@@ -551,7 +551,7 @@ func (la *learningAi) RecordBattleOutcome(stats *battleStatistics) {
 	if stats.winCount == stats.battleCount {
 		reward += learnRewardWinBonus
 	}
-	for _, survivors := range stats.pokemonSurvivors {
+	for _, survivors := range stats.monSurvivalCount {
 		if survivors < stats.battleCount {
 			reward -= learnRewardDeadMonPenalty
 		}

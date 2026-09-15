@@ -1,49 +1,68 @@
 package nuzengine
 
-import "log"
+import (
+	"fmt"
+	"log"
+)
 
 type battleStatistics struct {
-	winCount         int
+	battleState      battleState
 	battleCount      int
-	pokemonSurvivors []int
+	winCount         int
+	monSurvivalCount []int
 }
 
-func newBattleStatistics(party []*Pokemon) battleStatistics {
-	return battleStatistics{
-		pokemonSurvivors: make([]int, len(party)),
+func newBattleStatistics(bs battleState) *battleStatistics {
+	return &battleStatistics{
+		battleState:      bs,
+		monSurvivalCount: make([]int, len(bs.getPlayerTrainer().PokemonParty)),
 	}
 }
 
-func (bs *battleStatistics) record(player *trainer) {
+func (bs *battleStatistics) record() {
 	bs.battleCount++
-	if !player.lost {
+	if bs.battleState.getPlayerTrainer().lost == false {
 		bs.winCount++
 	}
 
-	for index, mon := range player.PokemonParty {
+	for i, mon := range bs.battleState.getPlayerTrainer().PokemonParty {
+		fmt.Println(mon.Base.Name, mon.fainted)
 		if !mon.fainted {
-			bs.pokemonSurvivors[index]++
+			bs.monSurvivalCount[i]++
 		}
 	}
 }
 
+func (bs *battleStatistics) print() {
+	if bs.battleCount == 0 {
+		return
+	}
+
+	winRate := float64(bs.winCount) * 100.0 / float64(bs.battleCount)
+	log.Printf("player win rate: %.2f%% (%d/%d)", winRate, bs.winCount, bs.battleCount)
+	for index, mon := range bs.battleState.getPlayerTrainer().PokemonParty {
+		survivalRate := float64(bs.monSurvivalCount[index]) * 100.0 / float64(bs.battleCount)
+		log.Printf("%s survival rate: %.2f%% (%d/%d)", mon.Base.Name, survivalRate, bs.monSurvivalCount[index], bs.battleCount)
+	}
+}
+
 func (bs *battleStatistics) partySurvivalRatio() float64 {
-	if bs == nil || bs.battleCount == 0 || len(bs.pokemonSurvivors) == 0 {
+	if bs == nil || bs.battleCount == 0 || len(bs.monSurvivalCount) == 0 {
 		return 0
 	}
 
 	alive := 0.0
-	for _, survivors := range bs.pokemonSurvivors {
+	for _, survivors := range bs.monSurvivalCount {
 		alive += float64(survivors) / float64(bs.battleCount)
 	}
-	return alive / float64(len(bs.pokemonSurvivors))
+	return alive / float64(len(bs.monSurvivalCount))
 }
 
 func (bs *battleStatistics) AllPartySurvived() bool {
-	if bs == nil || bs.battleCount == 0 || len(bs.pokemonSurvivors) == 0 {
+	if bs == nil || bs.battleCount == 0 || len(bs.monSurvivalCount) == 0 {
 		return false
 	}
-	for _, survivors := range bs.pokemonSurvivors {
+	for _, survivors := range bs.monSurvivalCount {
 		if survivors != bs.battleCount {
 			return false
 		}
@@ -62,7 +81,7 @@ func (bs *battleStatistics) outcomeScore() float64 {
 	missingMembers := 0
 	deadMembers := 0
 	aliveMembers := 0
-	for _, survivors := range bs.pokemonSurvivors {
+	for _, survivors := range bs.monSurvivalCount {
 		if survivors == bs.battleCount {
 			aliveMembers++
 		}
@@ -71,7 +90,7 @@ func (bs *battleStatistics) outcomeScore() float64 {
 			deadMembers++
 		}
 	}
-	aliveRatio := float64(aliveMembers) / float64(len(bs.pokemonSurvivors))
+	aliveRatio := float64(aliveMembers) / float64(len(bs.monSurvivalCount))
 
 	if bs.AllPartySurvived() {
 		return 1000000.0 + 750000.0*winRate + 250000.0*survivalRatio
@@ -101,17 +120,4 @@ func (bs *battleStatistics) outcomeScore() float64 {
 		score += 500000.0
 	}
 	return score
-}
-
-func (bs *battleStatistics) print(party []*Pokemon) {
-	if bs.battleCount == 0 {
-		return
-	}
-
-	winRate := float64(bs.winCount) * 100.0 / float64(bs.battleCount)
-	log.Printf("player win rate: %.2f%% (%d/%d)", winRate, bs.winCount, bs.battleCount)
-	for index, mon := range party {
-		survivalRate := float64(bs.pokemonSurvivors[index]) * 100.0 / float64(bs.battleCount)
-		log.Printf("%s survival rate: %.2f%% (%d/%d)", mon.Base.Name, survivalRate, bs.pokemonSurvivors[index], bs.battleCount)
-	}
 }
