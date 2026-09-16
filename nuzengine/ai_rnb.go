@@ -269,6 +269,12 @@ func calculateMaxDamage(bs battleState, user, target *Pokemon, checkChoice bool)
 	var maxDmg, dmg int
 	rolls := 1
 	for _, move := range user.Moves {
+		if move.Name == "fake out" {
+			continue
+		}
+		if move.Name == "first impression" {
+			continue
+		}
 		if move.PP <= 0 || move.Class == statusClass {
 			continue
 		}

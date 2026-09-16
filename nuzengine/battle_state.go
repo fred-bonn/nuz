@@ -2,7 +2,6 @@ package nuzengine
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
@@ -21,6 +20,7 @@ type battleState interface {
 	getWeather() weatherState
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
+	discretize() discreteBattleState
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
@@ -42,26 +42,17 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	}
 	var playerAi ai
 	if policyFile != "" {
-		policy, err := loadPolicyFromDisk(policyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed loading policy '%s': %s", policyFile, err)
-		}
-		playerPartyStr = policy.PlayerParty
-		opponentPartyStr = policy.OpponentParty
-		playerAi = newStaticPolicyAIFromPolicy(policy)
+		return nil, fmt.Errorf("not implemented")
 	} else {
 		switch aiInt {
 		case 0:
-			playerAi = rnbAi{}
+			playerAi = &rnbAi{}
 		case 1:
-			learningAi := newLearningAI()
-			learningAi.playerShowdown = playerPartyStr
-			learningAi.opponentShowdown = opponentPartyStr
-			playerAi = learningAi
+			playerAi = newLearningAI()
 		case 2:
 			playerAi = newGuidedAI(os.Stdin, os.Stdout)
 		case 3:
-			playerAi = randomAi{}
+			playerAi = &randomAi{}
 		}
 	}
 
@@ -99,11 +90,6 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 }
 
 func Execute(bs battleState, iterations int) error {
-	var learning *learningAi
-	if ai, ok := bs.getPlayerTrainer().AI.(*learningAi); ok {
-		learning = ai
-	}
-
 	statistics := newBattleStatistics(bs)
 	for range iterations {
 		if err := bs.reset(); err != nil {
@@ -115,20 +101,6 @@ func Execute(bs battleState, iterations int) error {
 		}
 
 		statistics.record()
-		fmt.Println(*statistics)
-
-		if learning != nil {
-			learning.RecordBattleOutcome(statistics)
-		}
-	}
-
-	if learning != nil {
-		if err := learning.savePolicyToDisk(); err != nil {
-			log.Printf("error: failed saving policy: %s", err)
-		} else {
-			log.Printf("policy saved to policites/policy.json")
-		}
-
 	}
 
 	if iterations > 1 {
