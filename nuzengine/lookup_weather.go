@@ -31,18 +31,18 @@ var weatherFuncs = map[weatherState]func(*int, *int, pokemonType){
 	},
 }
 
-func (ws weatherState) affectsMon(mon *Pokemon) bool {
-	if mon.Ability == overcoatAbility || mon.Ability == magicGuardAbility || mon.Item.State == safetyGoggles {
+func (ws weatherState) affectsMon(mon *pokemon) bool {
+	if mon.ability == overcoatAbility || mon.ability == magicGuardAbility || mon.item.State == safetyGoggles {
 		return false
 	}
 
 	switch ws {
 	case sandstormWeather:
-		if !mon.hasType(rockType) && !mon.hasType(steelType) && !mon.hasType(groundType) && (mon.Ability < sandVeilAbility || mon.Ability > sandForceAbility) {
+		if !mon.hasType(rockType) && !mon.hasType(steelType) && !mon.hasType(groundType) && (mon.ability < sandVeilAbility || mon.ability > sandForceAbility) {
 			return true
 		}
 	case hailWeather:
-		if !mon.hasType(iceType) && (mon.Ability < iceBodyAbility || mon.Ability > snowCloakAbility) {
+		if !mon.hasType(iceType) && (mon.ability < iceBodyAbility || mon.ability > snowCloakAbility) {
 			return true
 		}
 	}
@@ -55,32 +55,32 @@ func (ws weatherState) activateMonAbility(bs battleState, slot *slot) {
 
 	switch ws {
 	case hailWeather:
-		if mon.Ability == iceBodyAbility {
-			vprintf("%s healed due to ice body", mon.Base.Name)
+		if mon.ability == iceBodyAbility {
+			vprintf("%s healed due to ice body", mon.base.Name)
 			mon.ChangeHpBy(mon.MaxHP() / 16)
 		}
 	case rainWeather:
-		switch mon.Ability {
+		switch mon.ability {
 		case raindDishAbility:
-			vprintf("%s healed due to rain dish", mon.Base.Name)
+			vprintf("%s healed due to rain dish", mon.base.Name)
 			mon.ChangeHpBy(mon.MaxHP() / 16)
 		case drySkinAbility:
 			takeResidualDamage(bs, slot, "dry skin", 1, 8)
-			vprintf("%s healed due to dry skin", mon.Base.Name)
+			vprintf("%s healed due to dry skin", mon.base.Name)
 			mon.ChangeHpBy(mon.MaxHP() / 8)
 		case hydrationAbility:
 			if mon.hasNonVolatileAilment() {
 				for ailment := range nonVolatileStatuses {
 					if mon.hasAilment(ailment) != nil {
-						delete(mon.Ailments, ailment)
-						vprintf("%s had its %s removed", mon.Base.Name, ailment.String())
+						delete(mon.ailments, ailment)
+						vprintf("%s had its %s removed", mon.base.Name, ailment.String())
 						return
 					}
 				}
 			}
 		}
 	case sunWeather:
-		switch mon.Ability {
+		switch mon.ability {
 		case drySkinAbility:
 			takeResidualDamage(bs, slot, "dry skin", 1, 8)
 		case solarPowerAbility:

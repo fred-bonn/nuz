@@ -11,7 +11,7 @@ import (
 )
 
 func TestMoveParsingAllowsMovesWithNoAilment(t *testing.T) {
-	move, err := ToMove(pokeapi.MoveJSON{
+	move, err := toMove(pokeapi.MoveJSON{
 		Name:     "low-sweep",
 		Power:    65,
 		PP:       20,
@@ -49,11 +49,11 @@ func TestMoveParsingAllowsMovesWithNoAilment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("toMove should accept a move with no ailment: %v", err)
 	}
-	if move.Name != "low-sweep" {
-		t.Fatalf("unexpected move parsed: %s", move.Name)
+	if move.name != "low-sweep" {
+		t.Fatalf("unexpected move parsed: %s", move.name)
 	}
-	if move.Ailment != noneAilment {
-		t.Fatalf("move ailment = %v, want %v", move.Ailment, noneAilment)
+	if move.ailment != noneAilment {
+		t.Fatalf("move ailment = %v, want %v", move.ailment, noneAilment)
 	}
 }
 

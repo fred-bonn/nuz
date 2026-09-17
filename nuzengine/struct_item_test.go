@@ -28,15 +28,15 @@ func TestBerryItemsCureAilments(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Base: BasePokemon{
+			mon := pokemon{
+				base: BasePokemon{
 					Types: []pokemonType{normalType},
 				},
 				unnerved: tc.unnerved,
-				Ailments: make(map[ailmentState]*ailment),
+				ailments: make(map[ailmentState]*ailment),
 			}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			if got := mon.applyAilment(tc.ailment, nil, nil); got != true {
 				t.Fatalf("mon.applyAilment(%s, nil, nil) = %t, want true", tc.ailment.String(), got)
@@ -73,17 +73,17 @@ func TestBerryItemsHeal(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				HP:       tc.initialHp,
+			mon := pokemon{
+				stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				hp:       tc.initialHp,
 				unnerved: tc.unnerved,
 			}
-			mon.Stats[hitPoints] = tc.maxHp
+			mon.stats[hitPoints] = tc.maxHp
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 			mon.checkItemTrigger(true, nil)
 
-			if got := mon.HP; got != tc.wantHp {
+			if got := mon.hp; got != tc.wantHp {
 				t.Errorf("mon.hp = %d, want %d", got, tc.wantHp)
 			}
 
@@ -113,14 +113,14 @@ func TestLeppaBerryRestoresPP(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{unnerved: tc.unnerved}
+			mon := pokemon{unnerved: tc.unnerved}
 			item, _ := registerItem(leppaBerry, &mon)
-			mon.Item = item
+			mon.item = item
 
-			move := Move{PP: tc.initialPP, MaxPP: tc.maxPP}
+			move := move{pp: tc.initialPP, maxPP: tc.maxPP}
 			mon.checkItemTrigger(true, makeLeppaBerryEvent(&move))
 
-			if got := move.PP; got != tc.wantPP {
+			if got := move.pp; got != tc.wantPP {
 				t.Errorf("move.PP = %d, want %d", got, tc.wantPP)
 			}
 
@@ -136,19 +136,19 @@ func TestLeppaBerryRestoresPP(t *testing.T) {
 }
 
 func TestLeftoversHealsAtEndOfTurn(t *testing.T) {
-	mon := &Pokemon{
-		Stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-		HP:    100,
-		Item:  &item{State: leftovers},
+	mon := &pokemon{
+		stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+		hp:    100,
+		item:  &item{State: leftovers},
 	}
-	mon.Stats[hitPoints] = 200
+	mon.stats[hitPoints] = 200
 
 	slotVar := &slot{mon: mon}
 	bs := &dummyBattleState{slots: []*slot{slotVar}}
 	resolveEndOfTurn(bs)
 
 	wantHP := 112
-	if got := mon.HP; got != wantHP {
+	if got := mon.hp; got != wantHP {
 		t.Fatalf("mon.hp = %d, want %d", got, wantHP)
 	}
 }
@@ -232,23 +232,23 @@ func TestPinchHealBerries(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Ailments: make(map[ailmentState]*ailment),
-				HP:       tc.initialHp,
+			mon := pokemon{
+				stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				ailments: make(map[ailmentState]*ailment),
+				hp:       tc.initialHp,
 				unnerved: tc.unnerved,
 			}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 			nat, _ := getNature(tc.nature)
 			mon.nat = nat
-			mon.Stats[hitPoints] = tc.maxHp
+			mon.stats[hitPoints] = tc.maxHp
 			if tc.gluttony {
-				mon.Ability = GluttonyAbility
+				mon.ability = gluttonyAbility
 			}
 
 			mon.checkItemTrigger(true, nil)
-			if got := mon.HP; got != tc.wantHp {
+			if got := mon.hp; got != tc.wantHp {
 				t.Errorf("mon.hp = %d, want %d", got, tc.wantHp)
 			}
 
@@ -288,28 +288,28 @@ func TestStatBoostBerries(t *testing.T) {
 		"liechi blocked by unnerve":                           {item: liechiBerry, stat: attack, initialHp: 25, maxHp: 100, unnerved: true, wantStage: 0},
 		"liechi uses gluttony threshold":                      {item: liechiBerry, stat: attack, initialHp: 50, maxHp: 100, gluttony: true, wantStage: 1, wantConsumed: true},
 		"liechi does not boost with gluttony above threshold": {item: liechiBerry, stat: attack, initialHp: 51, maxHp: 100, gluttony: true, wantStage: 0},
-		"salac uses gluttony threshold":                       {item: salacBerry, stat: Speed, initialHp: 50, maxHp: 100, gluttony: true, wantStage: 1, wantConsumed: true},
-		"salac does not boost with gluttony above threshold":  {item: salacBerry, stat: Speed, initialHp: 51, maxHp: 100, gluttony: true, wantStage: 0},
+		"salac uses gluttony threshold":                       {item: salacBerry, stat: speed, initialHp: 50, maxHp: 100, gluttony: true, wantStage: 1, wantConsumed: true},
+		"salac does not boost with gluttony above threshold":  {item: salacBerry, stat: speed, initialHp: 51, maxHp: 100, gluttony: true, wantStage: 0},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages:   []int{0, 0, 0, 0, 0, 0, 0, 0},
-				HP:       tc.initialHp,
+			mon := pokemon{
+				stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages:   []int{0, 0, 0, 0, 0, 0, 0, 0},
+				hp:       tc.initialHp,
 				unnerved: tc.unnerved,
 			}
-			mon.Stats[hitPoints] = tc.maxHp
+			mon.stats[hitPoints] = tc.maxHp
 			if tc.gluttony {
-				mon.Ability = GluttonyAbility
+				mon.ability = gluttonyAbility
 			}
 
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			mon.checkItemTrigger(true, nil)
-			if got := mon.Stages[tc.stat]; got != tc.wantStage {
+			if got := mon.stages[tc.stat]; got != tc.wantStage {
 				t.Errorf("mon.stages[%s] = %d, want %d", tc.stat, got, tc.wantStage)
 			}
 
@@ -346,9 +346,9 @@ func TestResistBerries(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{unnerved: tc.unnerved}
+			mon := pokemon{unnerved: tc.unnerved}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			damage := tc.initialDamage
 			if tc.event {
@@ -388,9 +388,9 @@ func TestTypeGems(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{}
+			mon := pokemon{}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			power := tc.initialPower
 			if tc.event {
@@ -426,20 +426,20 @@ func TestChoiceScarf(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			mon.Stats[Speed] = tc.speed
+			mon.stats[speed] = tc.speed
 			item, _ := registerItem(choiceScarf, &mon)
-			mon.Item = item
+			mon.item = item
 			bs := initBenchBattleState(noneWeather)
 
 			if got := mon.effectiveSpeed(bs); got != tc.want {
 				t.Errorf("mon.effectiveSpeed(bs) = %d, want %d", got, tc.want)
 			}
 
-			if got := mon.Stats[Speed]; got != tc.speed {
+			if got := mon.stats[speed]; got != tc.speed {
 				t.Errorf("choice scarf should not modify the base stats directly")
 			}
 		})
@@ -460,19 +460,19 @@ func TestAssaultVest(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			mon.Stats[specialDefense] = tc.spdef
+			mon.stats[specialDefense] = tc.spdef
 			item, _ := registerItem(assaultVest, &mon)
-			mon.Item = item
+			mon.item = item
 
 			if got := mon.effectiveStat(specialDefense, tc.crit); got != tc.want {
 				t.Errorf("mon.effectiveSpeed(bs) = %d, want %d", got, tc.want)
 			}
 
-			if got := mon.Stats[specialDefense]; got != tc.spdef {
+			if got := mon.stats[specialDefense]; got != tc.spdef {
 				t.Errorf("assault vest should not modify the base stats directly")
 			}
 		})
@@ -489,21 +489,21 @@ func TestChoiceBand(t *testing.T) {
 		"100 base attack": {initialAttack: 100, class: physicalClass, event: true, want: 150},
 		"66 base attack":  {initialAttack: 66, class: physicalClass, event: true, want: 99},
 		"1 base attack":   {initialAttack: 1, class: physicalClass, event: true, want: 1},
-		"choice band wont activate with special move class":   {initialAttack: 100, class: SpecialClass, event: true, want: 100},
+		"choice band wont activate with special move class":   {initialAttack: 100, class: specialClass, event: true, want: 100},
 		"choice band wont activate without choice item event": {initialAttack: 100, class: physicalClass, event: false, want: 100},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			move := Move{
-				Class: tc.class,
+			move := move{
+				class: tc.class,
 			}
 			item, _ := registerItem(choiceBand, &mon)
-			mon.Item = item
+			mon.item = item
 
 			newAttack := tc.initialAttack
 			if tc.event {
@@ -530,24 +530,24 @@ func TestChoiceSpecs(t *testing.T) {
 		event                bool
 		want                 int
 	}{
-		"100 base attack": {initialSpecialAttack: 100, class: SpecialClass, event: true, want: 150},
-		"66 base attack":  {initialSpecialAttack: 66, class: SpecialClass, event: true, want: 99},
-		"1 base attack":   {initialSpecialAttack: 1, class: SpecialClass, event: true, want: 1},
+		"100 base attack": {initialSpecialAttack: 100, class: specialClass, event: true, want: 150},
+		"66 base attack":  {initialSpecialAttack: 66, class: specialClass, event: true, want: 99},
+		"1 base attack":   {initialSpecialAttack: 1, class: specialClass, event: true, want: 1},
 		"choice specs wont activate with physical move class":  {initialSpecialAttack: 100, class: physicalClass, event: true, want: 100},
-		"choice specs wont activate without choice item event": {initialSpecialAttack: 100, class: SpecialClass, event: false, want: 100},
+		"choice specs wont activate without choice item event": {initialSpecialAttack: 100, class: specialClass, event: false, want: 100},
 	}
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			move := Move{
-				Class: tc.class,
+			move := move{
+				class: tc.class,
 			}
 			item, _ := registerItem(choiceSpecs, &mon)
-			mon.Item = item
+			mon.item = item
 
 			newSpecialAttack := tc.initialSpecialAttack
 			if tc.event {
@@ -584,13 +584,13 @@ func TestFocusSash(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				HP:    tc.initialHp,
+			mon := pokemon{
+				stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				hp:    tc.initialHp,
 			}
-			mon.Stats[hitPoints] = tc.maxHp
+			mon.stats[hitPoints] = tc.maxHp
 			item, _ := registerItem(focusSash, &mon)
-			mon.Item = item
+			mon.item = item
 
 			damage := tc.initialDamage
 			if tc.event {
@@ -632,9 +632,9 @@ func TestTypeBoostingItem(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{}
+			mon := pokemon{}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			power := tc.initialPower
 			if tc.event {

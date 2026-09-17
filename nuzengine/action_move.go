@@ -8,18 +8,18 @@ import (
 type moveAction struct {
 	userSlot   *slot
 	targetSlot *slot
-	move       *Move
+	move       *move
 	flinch     bool
 	pursuit    bool
 }
 
 func (ma *moveAction) prio(bs battleState) int {
 	bonus := 0
-	if ma.userSlot.mon.Ability == pranksterAbility && ma.move.Class == statusClass {
+	if ma.userSlot.mon.ability == pranksterAbility && ma.move.class == statusClass {
 		bonus++
 	}
 
-	return ma.move.Priority + bonus
+	return ma.move.priority + bonus
 }
 
 func (ma *moveAction) speed(bs battleState) int {
@@ -31,39 +31,39 @@ func (ma *moveAction) invoke(bs battleState) {
 		return
 	}
 
-	if (ma.move.Name == "fake out" || ma.move.Name == "first impression") && !ma.userSlot.firstTurn {
-		vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.Base.Name, ma.move.Name)
+	if (ma.move.name == "fake out" || ma.move.name == "first impression") && !ma.userSlot.firstTurn {
+		vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.base.Name, ma.move.name)
 		vprintf("but it failed")
 		return
 	}
 
 	ma.userSlot.firstTurn = false
 
-	ma.userSlot.suckerPunch = ma.move.Name == "sucker punch"
+	ma.userSlot.suckerPunch = ma.move.name == "sucker punch"
 
-	if _, ok := ma.userSlot.mon.Ailments[freezeAilment]; ok {
-		if isSelfThawingMove(ma.move.Name) || roll(1, 5) {
-			vprintf("%s thawed out", ma.userSlot.mon.Base.Name)
-			delete(ma.userSlot.mon.Ailments, freezeAilment)
+	if _, ok := ma.userSlot.mon.ailments[freezeAilment]; ok {
+		if isSelfThawingMove(ma.move.name) || roll(1, 5) {
+			vprintf("%s thawed out", ma.userSlot.mon.base.Name)
+			delete(ma.userSlot.mon.ailments, freezeAilment)
 		} else {
 			ma.userSlot.invulnerableAction = nil
-			vprintMove(ma.prio(bs), ma.speed(bs), "%s is frozen", ma.userSlot.mon.Base.Name)
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s is frozen", ma.userSlot.mon.base.Name)
 			return
 		}
 	}
 
 	if sleep := ma.userSlot.mon.hasAilment(sleepAilment); sleep != nil {
 		if sleep.Turns <= 0 {
-			vprintf("%s woke up", ma.userSlot.mon.Base.Name)
-			delete(ma.userSlot.mon.Ailments, sleepAilment)
+			vprintf("%s woke up", ma.userSlot.mon.base.Name)
+			delete(ma.userSlot.mon.ailments, sleepAilment)
 		} else {
-			if ma.userSlot.mon.Ability == earlyBirdAbility {
+			if ma.userSlot.mon.ability == earlyBirdAbility {
 				sleep.Turns -= 2
 			} else {
 				sleep.Turns--
 			}
 			ma.userSlot.invulnerableAction = nil
-			vprintMove(ma.prio(bs), ma.speed(bs), "%s is asleep", ma.userSlot.mon.Base.Name)
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s is asleep", ma.userSlot.mon.base.Name)
 			return
 		}
 	}
@@ -71,27 +71,27 @@ func (ma *moveAction) invoke(bs battleState) {
 	if confusion := ma.userSlot.mon.hasAilment(confusionAilment); confusion != nil {
 		if confusion.Turns > 0 {
 			confusion.Turns -= 1
-			vprintf("%s is confused", ma.userSlot.mon.Base.Name)
+			vprintf("%s is confused", ma.userSlot.mon.base.Name)
 			if roll(1, 3) {
 				damage := calculateDamage(ma.userSlot.mon, ma.userSlot.mon, getConfusionMove(), new(false), bs.getWeather(), false, false, false)
 				ma.userSlot.invulnerableAction = nil
-				vprintMove(ma.prio(bs), ma.speed(bs), "%s hit itself in confusion for %d damage", ma.userSlot.mon.Base.Name, damage)
-				ma.userSlot.mon.HP -= int(damage)
-				if ma.userSlot.mon.HP <= 0 {
+				vprintMove(ma.prio(bs), ma.speed(bs), "%s hit itself in confusion for %d damage", ma.userSlot.mon.base.Name, damage)
+				ma.userSlot.mon.hp -= int(damage)
+				if ma.userSlot.mon.hp <= 0 {
 					monFainted(bs, ma.userSlot, false)
 				}
 				return
 			}
 		} else {
-			delete(ma.userSlot.mon.Ailments, confusionAilment)
-			vprintf("%s snapped out of confusion", ma.userSlot.mon.Base.Name)
+			delete(ma.userSlot.mon.ailments, confusionAilment)
+			vprintf("%s snapped out of confusion", ma.userSlot.mon.base.Name)
 		}
 	}
 
 	if paralysis := ma.userSlot.mon.hasAilment(paralysisAilment); paralysis != nil {
 		if roll(1, 4) {
 			ma.userSlot.invulnerableAction = nil
-			vprintf("%s is paralysed", ma.userSlot.mon.Base.Name)
+			vprintf("%s is paralysed", ma.userSlot.mon.base.Name)
 			return
 		}
 	}
@@ -99,23 +99,23 @@ func (ma *moveAction) invoke(bs battleState) {
 	if infatuation := ma.userSlot.mon.hasAilment(infatuationAilment); infatuation != nil {
 		if roll(1, 2) {
 			ma.userSlot.invulnerableAction = nil
-			vprintf("%s is infatuated with %s", ma.userSlot.mon.Base.Name, infatuation.afflictedBy.mon.Base.Name)
+			vprintf("%s is infatuated with %s", ma.userSlot.mon.base.Name, infatuation.afflictedBy.mon.base.Name)
 			return
 		}
 	}
 
 	if ma.flinch {
-		vprintf("%s flinched", ma.userSlot.mon.Base.Name)
+		vprintf("%s flinched", ma.userSlot.mon.base.Name)
 		return
 	}
 
-	ma.move.PP--
+	ma.move.pp--
 
-	if isMultipleTurnMove(ma.move.Name) {
+	if isMultipleTurnMove(ma.move.name) {
 		if ma.userSlot.invulnerableAction == nil {
-			ma.move.PP++
+			ma.move.pp++
 			ma.userSlot.invulnerableAction = ma
-			vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s and became invulnerable", ma.userSlot.mon.Base.Name, ma.move.Name)
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s and became invulnerable", ma.userSlot.mon.base.Name, ma.move.name)
 			return
 		}
 		ma.userSlot.invulnerableAction = nil
@@ -123,21 +123,21 @@ func (ma *moveAction) invoke(bs battleState) {
 
 	if ma.userSlot.suckerPunch {
 		targetMove := bs.getActions().getMoveActionBy(ma.targetSlot.mon)
-		if targetMove == nil || targetMove.move.Class == statusClass {
-			vprintMove(ma.prio(bs), ma.speed(bs), "%s used sucker punch but it failed", ma.userSlot.mon.Base.Name)
+		if targetMove == nil || targetMove.move.class == statusClass {
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s used sucker punch but it failed", ma.userSlot.mon.base.Name)
 			return
 		}
 	}
 
 	target := ma.targetSlot.mon
-	if ma.move.Accuracy > 0 && !ma.pursuit && !accuracyRoll(bs, ma.userSlot.mon, target, ma.move) {
-		vprintMove(ma.prio(bs), ma.speed(bs), "%s's move %s missed", ma.userSlot.mon.Base.Name, ma.move.Name)
+	if ma.move.accuracy > 0 && !ma.pursuit && !accuracyRoll(bs, ma.userSlot.mon, target, ma.move) {
+		vprintMove(ma.prio(bs), ma.speed(bs), "%s's move %s missed", ma.userSlot.mon.base.Name, ma.move.name)
 		return
 	}
 
-	vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.Base.Name, ma.move.Name)
+	vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.base.Name, ma.move.name)
 
-	if ma.move.Name == "struggle" {
+	if ma.move.name == "struggle" {
 		ma.userSlot.mon.ChangeHpBy(-(ma.userSlot.mon.MaxHP() / 4))
 	}
 
@@ -146,19 +146,19 @@ func (ma *moveAction) invoke(bs battleState) {
 		return
 	}
 
-	if ma.targetSlot.invulnerableAction != nil && ma.userSlot.mon.Ability != noGuardAbility && ma.targetSlot.mon.Ability != noGuardAbility {
+	if ma.targetSlot.invulnerableAction != nil && ma.userSlot.mon.ability != noGuardAbility && ma.targetSlot.mon.ability != noGuardAbility {
 		// special cases for surf against dive, thunder against fly, etc
 		vprintln("but it failed")
 		return
 	}
 
-	if isPowderMove(ma.move.Name) && ma.targetSlot.mon.isImmuneToPowderMoves() {
+	if isPowderMove(ma.move.name) && ma.targetSlot.mon.isImmuneToPowderMoves() {
 		vprintln("but it failed")
 		return
 	}
 
-	if ma.move.Class == statusClass {
-		if strings.HasPrefix(ma.move.Target, "user") {
+	if ma.move.class == statusClass {
+		if strings.HasPrefix(ma.move.target, "user") {
 			ma.applyStatusMove(bs, ma.userSlot.mon, false)
 		} else {
 			ma.applyStatusMove(bs, target, true)
@@ -167,26 +167,26 @@ func (ma *moveAction) invoke(bs battleState) {
 		ma.applyDamageMove(bs)
 	}
 
-	if ma.userSlot.mon.HP <= 0 {
+	if ma.userSlot.mon.hp <= 0 {
 		monFainted(bs, ma.userSlot, false)
 		return
 	}
 
 	ma.userSlot.mon.checkItemTrigger(true, makeLeppaBerryEvent(ma.move))
 
-	if ma.move.Type == fireType {
-		delete(ma.targetSlot.mon.Ailments, freezeAilment)
+	if ma.move.moveType == fireType {
+		delete(ma.targetSlot.mon.ailments, freezeAilment)
 	}
 }
 
-func (ma *moveAction) applyStatusMove(bs battleState, target *Pokemon, offensive bool) {
-	if isProtectMove(ma.move.Name) {
+func (ma *moveAction) applyStatusMove(bs battleState, target *pokemon, offensive bool) {
+	if isProtectMove(ma.move.name) {
 		ma.userSlot.resolveProtect()
 		return
 	}
 
-	if ma.move.Category == "field-effect" {
-		err := ma.targetSlot.applyFieldEffect(ma.move.Name)
+	if ma.move.category == "field-effect" {
+		err := ma.targetSlot.applyFieldEffect(ma.move.name)
 		if err != nil {
 			bs.setError(err)
 		}
@@ -194,7 +194,7 @@ func (ma *moveAction) applyStatusMove(bs battleState, target *Pokemon, offensive
 		return
 	}
 
-	switch ma.move.Name {
+	switch ma.move.name {
 	case "swagger":
 		target.changeStatStageBy(attack, 2, false)
 		target.applyAilment(confusionAilment, ma.move, ma.userSlot)
@@ -206,30 +206,30 @@ func (ma *moveAction) applyStatusMove(bs battleState, target *Pokemon, offensive
 		target.laserFocus = true
 		return
 	case "belly drum":
-		if target.HP*2 <= target.MaxHP() {
+		if target.hp*2 <= target.MaxHP() {
 			vprintf("but it failed")
 			return
 		}
 
-		vprintf("%s took damage from belly drum", target.Base.Name)
+		vprintf("%s took damage from belly drum", target.base.Name)
 		target.ChangeHpBy(-(target.MaxHP() / 2))
 		target.changeStatStageBy(attack, 6, false)
 	}
 
-	if ma.move.Heal > 0 {
-		change := target.MaxHP() * ma.move.Heal / 100
+	if ma.move.heal > 0 {
+		change := target.MaxHP() * ma.move.heal / 100
 		target.ChangeHpBy(change)
-		vprintf("%s healed for %d", target.Base.Name, change)
+		vprintf("%s healed for %d", target.base.Name, change)
 	}
 
-	if ma.move.Ailment != noneAilment {
-		target.applyAilment(ma.move.Ailment, ma.move, ma.userSlot)
+	if ma.move.ailment != noneAilment {
+		target.applyAilment(ma.move.ailment, ma.move, ma.userSlot)
 	}
 
-	for stat, change := range ma.move.StatChanges {
+	for stat, change := range ma.move.statChanges {
 		s := stringToStat(stat)
 		if s == noStat {
-			bs.setError(fmt.Errorf("%s is not a valid stat for %s", stat, ma.move.Name))
+			bs.setError(fmt.Errorf("%s is not a valid stat for %s", stat, ma.move.name))
 			return
 		}
 		target.changeStatStageBy(s, change, offensive)
@@ -243,7 +243,7 @@ func (ma *moveAction) applyDamageMove(bs battleState) {
 	}
 
 	hits := 1
-	if ma.move.MinHits > 0 {
+	if ma.move.minHits > 0 {
 		hits = determineHits(ma.move)
 	}
 
@@ -266,54 +266,54 @@ func (ma *moveAction) resolveDamage(bs battleState) bool {
 
 	damage := calculateDamage(user, target, ma.move, crit, bs.getWeather(), false, false, ma.pursuit)
 	if damage == 0 {
-		vprintf("it does not affect %s", target.Base.Name)
+		vprintf("it does not affect %s", target.base.Name)
 		return false
 	}
 
-	target.checkItemTrigger(true, makeResistBerryEvent(ma.move.Type, nil))
+	target.checkItemTrigger(true, makeResistBerryEvent(ma.move.moveType, nil))
 	target.checkItemTrigger(true, makeFocusSashEvent(&damage))
-	if target.Ability == sturdyAbility && target.HP == target.MaxHP() {
-		damage = min(damage, target.HP-1)
+	if target.ability == sturdyAbility && target.hp == target.MaxHP() {
+		damage = min(damage, target.hp-1)
 	}
-	user.checkItemTrigger(true, makeGemEvent(ma.move.Type, nil))
+	user.checkItemTrigger(true, makeGemEvent(ma.move.moveType, nil))
 
-	damage = min(damage, target.HP)
-	vprintf("%s took %d damage", target.Base.Name, int(damage))
+	damage = min(damage, target.hp)
+	vprintf("%s took %d damage", target.base.Name, int(damage))
 	if *crit {
 		vprintf("it was a critical hit!")
 	}
-	if ma.move.Name == "bug bite" && target.Item.State.isBerry() && !target.Item.Consumed {
-		vprintf("%s's %s was consumed by bug bite", target.Base.Name, target.Item.String())
-		item, _ := registerItem(target.Item.State, user)
+	if ma.move.name == "bug bite" && target.item.State.isBerry() && !target.item.Consumed {
+		vprintf("%s's %s was consumed by bug bite", target.base.Name, target.item.String())
+		item, _ := registerItem(target.item.State, user)
 		item.activate()
-		target.Item, _ = registerItem(noneItem, target)
+		target.item, _ = registerItem(noneItem, target)
 
-	} else if ma.move.Name == "wake up slap" {
+	} else if ma.move.name == "wake up slap" {
 		if a := target.hasAilment(sleepAilment); a != nil {
-			vprintf("%s woke up", target.Base.Name)
-			delete(target.Ailments, sleepAilment)
+			vprintf("%s woke up", target.base.Name)
+			delete(target.ailments, sleepAilment)
 		}
-	} else if ma.move.Name == "knock off" && !target.Item.Consumed && target.Ability != stickyHoldAbility {
-		vprintf("%s had its %s knocked off", target.Base.Name, target.Item.String())
-		target.Item = &item{
+	} else if ma.move.name == "knock off" && !target.item.Consumed && target.ability != stickyHoldAbility {
+		vprintf("%s had its %s knocked off", target.base.Name, target.item.String())
+		target.item = &item{
 			Consumed: true,
 		}
 	}
 	target.ChangeHpBy(-damage)
-	if target.HP <= 0 {
+	if target.hp <= 0 {
 		monFainted(bs, ma.targetSlot, ma.pursuit)
 	}
 
-	if ma.move.Drain != 0 {
-		change := damage * ma.move.Drain / 100
+	if ma.move.drain != 0 {
+		change := damage * ma.move.drain / 100
 		if change == 0 {
-			if ma.move.Drain > 0 {
+			if ma.move.drain > 0 {
 				change = 1
 			} else {
 				change = -1
 			}
 		}
-		if target.Ability == liquidOozeAbility {
+		if target.ability == liquidOozeAbility {
 			if change > 0 {
 				change = -change
 			}
@@ -321,45 +321,45 @@ func (ma *moveAction) resolveDamage(bs battleState) bool {
 
 		user.ChangeHpBy(change)
 		if change >= 0 {
-			vprintf("%s healed for %d", user.Base.Name, change)
+			vprintf("%s healed for %d", user.base.Name, change)
 		} else {
-			vprintf("%s took recoil for %d", user.Base.Name, -change)
-			if user.HP <= 0 {
+			vprintf("%s took recoil for %d", user.base.Name, -change)
+			if user.hp <= 0 {
 				monFainted(bs, ma.userSlot, false)
 			}
 		}
 	}
 
-	if f, ok := contactDefensiveAbilities[target.Ability]; ok && ma.move.Contact {
+	if f, ok := contactDefensiveAbilities[target.ability]; ok && ma.move.isContact {
 		f(ma.userSlot, ma.targetSlot)
-		if user.HP <= 0 {
+		if user.hp <= 0 {
 			monFainted(bs, ma.userSlot, false)
 		}
-	} else if target.Ability == cottenDownAbility {
+	} else if target.ability == cottenDownAbility {
 		for _, slot := range bs.getOtherSlots(ma.targetSlot) {
-			slot.mon.changeStatStageBy(Speed, -1, true)
+			slot.mon.changeStatStageBy(speed, -1, true)
 		}
-	} else if target.Ability == waterCompactionAbility && ma.move.Type == waterType {
+	} else if target.ability == waterCompactionAbility && ma.move.moveType == waterType {
 		target.changeStatStageBy(defense, 2, false)
 	}
-	if f, ok := contactOffensiveAbilities[user.Ability]; ok && ma.move.Contact {
+	if f, ok := contactOffensiveAbilities[user.ability]; ok && ma.move.isContact {
 		f(ma.userSlot, ma.targetSlot)
 	}
 
 	sg := user.serenceGraceBonus()
 
-	if ma.move.StatChance > 0 && ma.move.Category == "damage-raise" && roll(ma.move.StatChance*sg, 100) {
-		for stat, change := range ma.move.StatChanges {
+	if ma.move.statChance > 0 && ma.move.category == "damage-raise" && roll(ma.move.statChance*sg, 100) {
+		for stat, change := range ma.move.statChanges {
 			s := stringToStat(stat)
 			if s == noStat {
-				bs.setError(fmt.Errorf("%s is not a valid stat for %s", stat, ma.move.Name))
+				bs.setError(fmt.Errorf("%s is not a valid stat for %s", stat, ma.move.name))
 				return false
 			}
 			user.changeStatStageBy(s, change, false)
 		}
 	}
 
-	if isPivotMove(ma.move.Name) {
+	if isPivotMove(ma.move.name) {
 		if ma.userSlot.Trainer.canReplace(bs) {
 			injectReplaceAction(bs, ma.userSlot, true)
 		}
@@ -369,25 +369,25 @@ func (ma *moveAction) resolveDamage(bs battleState) bool {
 		return false
 	}
 
-	if target.Ability == shieldDustAbility {
+	if target.ability == shieldDustAbility {
 		return true
 	}
 
-	if ma.move.AilmentChance > 0 && !target.fainted && roll(ma.move.AilmentChance*sg, 100) {
-		target.applyAilment(ma.move.Ailment, ma.move, ma.userSlot)
+	if ma.move.ailmentChance > 0 && !target.fainted && roll(ma.move.ailmentChance*sg, 100) {
+		target.applyAilment(ma.move.ailment, ma.move, ma.userSlot)
 	}
 
-	if ma.move.FlinchChance > 0 && !target.fainted && target.Ability != innerFocusAbility && roll(ma.move.FlinchChance*sg, 100) {
+	if ma.move.flinchChance > 0 && !target.fainted && target.ability != innerFocusAbility && roll(ma.move.flinchChance*sg, 100) {
 		if targetMove := bs.getActions().getMoveActionBy(target); targetMove != nil {
 			targetMove.flinch = true
 		}
 	}
 
-	if ma.move.StatChance > 0 && ma.move.Category == "damage-lower" && roll(ma.move.StatChance*sg, 100) {
-		for stat, change := range ma.move.StatChanges {
+	if ma.move.statChance > 0 && ma.move.category == "damage-lower" && roll(ma.move.statChance*sg, 100) {
+		for stat, change := range ma.move.statChanges {
 			s := stringToStat(stat)
 			if s == noStat {
-				bs.setError(fmt.Errorf("%s is not a valid stat for %s", stat, ma.move.Name))
+				bs.setError(fmt.Errorf("%s is not a valid stat for %s", stat, ma.move.name))
 				return false
 			}
 			target.changeStatStageBy(s, change, true)

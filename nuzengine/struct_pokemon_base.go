@@ -7,15 +7,15 @@ import (
 )
 
 type BasePokemon struct {
-	Id     int
-	Name   string
-	Height int
-	Weight int
-	Types  []pokemonType
-	Stats  map[string]int
+	Id     int            `json:"id"`
+	Name   string         `json:"name"`
+	Height int            `json:"height"`
+	Weight int            `json:"weight"`
+	Types  []pokemonType  `json:"types"`
+	Stats  map[string]int `json:"stats"`
 }
 
-func ToPokemon(pj pokeapi.PokemonJSON) (BasePokemon, error) {
+func toPokemon(pj pokeapi.PokemonJSON) (BasePokemon, error) {
 	types := make([]pokemonType, len(pj.Types))
 	for i, t := range pj.Types {
 		types[i] = stringToPokemonType(t.Type.Name)

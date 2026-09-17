@@ -15,7 +15,7 @@ type config struct {
 	client pokeapi.Client
 }
 
-func (cfg *config) validateInput(trainerContent string) ([]*Pokemon, error) {
+func (cfg *config) validateInput(trainerContent string) ([]*pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(trainerContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
@@ -24,7 +24,7 @@ func (cfg *config) validateInput(trainerContent string) ([]*Pokemon, error) {
 	return cfg.validateParty(trainerPokemon)
 }
 
-func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*Pokemon, error) {
+func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*pokemon, error) {
 	if len(trainerPokemon) == 0 {
 		return nil, fmt.Errorf("showdown party is empty")
 	}
@@ -37,11 +37,11 @@ func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*Poke
 	return trainerParty, nil
 }
 
-func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*Pokemon, error) {
-	var res []*Pokemon
+func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*pokemon, error) {
+	var res []*pokemon
 
 	for _, parsedPokemon := range parsedPokemons {
-		var moves []*Move
+		var moves []*move
 
 		basePokemon, err := cfg.loadPokemon(apiName(parsedPokemon.Name))
 		if err != nil {
@@ -54,14 +54,14 @@ func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*Pokem
 				return nil, err
 			}
 
-			if mb, ok := moveBalanceMap[baseMove.Name]; ok {
+			if mb, ok := moveBalanceMap[baseMove.name]; ok {
 				mb.apply(&baseMove)
 			}
 
 			moves = append(moves, &baseMove)
 		}
 
-		finalPokemon, err := InitPokemon(basePokemon, moves, parsedPokemon)
+		finalPokemon, err := initPokemon(basePokemon, moves, parsedPokemon)
 		if err != nil {
 			return nil, err
 		}
@@ -93,7 +93,7 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	}
 	fmt.Printf("Fetched '%s' from API\n", name)
 
-	p, err = ToPokemon(pokemonJSON)
+	p, err = toPokemon(pokemonJSON)
 	if err != nil {
 		return BasePokemon{}, err
 	}
@@ -108,15 +108,15 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	return p, nil
 }
 
-func (cfg *config) loadMove(name string) (Move, error) {
-	var m Move
+func (cfg *config) loadMove(name string) (move, error) {
+	var m move
 
 	if strings.HasPrefix(name, "hidden-power") {
 		// If the move is Hidden Power, generate it
 		var err error
 		m, err = generateHiddenPower(name)
 		if err != nil {
-			return Move{}, err
+			return move{}, err
 		}
 		return m, nil
 	}
@@ -126,7 +126,7 @@ func (cfg *config) loadMove(name string) (Move, error) {
 		// If the file exists and is read successfully, unmarshal it into a Move struct
 		err = json.Unmarshal(data, &m)
 		if err != nil {
-			return Move{}, fmt.Errorf("failed unmarshaling Move '%s' data: %w", name, err)
+			return move{}, fmt.Errorf("failed unmarshaling Move '%s' data: %w", name, err)
 		}
 
 		return m, nil
@@ -135,13 +135,13 @@ func (cfg *config) loadMove(name string) (Move, error) {
 	// Otherwise, fetch the Move data from the API
 	moveJson, err := cfg.client.FetchMove(name)
 	if err != nil {
-		return Move{}, fmt.Errorf("failed fetching Move '%s': %w", name, err)
+		return move{}, fmt.Errorf("failed fetching Move '%s': %w", name, err)
 	}
 	fmt.Printf("Fetched '%s' from API\n", name)
 
-	m, err = ToMove(moveJson)
+	m, err = toMove(moveJson)
 	if err != nil {
-		return Move{}, err
+		return move{}, err
 	}
 
 	// Save the fetched Move data using the internal Move struct to a file for future use
@@ -154,23 +154,23 @@ func (cfg *config) loadMove(name string) (Move, error) {
 	return m, nil
 }
 
-func generateHiddenPower(name string) (Move, error) {
+func generateHiddenPower(name string) (move, error) {
 	parts := strings.Split(name, "-")
 	if len(parts) != 3 {
-		return Move{}, fmt.Errorf("type not specified for hidden power")
+		return move{}, fmt.Errorf("type not specified for hidden power")
 	}
 
 	moveType := stringToPokemonType(parts[2])
 	if moveType == noType {
-		return Move{}, fmt.Errorf("%s is not a valid type for %s", parts[2], name)
+		return move{}, fmt.Errorf("%s is not a valid type for %s", parts[2], name)
 	}
 
-	move := Move{
-		Name:     "hidden power",
-		Type:     moveType,
-		Power:    60,
-		Accuracy: 100,
-		Class:    SpecialClass,
+	move := move{
+		name:     "hidden power",
+		moveType: moveType,
+		power:    60,
+		accuracy: 100,
+		class:    specialClass,
 	}
 
 	return move, nil

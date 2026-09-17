@@ -48,12 +48,12 @@ func isSpeedControlMove(move string) bool {
 }
 
 var offenseControlMoves = map[string]moveClass{
-	"mystical fire":  SpecialClass,
-	"skitter smack":  SpecialClass,
+	"mystical fire":  specialClass,
+	"skitter smack":  specialClass,
 	"breaking swipe": physicalClass,
-	"snarl":          SpecialClass,
-	"struggle bug":   SpecialClass,
-	"trop kick":      SpecialClass,
+	"snarl":          specialClass,
+	"struggle bug":   specialClass,
+	"trop kick":      specialClass,
 	"chilling water": physicalClass,
 	"lunge":          physicalClass,
 }

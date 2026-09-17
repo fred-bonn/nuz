@@ -15,6 +15,8 @@ type dummyBattleState struct {
 	slots   []*slot
 }
 
+type discreteDummyBattleState struct{}
+
 func initBenchBattleState(w weatherState) *dummyBattleState {
 	return &dummyBattleState{
 		weather: w,
@@ -32,7 +34,8 @@ func (bs *dummyBattleState) getActions() *actionQueue             { return bs.ac
 func (bs *dummyBattleState) getWeather() weatherState             { return bs.weather }
 func (bs *dummyBattleState) setWeather(weatherState)              {}
 func (bs *dummyBattleState) getFieldEffects() map[fieldEffect]int { return nil }
-func (bs *dummyBattleState) reset() error                         { return nil }
+func (bs *dummyBattleState) reset()                               {}
 func (bs *dummyBattleState) getStatistics() *battleStatistics     { return nil }
 func (bs *dummyBattleState) recordStatistics()                    {}
 func (bs *dummyBattleState) printStatistics()                     {}
+func (bs *dummyBattleState) discretize() discreteBattleState      { return discreteDummyBattleState{} }

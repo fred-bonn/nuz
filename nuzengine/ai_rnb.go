@@ -6,7 +6,7 @@ import (
 
 type rnbAi struct{}
 
-func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
+func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
 	opponent := bs.getOpponentSlot(slot).mon
 	for _, mon := range party {
 		if mon == slot.mon || mon.fainted {
@@ -14,10 +14,10 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Po
 		}
 
 		opponentDamage := calculateMaxDamage(bs, opponent, mon, false)
-		oneHitKill := opponentDamage >= mon.HP
-		twoHitKillWhileSlower := opponentDamage*2 >= mon.HP && !opponent.isFasterThan(bs, mon)
+		oneHitKill := opponentDamage >= mon.hp
+		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponent.isFasterThan(bs, mon)
 		if !oneHitKill && !twoHitKillWhileSlower {
-			return score <= 0 && !roll(1, 2) && slot.mon.HP > slot.mon.MaxHP()/2
+			return score <= 0 && !roll(1, 2) && slot.mon.hp > slot.mon.MaxHP()/2
 		}
 	}
 
@@ -32,48 +32,48 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 	canHighestKill := false
 
 	for i, a := range actions {
-		if a.move.PP <= 0 {
+		if a.move.pp <= 0 {
 			damage[i] = -1
 			scores[i] = -64
 			continue
 		}
 
-		if a.move.Class == statusClass {
+		if a.move.class == statusClass {
 			damage[i] = -1
 			scores[i], _ = a.scoreActionMove(bs)
 			continue
 		}
 
-		if a.move.Name == "nuzzle" {
+		if a.move.name == "nuzzle" {
 			damage[i] = -1
 			scores[i] = a.scoreParalysisMove(bs)
 			continue
-		} else if a.move.Name == "rollout" {
+		} else if a.move.name == "rollout" {
 			damage[i] = -1
 			scores[i] = 7
 			continue
-		} else if a.move.Name == "fake out" {
-			if !a.userSlot.firstTurn || a.targetSlot.mon.Ability == innerFocusAbility || a.targetSlot.mon.Ability == shieldDustAbility {
+		} else if a.move.name == "fake out" {
+			if !a.userSlot.firstTurn || a.targetSlot.mon.ability == innerFocusAbility || a.targetSlot.mon.ability == shieldDustAbility {
 				damage[i] = -1
 				scores[i] = -64
 				continue
 			}
 			scores[i] = 9
 
-		} else if a.move.Name == "first impression" && !a.userSlot.firstTurn {
+		} else if a.move.name == "first impression" && !a.userSlot.firstTurn {
 			damage[i] = -1
 			scores[i] = -64
 			continue
-		} else if a.move.Name == "belch" && (!a.userSlot.mon.Item.State.isBerry() || !a.userSlot.mon.Item.Consumed) {
+		} else if a.move.name == "belch" && (!a.userSlot.mon.item.State.isBerry() || !a.userSlot.mon.item.Consumed) {
 			damage[i] = -1
 			scores[i] = -64
 			continue
-		} else if a.move.Name == "sucker punch" && a.userSlot.suckerPunch && roll(1, 2) {
+		} else if a.move.name == "sucker punch" && a.userSlot.suckerPunch && roll(1, 2) {
 			scores[i] = -20
 		}
 
-		if a.move.Ailment == trapAilment {
-			if _, ok := a.targetSlot.mon.Ailments[trapAilment]; !ok {
+		if a.move.ailment == trapAilment {
+			if _, ok := a.targetSlot.mon.ailments[trapAilment]; !ok {
 				scores[i] = 6 + 2*rollInt(1, 5)
 			}
 		}
@@ -97,24 +97,24 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 		}
 
 		// add additional scoring to damaging moves
-		if a.move.Name == "fell stinger" && kills[i] {
+		if a.move.name == "fell stinger" && kills[i] {
 			if a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
 				scores[i] = 21 + 2*rollInt(1, 5)
 			} else {
 				scores[i] = 15 + 2*rollInt(1, 5)
 			}
-		} else if a.move.Name == "acid spray" {
+		} else if a.move.name == "acid spray" {
 			scores[i] = 6
-		} else if a.move.Name == "future sight" {
+		} else if a.move.name == "future sight" {
 			// needs 8 score instead if faster and dead to target
 			scores[i] = 6
-		} else if a.move.Name == "pursuit" {
+		} else if a.move.name == "pursuit" {
 			if kills[i] {
 				scores[i] = 10
 			} else {
-				if a.targetSlot.mon.HP < a.targetSlot.mon.MaxHP()/5 {
+				if a.targetSlot.mon.hp < a.targetSlot.mon.MaxHP()/5 {
 					scores[i] = 10
-				} else if a.targetSlot.mon.HP < a.targetSlot.mon.MaxHP()*2/5 {
+				} else if a.targetSlot.mon.hp < a.targetSlot.mon.MaxHP()*2/5 {
 					scores[i] = 8 * rollInt(1, 2)
 				}
 			}
@@ -125,27 +125,27 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 		}
 
 		// add score if fast dead and the move has priority
-		if a.move.Priority > 0 && !a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
-			for _, move := range a.targetSlot.mon.Moves {
-				if move.PP <= 0 || move.Class == statusClass {
+		if a.move.priority > 0 && !a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
+			for _, move := range a.targetSlot.mon.moves {
+				if move.pp <= 0 || move.class == statusClass {
 					continue
 				}
-				if a.targetSlot.mon.LockedMove != nil && a.targetSlot.mon.LockedMove != move {
+				if a.targetSlot.mon.lockedMove != nil && a.targetSlot.mon.lockedMove != move {
 					continue
 				}
 
 				dmg := 0
 				critRate := determineCritRate(a.userSlot.mon, move)
 				rolls := 1
-				if move.MaxHits == 5 {
+				if move.maxHits == 5 {
 					rolls = 3
-				} else if move.MaxHits > 0 {
-					rolls = move.MaxHits
+				} else if move.maxHits > 0 {
+					rolls = move.maxHits
 				}
 				for i := 0; i < rolls; i++ {
 					dmg += calculateDamage(a.targetSlot.mon, a.userSlot.mon, move, new(critRate >= 3), bs.getWeather(), false, true, false)
 				}
-				if a.userSlot.mon.HP <= dmg {
+				if a.userSlot.mon.hp <= dmg {
 					scores[i] += 11
 					break
 				}
@@ -157,7 +157,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			if !kills[i] {
 				continue
 			}
-			if a.move.Priority > 0 || a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
+			if a.move.priority > 0 || a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
 				scores[i] += 12 + 2*rollInt(1, 5)
 			} else {
 				scores[i] += 9 + 2*rollInt(1, 5)
@@ -172,14 +172,14 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 		}
 
 		// moves from this point that gets a base score if and only if it neither kills or is highest damage
-		if isSpeedControlMove(a.move.Name) && !a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
+		if isSpeedControlMove(a.move.name) && !a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
 			scores[i] = 6
 			continue
 		}
 
-		if c, ok := isOffenseControlMove(a.move.Name); ok {
-			if a.targetSlot.mon.hasMovePredicate(func(m *Move) bool {
-				return m.Class == c
+		if c, ok := isOffenseControlMove(a.move.name); ok {
+			if a.targetSlot.mon.hasMovePredicate(func(m *move) bool {
+				return m.class == c
 			}) {
 				scores[i] = 6
 			} else {
@@ -210,7 +210,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 	return actions[bestIndices[resultIndex]], scores[bestIndices[resultIndex]]
 }
 
-func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if len(mons) == 1 {
 		return mons[0]
 	}
@@ -219,7 +219,7 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot 
 	opponent := opponentSlot.mon
 
 	for i, mon := range mons {
-		if mon.Base.Name == "ditto" || mon.Base.Name == "wobbufet" {
+		if mon.base.Name == "ditto" || mon.base.Name == "wobbufet" {
 			scores[i] = 2
 			continue
 		}
@@ -229,11 +229,11 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot 
 		monDamage := calculateMaxDamage(bs, mon, opponent, false)
 		opponentDamage := calculateMaxDamage(bs, opponent, mon, false)
 
-		killsOpponent := monDamage >= opponent.HP
-		monKilled := opponentDamage >= mon.HP
+		killsOpponent := monDamage >= opponent.hp
+		monKilled := opponentDamage >= mon.hp
 
-		monDamagePercent := monDamage * 100 / max(1, opponent.HP)
-		opponentDamagePercent := opponentDamage * 100 / max(1, mon.HP)
+		monDamagePercent := monDamage * 100 / max(1, opponent.hp)
+		opponentDamagePercent := opponentDamage * 100 / max(1, mon.hp)
 
 		if outspeeds && killsOpponent {
 			scores[i] = 5
@@ -265,31 +265,37 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot 
 	return mons[bestIndex]
 }
 
-func calculateMaxDamage(bs battleState, user, target *Pokemon, checkChoice bool) int {
+func calculateMaxDamage(bs battleState, user, target *pokemon, checkChoice bool) int {
 	var maxDmg, dmg int
 	rolls := 1
-	for _, move := range user.Moves {
-		if move.PP <= 0 || move.Class == statusClass {
+	for _, move := range user.moves {
+		if move.name == "fake out" {
 			continue
 		}
-		if checkChoice && user.LockedMove != nil && user.LockedMove != move {
+		if move.name == "first impression" {
+			continue
+		}
+		if move.pp <= 0 || move.class == statusClass {
+			continue
+		}
+		if checkChoice && user.lockedMove != nil && user.lockedMove != move {
 			continue
 		}
 
 		rolls = 1
 		critRate := determineCritRate(user, move)
-		if move.MaxHits == 5 {
+		if move.maxHits == 5 {
 			rolls = 3
-		} else if move.MaxHits > 0 {
-			rolls = move.MaxHits
+		} else if move.maxHits > 0 {
+			rolls = move.maxHits
 		}
 		for i := 0; i < rolls; i++ {
 			dmg += calculateDamage(user, target, move, new(critRate >= 3), bs.getWeather(), true, true, false)
 		}
 
 		target.checkItemTrigger(false, makeFocusSashEvent(&dmg))
-		if target.Ability == sturdyAbility && target.HP == target.MaxHP() {
-			dmg = min(dmg, target.HP-1)
+		if target.ability == sturdyAbility && target.hp == target.MaxHP() {
+			dmg = min(dmg, target.hp-1)
 		}
 
 		if dmg > maxDmg {

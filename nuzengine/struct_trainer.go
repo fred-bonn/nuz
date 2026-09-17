@@ -1,16 +1,16 @@
 package nuzengine
 
 type trainer struct {
-	PokemonParty []*Pokemon
-	Player       bool
-	AI           ai
-	FieldEffects map[fieldEffect]int
+	pokemonParty []*pokemon
+	player       bool
+	ai           ai
+	fieldEffects map[fieldEffect]int
 	lost         bool
 }
 
 func (t *trainer) canReplace(bs battleState) bool {
 	count := 0
-	for _, mon := range t.PokemonParty {
+	for _, mon := range t.pokemonParty {
 		if !mon.fainted {
 			count++
 		}

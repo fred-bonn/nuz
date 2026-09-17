@@ -2,7 +2,6 @@ package nuzengine
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
@@ -10,7 +9,7 @@ import (
 
 type battleState interface {
 	execute() error
-	reset() error
+	reset()
 	setError(error)
 	gatherActions()
 	getAllSlots() []*slot
@@ -21,6 +20,7 @@ type battleState interface {
 	getWeather() weatherState
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
+	discretize() discreteBattleState
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
@@ -42,26 +42,17 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	}
 	var playerAi ai
 	if policyFile != "" {
-		policy, err := loadPolicyFromDisk(policyFile)
-		if err != nil {
-			return nil, fmt.Errorf("failed loading policy '%s': %s", policyFile, err)
-		}
-		playerPartyStr = policy.PlayerParty
-		opponentPartyStr = policy.OpponentParty
-		playerAi = newStaticPolicyAIFromPolicy(policy)
+		return nil, fmt.Errorf("not implemented")
 	} else {
 		switch aiInt {
 		case 0:
-			playerAi = rnbAi{}
+			playerAi = &rnbAi{}
 		case 1:
-			learningAi := newLearningAI()
-			learningAi.playerShowdown = playerPartyStr
-			learningAi.opponentShowdown = opponentPartyStr
-			playerAi = learningAi
+			playerAi = newLearningAI()
 		case 2:
 			playerAi = newGuidedAI(os.Stdin, os.Stdout)
 		case 3:
-			playerAi = randomAi{}
+			playerAi = &randomAi{}
 		}
 	}
 
@@ -81,13 +72,13 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	case 0:
 		battleState = initSingleBattleState(
 			trainer{
-				AI:           playerAi,
-				Player:       true,
-				FieldEffects: make(map[fieldEffect]int),
+				ai:           playerAi,
+				player:       true,
+				fieldEffects: make(map[fieldEffect]int),
 			},
 			trainer{
-				AI:           rnbAi{},
-				FieldEffects: make(map[fieldEffect]int),
+				ai:           rnbAi{},
+				fieldEffects: make(map[fieldEffect]int),
 			},
 			playerParty,
 			opponentParty,
@@ -99,36 +90,19 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 }
 
 func Execute(bs battleState, iterations int) error {
-	var learning *learningAi
-	if ai, ok := bs.getPlayerTrainer().AI.(*learningAi); ok {
-		learning = ai
-	}
-
 	statistics := newBattleStatistics(bs)
-	for range iterations {
-		if err := bs.reset(); err != nil {
-			return err
-		}
 
+	if err := bs.execute(); err != nil {
+		return err
+	}
+	statistics.record()
+
+	for i := iterations - 1; i > 0; i-- {
+		bs.reset()
 		if err := bs.execute(); err != nil {
 			return err
 		}
-
 		statistics.record()
-		fmt.Println(*statistics)
-
-		if learning != nil {
-			learning.RecordBattleOutcome(statistics)
-		}
-	}
-
-	if learning != nil {
-		if err := learning.savePolicyToDisk(); err != nil {
-			log.Printf("error: failed saving policy: %s", err)
-		} else {
-			log.Printf("policy saved to policites/policy.json")
-		}
-
 	}
 
 	if iterations > 1 {
@@ -150,7 +124,7 @@ func injectReplaceAction(bs battleState, slot *slot, midTurn bool) {
 func resolveEndOfTurn(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
 		// resolve end of return effects from ailments and statuses
-		for _, ailment := range slot.mon.Ailments {
+		for _, ailment := range slot.mon.ailments {
 			switch ailment.State {
 			case burnAilment:
 				takeResidualDamage(bs, slot, ailment.State.String(), 1, 16)
@@ -163,18 +137,18 @@ func resolveEndOfTurn(bs battleState) {
 				ailment.Turns--
 				takeResidualDamage(bs, slot, ailment.State.String(), 1, 8)
 				if ailment.Turns <= 0 {
-					vprintf("%s was freed", slot.mon.Base.Name)
-					delete(slot.mon.Ailments, ailment.State)
+					vprintf("%s was freed", slot.mon.base.Name)
+					delete(slot.mon.ailments, ailment.State)
 				}
 			case leechSeedAilment:
-				vprintf("%s leeched health from %s", ailment.afflictedBy.mon.Base.Name, slot.mon.Base.Name)
+				vprintf("%s leeched health from %s", ailment.afflictedBy.mon.base.Name, slot.mon.base.Name)
 				dmg := takeResidualDamage(bs, slot, ailment.State.String(), 1, 8)
 				ailment.afflictedBy.mon.ChangeHpBy(dmg)
 			case yawnAilment:
 				ailment.Turns--
 				if ailment.Turns == 0 {
 					slot.mon.applyAilment(sleepAilment, nil, ailment.afflictedBy)
-					delete(slot.mon.Ailments, ailment.State)
+					delete(slot.mon.ailments, ailment.State)
 				}
 			}
 		}
@@ -194,17 +168,17 @@ func resolveEndOfTurn(bs battleState) {
 			slot.protected = false
 		}
 
-		if slot.mon.Ability == harvestAbility && roll(1, 2) && slot.mon.Item.State.isBerry() {
-			vprintf("%s harvested its %s", slot.mon.Base.Name, slot.mon.Item.String())
-			slot.mon.Item.Consumed = false
+		if slot.mon.ability == harvestAbility && roll(1, 2) && slot.mon.item.State.isBerry() {
+			vprintf("%s harvested its %s", slot.mon.base.Name, slot.mon.item.String())
+			slot.mon.item.Consumed = false
 			slot.mon.checkItemTrigger(true, nil)
-		} else if slot.mon.Ability == speedBoostAbility && !slot.firstTurn {
-			slot.mon.changeStatStageBy(Speed, 1, false)
+		} else if slot.mon.ability == speedBoostAbility && !slot.firstTurn {
+			slot.mon.changeStatStageBy(speed, 1, false)
 		}
 
-		if slot.mon.Item.State == leftovers {
+		if slot.mon.item.State == leftovers {
 			change := slot.mon.MaxHP() / 16
-			vprintItem("%s restored %d health from leftovers", slot.mon.Base.Name, change)
+			vprintItem("%s restored %d health from leftovers", slot.mon.base.Name, change)
 			slot.mon.ChangeHpBy(change)
 		}
 
@@ -218,20 +192,26 @@ func takeResidualDamage(bs battleState, slot *slot, effect string, num, den int)
 	}
 
 	change := slot.mon.MaxHP() * num / den
-	vprintf("%s took %d damage from %s", slot.mon.Base.Name, change, effect)
+	vprintf("%s took %d damage from %s", slot.mon.base.Name, change, effect)
 	slot.mon.ChangeHpBy(-change)
-	if slot.mon.HP <= 0 {
+	if slot.mon.hp <= 0 {
 		slot.mon.fainted = true
 		injectReplaceAction(bs, slot, false)
-		vprintf("%s fainted!", slot.mon.Base.Name)
+		vprintf("%s fainted!", slot.mon.base.Name)
 	}
 	return change
 }
 
 func resolveOnEntry(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
-		if f, ok := onSwitchAbilities[slot.mon.Ability]; ok {
+		if f, ok := onSwitchAbilities[slot.mon.ability]; ok {
 			f(slot, bs, true)
 		}
+	}
+}
+
+func resetPokemonParty(party []*pokemon) {
+	for _, mon := range party {
+		mon.reset()
 	}
 }

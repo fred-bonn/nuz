@@ -24,11 +24,11 @@ func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
 func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	ga.print("Choose an action:\n")
 	for i, action := range actions {
-		ga.print("%d. %s against %s\n", i+1, action.move.Name, action.targetSlot.mon.Base.Name)
+		ga.print("%d. %s against %s\n", i+1, action.move.name, action.targetSlot.mon.base.Name)
 	}
 	numberOfChoices := len(actions)
 	canSwitch := false
-	if !slot.isTrapped() && canReplace(slot.Trainer.PokemonParty) {
+	if !slot.isTrapped() && canReplace(slot.Trainer.pokemonParty) {
 		numberOfChoices++
 		canSwitch = true
 		ga.print("%d: switch\n", numberOfChoices)
@@ -59,10 +59,10 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 	}
 }
 
-func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	ga.print("Choose a Pokemon to switch in:\n")
 	for i, mon := range mons {
-		ga.print("%d. %s (%d/%d HP)\n", i+1, mon.Base.Name, mon.HP, mon.MaxHP())
+		ga.print("%d. %s (%d/%d HP)\n", i+1, mon.base.Name, mon.hp, mon.MaxHP())
 	}
 	numberOfChoices := len(mons)
 
@@ -88,7 +88,7 @@ func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSl
 	}
 }
 
-func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
+func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
 	return score == -1
 }
 
