@@ -98,7 +98,7 @@ func (sbs *singleBattleState) getFieldEffects() map[fieldEffect]int {
 	return sbs.fieldEffects
 }
 
-func (sbs *singleBattleState) reset() error {
+func (sbs *singleBattleState) reset() {
 	sbs.activePlayerSlot.mon.switchReset()
 	sbs.activePlayerSlot.mon = sbs.initialPlayerMon
 	sbs.activeOpponentSlot.mon.switchReset()
@@ -118,8 +118,6 @@ func (sbs *singleBattleState) reset() error {
 	sbs.err = nil
 
 	resolveOnEntry(sbs)
-
-	return nil
 }
 
 func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) *singleBattleState {

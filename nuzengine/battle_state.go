@@ -9,7 +9,7 @@ import (
 
 type battleState interface {
 	execute() error
-	reset() error
+	reset()
 	setError(error)
 	gatherActions()
 	getAllSlots() []*slot
@@ -91,15 +91,16 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 
 func Execute(bs battleState, iterations int) error {
 	statistics := newBattleStatistics(bs)
-	for range iterations {
-		if err := bs.reset(); err != nil {
-			return err
-		}
+	if err := bs.execute(); err != nil {
+		return err
+	}
+	statistics.record()
 
+	for i := iterations - 1; i > 0; i-- {
+		bs.reset()
 		if err := bs.execute(); err != nil {
 			return err
 		}
-
 		statistics.record()
 	}
 
