@@ -9,12 +9,12 @@ import (
 )
 
 type pokemon struct {
-	base           basePokemon
+	base           BasePokemon
 	level          int
 	ivs            []int
 	nat            nature
-	moves          []*Move
-	lockedMove     *Move
+	moves          []*move
+	lockedMove     *move
 	stats          []int
 	stages         []int
 	hp             int
@@ -33,7 +33,7 @@ type pokemon struct {
 	initialItem    itemState
 }
 
-func initPokemon(baseMon basePokemon, moves []*Move, parsedMon parser.ParsedPokemon) (pokemon, error) {
+func initPokemon(baseMon BasePokemon, moves []*move, parsedMon parser.ParsedPokemon) (pokemon, error) {
 	if parsedMon.Level < 1 || parsedMon.Level > 100 {
 		return pokemon{}, fmt.Errorf("invalid level: %d", parsedMon.Level)
 	}
@@ -88,7 +88,7 @@ func initPokemon(baseMon basePokemon, moves []*Move, parsedMon parser.ParsedPoke
 	res.initialItem = item.State
 
 	res.ability = stringToAbility(strings.ToLower(parsedMon.Ability))
-	if res.ability == NoneAbility {
+	if res.ability == noneAbility {
 		return pokemon{}, fmt.Errorf("none is not a valid ability")
 	}
 
@@ -136,7 +136,7 @@ func calculateStats(Pokemon *pokemon) error {
 
 func (p *pokemon) reset() {
 	for _, move := range p.moves {
-		move.PP = move.MaxPP
+		move.pp = move.maxPP
 	}
 	p.hp = p.initialHp
 	for ailment := range p.ailments {
@@ -195,9 +195,9 @@ func (p *pokemon) effectiveStat(stat statState, crit bool) int {
 }
 
 func (p *pokemon) effectiveSpeed(bs battleState) int {
-	stage := p.stages[Speed]
-	base := p.stats[Speed]
-	p.checkItemTrigger(false, makeChoiceItemEvent(nil, Speed, &base))
+	stage := p.stages[speed]
+	base := p.stats[speed]
+	p.checkItemTrigger(false, makeChoiceItemEvent(nil, speed, &base))
 	numerator := 1
 	denominator := 1
 
@@ -268,7 +268,7 @@ func (p *pokemon) hasType(pokemonType pokemonType) bool {
 	return slices.Contains(p.base.Types, pokemonType)
 }
 
-func (p *pokemon) applyAilment(ailment ailmentState, move *Move, afflictedBy *slot) bool {
+func (p *pokemon) applyAilment(ailment ailmentState, move *move, afflictedBy *slot) bool {
 	if ailment == noneAilment {
 		elogf("warning: %s applies an ailment but is none", ailment.String())
 		return false
@@ -306,7 +306,7 @@ func (p *pokemon) applyAilment(ailment ailmentState, move *Move, afflictedBy *sl
 			return false
 		}
 	case trapAilment:
-		p.ailments[ailment] = generateTrap(move.MinTurns, move.MaxTurns, afflictedBy)
+		p.ailments[ailment] = generateTrap(move.minTurns, move.maxTurns, afflictedBy)
 		return true
 	case infatuationAilment:
 		if p.ability == obliviousAbility {
@@ -315,7 +315,7 @@ func (p *pokemon) applyAilment(ailment ailmentState, move *Move, afflictedBy *sl
 	}
 
 	if ailment == poisonAilment {
-		if move != nil && (move.Name == "toxic" || move.Name == "poison fang") {
+		if move != nil && (move.name == "toxic" || move.name == "poison fang") {
 			ailment = toxicAilment
 		}
 	}
@@ -361,7 +361,7 @@ func (p *pokemon) ChangeHpBy(change int) {
 	p.checkItemTrigger(true, nil)
 }
 
-func (p *pokemon) hasMovePredicate(f func(*Move) bool) bool {
+func (p *pokemon) hasMovePredicate(f func(*move) bool) bool {
 	return slices.ContainsFunc(p.moves, f)
 }
 

@@ -14,7 +14,7 @@ type battleStatistics struct {
 func newBattleStatistics(bs battleState) *battleStatistics {
 	return &battleStatistics{
 		battleState:      bs,
-		monSurvivalCount: make([]int, len(bs.getPlayerTrainer().PokemonParty)),
+		monSurvivalCount: make([]int, len(bs.getPlayerTrainer().pokemonParty)),
 	}
 }
 
@@ -24,7 +24,7 @@ func (bs *battleStatistics) record() {
 		bs.winCount++
 	}
 
-	for i, mon := range bs.battleState.getPlayerTrainer().PokemonParty {
+	for i, mon := range bs.battleState.getPlayerTrainer().pokemonParty {
 		if !mon.fainted {
 			bs.monSurvivalCount[i]++
 		}
@@ -38,7 +38,7 @@ func (bs *battleStatistics) print() {
 
 	winRate := float64(bs.winCount) * 100.0 / float64(bs.battleCount)
 	log.Printf("player win rate: %.2f%% (%d/%d)", winRate, bs.winCount, bs.battleCount)
-	for index, mon := range bs.battleState.getPlayerTrainer().PokemonParty {
+	for index, mon := range bs.battleState.getPlayerTrainer().pokemonParty {
 		survivalRate := float64(bs.monSurvivalCount[index]) * 100.0 / float64(bs.battleCount)
 		log.Printf("%s survival rate: %.2f%% (%d/%d)", mon.base.Name, survivalRate, bs.monSurvivalCount[index], bs.battleCount)
 	}

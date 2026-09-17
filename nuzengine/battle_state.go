@@ -72,13 +72,13 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	case 0:
 		battleState = initSingleBattleState(
 			trainer{
-				AI:           playerAi,
-				Player:       true,
-				FieldEffects: make(map[fieldEffect]int),
+				ai:           playerAi,
+				player:       true,
+				fieldEffects: make(map[fieldEffect]int),
 			},
 			trainer{
-				AI:           rnbAi{},
-				FieldEffects: make(map[fieldEffect]int),
+				ai:           rnbAi{},
+				fieldEffects: make(map[fieldEffect]int),
 			},
 			playerParty,
 			opponentParty,
@@ -91,6 +91,7 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 
 func Execute(bs battleState, iterations int) error {
 	statistics := newBattleStatistics(bs)
+
 	if err := bs.execute(); err != nil {
 		return err
 	}
@@ -172,7 +173,7 @@ func resolveEndOfTurn(bs battleState) {
 			slot.mon.item.Consumed = false
 			slot.mon.checkItemTrigger(true, nil)
 		} else if slot.mon.ability == speedBoostAbility && !slot.firstTurn {
-			slot.mon.changeStatStageBy(Speed, 1, false)
+			slot.mon.changeStatStageBy(speed, 1, false)
 		}
 
 		if slot.mon.item.State == leftovers {

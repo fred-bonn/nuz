@@ -6,21 +6,21 @@ import (
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
 
-type basePokemon struct {
-	Id     int
-	Name   string
-	Height int
-	Weight int
-	Types  []pokemonType
-	Stats  map[string]int
+type BasePokemon struct {
+	Id     int            `json:"id"`
+	Name   string         `json:"name"`
+	Height int            `json:"height"`
+	Weight int            `json:"weight"`
+	Types  []pokemonType  `json:"types"`
+	Stats  map[string]int `json:"stats"`
 }
 
-func ToPokemon(pj pokeapi.PokemonJSON) (basePokemon, error) {
+func toPokemon(pj pokeapi.PokemonJSON) (BasePokemon, error) {
 	types := make([]pokemonType, len(pj.Types))
 	for i, t := range pj.Types {
 		types[i] = stringToPokemonType(t.Type.Name)
 		if types[i] == noType {
-			return basePokemon{}, fmt.Errorf("%s is not a valid type for %s", t.Type.Name, pj.Name)
+			return BasePokemon{}, fmt.Errorf("%s is not a valid type for %s", t.Type.Name, pj.Name)
 		}
 	}
 
@@ -29,7 +29,7 @@ func ToPokemon(pj pokeapi.PokemonJSON) (basePokemon, error) {
 		stats[s.Stat.Name] = s.BaseStat
 	}
 
-	return basePokemon{
+	return BasePokemon{
 		Id:     pj.Id,
 		Name:   pj.Name,
 		Height: pj.Height,

@@ -29,7 +29,7 @@ func TestBerryItemsCureAilments(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			mon := pokemon{
-				base: basePokemon{
+				base: BasePokemon{
 					Types: []pokemonType{normalType},
 				},
 				unnerved: tc.unnerved,
@@ -117,10 +117,10 @@ func TestLeppaBerryRestoresPP(t *testing.T) {
 			item, _ := registerItem(leppaBerry, &mon)
 			mon.item = item
 
-			move := Move{PP: tc.initialPP, MaxPP: tc.maxPP}
+			move := move{pp: tc.initialPP, maxPP: tc.maxPP}
 			mon.checkItemTrigger(true, makeLeppaBerryEvent(&move))
 
-			if got := move.PP; got != tc.wantPP {
+			if got := move.pp; got != tc.wantPP {
 				t.Errorf("move.PP = %d, want %d", got, tc.wantPP)
 			}
 
@@ -244,7 +244,7 @@ func TestPinchHealBerries(t *testing.T) {
 			mon.nat = nat
 			mon.stats[hitPoints] = tc.maxHp
 			if tc.gluttony {
-				mon.ability = GluttonyAbility
+				mon.ability = gluttonyAbility
 			}
 
 			mon.checkItemTrigger(true, nil)
@@ -288,8 +288,8 @@ func TestStatBoostBerries(t *testing.T) {
 		"liechi blocked by unnerve":                           {item: liechiBerry, stat: attack, initialHp: 25, maxHp: 100, unnerved: true, wantStage: 0},
 		"liechi uses gluttony threshold":                      {item: liechiBerry, stat: attack, initialHp: 50, maxHp: 100, gluttony: true, wantStage: 1, wantConsumed: true},
 		"liechi does not boost with gluttony above threshold": {item: liechiBerry, stat: attack, initialHp: 51, maxHp: 100, gluttony: true, wantStage: 0},
-		"salac uses gluttony threshold":                       {item: salacBerry, stat: Speed, initialHp: 50, maxHp: 100, gluttony: true, wantStage: 1, wantConsumed: true},
-		"salac does not boost with gluttony above threshold":  {item: salacBerry, stat: Speed, initialHp: 51, maxHp: 100, gluttony: true, wantStage: 0},
+		"salac uses gluttony threshold":                       {item: salacBerry, stat: speed, initialHp: 50, maxHp: 100, gluttony: true, wantStage: 1, wantConsumed: true},
+		"salac does not boost with gluttony above threshold":  {item: salacBerry, stat: speed, initialHp: 51, maxHp: 100, gluttony: true, wantStage: 0},
 	}
 
 	for name, tc := range tests {
@@ -302,7 +302,7 @@ func TestStatBoostBerries(t *testing.T) {
 			}
 			mon.stats[hitPoints] = tc.maxHp
 			if tc.gluttony {
-				mon.ability = GluttonyAbility
+				mon.ability = gluttonyAbility
 			}
 
 			item, _ := registerItem(tc.item, &mon)
@@ -430,7 +430,7 @@ func TestChoiceScarf(t *testing.T) {
 				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			mon.stats[Speed] = tc.speed
+			mon.stats[speed] = tc.speed
 			item, _ := registerItem(choiceScarf, &mon)
 			mon.item = item
 			bs := initBenchBattleState(noneWeather)
@@ -439,7 +439,7 @@ func TestChoiceScarf(t *testing.T) {
 				t.Errorf("mon.effectiveSpeed(bs) = %d, want %d", got, tc.want)
 			}
 
-			if got := mon.stats[Speed]; got != tc.speed {
+			if got := mon.stats[speed]; got != tc.speed {
 				t.Errorf("choice scarf should not modify the base stats directly")
 			}
 		})
@@ -489,7 +489,7 @@ func TestChoiceBand(t *testing.T) {
 		"100 base attack": {initialAttack: 100, class: physicalClass, event: true, want: 150},
 		"66 base attack":  {initialAttack: 66, class: physicalClass, event: true, want: 99},
 		"1 base attack":   {initialAttack: 1, class: physicalClass, event: true, want: 1},
-		"choice band wont activate with special move class":   {initialAttack: 100, class: SpecialClass, event: true, want: 100},
+		"choice band wont activate with special move class":   {initialAttack: 100, class: specialClass, event: true, want: 100},
 		"choice band wont activate without choice item event": {initialAttack: 100, class: physicalClass, event: false, want: 100},
 	}
 
@@ -499,8 +499,8 @@ func TestChoiceBand(t *testing.T) {
 				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			move := Move{
-				Class: tc.class,
+			move := move{
+				class: tc.class,
 			}
 			item, _ := registerItem(choiceBand, &mon)
 			mon.item = item
@@ -530,11 +530,11 @@ func TestChoiceSpecs(t *testing.T) {
 		event                bool
 		want                 int
 	}{
-		"100 base attack": {initialSpecialAttack: 100, class: SpecialClass, event: true, want: 150},
-		"66 base attack":  {initialSpecialAttack: 66, class: SpecialClass, event: true, want: 99},
-		"1 base attack":   {initialSpecialAttack: 1, class: SpecialClass, event: true, want: 1},
+		"100 base attack": {initialSpecialAttack: 100, class: specialClass, event: true, want: 150},
+		"66 base attack":  {initialSpecialAttack: 66, class: specialClass, event: true, want: 99},
+		"1 base attack":   {initialSpecialAttack: 1, class: specialClass, event: true, want: 1},
 		"choice specs wont activate with physical move class":  {initialSpecialAttack: 100, class: physicalClass, event: true, want: 100},
-		"choice specs wont activate without choice item event": {initialSpecialAttack: 100, class: SpecialClass, event: false, want: 100},
+		"choice specs wont activate without choice item event": {initialSpecialAttack: 100, class: specialClass, event: false, want: 100},
 	}
 
 	for name, tc := range tests {
@@ -543,8 +543,8 @@ func TestChoiceSpecs(t *testing.T) {
 				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			move := Move{
-				Class: tc.class,
+			move := move{
+				class: tc.class,
 			}
 			item, _ := registerItem(choiceSpecs, &mon)
 			mon.item = item

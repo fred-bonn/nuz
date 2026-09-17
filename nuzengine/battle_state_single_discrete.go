@@ -13,8 +13,8 @@ type discreteSingleBattleState struct {
 }
 
 func (sbs *singleBattleState) discretize() discreteBattleState {
-	alive := make([]bool, len(sbs.player.PokemonParty))
-	for i, mon := range sbs.player.PokemonParty {
+	alive := make([]bool, len(sbs.player.pokemonParty))
+	for i, mon := range sbs.player.pokemonParty {
 		alive[i] = !mon.fainted
 	}
 	playerMinDamage := calculateMaxDamage(sbs, sbs.activePlayerSlot.mon, sbs.activeOpponentSlot.mon, true) * 85 / 100

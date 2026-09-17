@@ -418,14 +418,14 @@ var itemBuilders = map[itemState]itemFactoryBuilder{
 	persimBerry:   makePersimBerry,
 	liechiBerry:   makeStatBoostBerryMiddleware(liechiBerry, attack),
 	ganlonBerry:   makeStatBoostBerryMiddleware(ganlonBerry, defense),
-	salacBerry:    makeStatBoostBerryMiddleware(salacBerry, Speed),
+	salacBerry:    makeStatBoostBerryMiddleware(salacBerry, speed),
 	petayaBerry:   makeStatBoostBerryMiddleware(petayaBerry, specialAttack),
 	apicotBerry:   makeStatBoostBerryMiddleware(apicotBerry, specialDefense),
 	figyBerry:     makePinchHealingBerryMiddleware(figyBerry, attack),
 	iapapaBerry:   makePinchHealingBerryMiddleware(iapapaBerry, defense),
 	wikiBerry:     makePinchHealingBerryMiddleware(wikiBerry, specialAttack),
 	aguavBerry:    makePinchHealingBerryMiddleware(aguavBerry, specialDefense),
-	magoBerry:     makePinchHealingBerryMiddleware(magoBerry, Speed),
+	magoBerry:     makePinchHealingBerryMiddleware(magoBerry, speed),
 	babiriBerry:   makeResistBerryMiddleware(babiriBerry, steelType),
 	chilanBerry:   makeResistBerryMiddleware(chilanBerry, normalType),
 	chartiBerry:   makeResistBerryMiddleware(chartiBerry, rockType),
@@ -697,7 +697,7 @@ func makeLumBerry(mon *pokemon) *item {
 }
 
 func makeLeppaBerry(mon *pokemon) *item {
-	var m *Move
+	var m *move
 	return &item{
 		trigger: func(e any) bool {
 			event, ok := e.(leppaBerryEvent)
@@ -705,10 +705,10 @@ func makeLeppaBerry(mon *pokemon) *item {
 				return false
 			}
 			m = event.move
-			return event.move.PP <= 0
+			return event.move.pp <= 0
 		},
 		activate: func() {
-			m.PP += min(10, m.MaxPP)
+			m.pp += min(10, m.maxPP)
 			cheekPouch(mon)
 		},
 	}
@@ -725,7 +725,7 @@ func makeStatBoostBerryMiddleware(is itemState, stat statState) func(mon *pokemo
 				if mon.hp <= 0 {
 					return false
 				}
-				if mon.ability == GluttonyAbility {
+				if mon.ability == gluttonyAbility {
 					return mon.hp*2 <= mon.MaxHP()
 				}
 				return mon.hp*4 <= mon.MaxHP()
@@ -750,7 +750,7 @@ func makePinchHealingBerryMiddleware(is itemState, stat statState) func(mon *pok
 				if mon.hp <= 0 {
 					return false
 				}
-				if mon.ability == GluttonyAbility {
+				if mon.ability == gluttonyAbility {
 					return mon.hp*2 <= mon.MaxHP()
 				}
 				return mon.hp*4 <= mon.MaxHP()
@@ -847,7 +847,7 @@ func makeChoiceScarf(mon *pokemon) *item {
 			if !ok {
 				return false
 			}
-			if event.statState != Speed {
+			if event.statState != speed {
 				return false
 			}
 			s = event.stat
@@ -868,7 +868,7 @@ func makeChoiceBand(mon *pokemon) *item {
 			if !ok {
 				return false
 			}
-			if event.move.Class != physicalClass {
+			if event.move.class != physicalClass {
 				return false
 			}
 			s = event.stat
@@ -889,7 +889,7 @@ func makeChoiceSpecs(mon *pokemon) *item {
 			if !ok {
 				return false
 			}
-			if event.move.Class != SpecialClass {
+			if event.move.class != specialClass {
 				return false
 			}
 			s = event.stat
@@ -943,33 +943,30 @@ func makeGemEvent(pokemonType pokemonType, power *int) gemEvent {
 }
 
 type leppaBerryEvent struct {
-	move *Move
+	move *move
 }
 
-func makeLeppaBerryEvent(move *Move) leppaBerryEvent {
+func makeLeppaBerryEvent(move *move) leppaBerryEvent {
 	return leppaBerryEvent{
 		move: move,
 	}
 }
 
 type choiceItemEvent struct {
-	move      *Move
+	move      *move
 	statState statState
 	stat      *int
 }
 
-func makeChoiceItemEvent(move *Move, statState statState, stat *int) choiceItemEvent {
-	res := choiceItemEvent{
+func makeChoiceItemEvent(mv *move, statState statState, stat *int) choiceItemEvent {
+	if mv == nil {
+		mv = &move{}
+	}
+	return choiceItemEvent{
+		move:      mv,
 		statState: statState,
 		stat:      stat,
 	}
-	if move == nil {
-		res.move = &Move{}
-	} else {
-		res.move = move
-	}
-
-	return res
 }
 
 type focusSashEvent struct {

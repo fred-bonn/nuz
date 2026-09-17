@@ -52,8 +52,8 @@ func (sbs *singleBattleState) setError(err error) {
 }
 
 func (sbs *singleBattleState) gatherActions() {
-	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activePlayerSlot, sbs.player.PokemonParty, sbs.player.AI))
-	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activeOpponentSlot, sbs.opponent.PokemonParty, sbs.opponent.AI))
+	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activePlayerSlot, sbs.player.pokemonParty, sbs.player.ai))
+	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activeOpponentSlot, sbs.opponent.pokemonParty, sbs.opponent.ai))
 }
 
 func (sbs *singleBattleState) getAllSlots() []*slot {
@@ -104,11 +104,11 @@ func (sbs *singleBattleState) reset() {
 	sbs.activeOpponentSlot.mon.switchReset()
 	sbs.activeOpponentSlot.mon = sbs.initialOpponentMon
 
-	resetPokemonParty(sbs.player.PokemonParty)
-	resetPokemonParty(sbs.opponent.PokemonParty)
+	resetPokemonParty(sbs.player.pokemonParty)
+	resetPokemonParty(sbs.opponent.pokemonParty)
 
-	sbs.player.FieldEffects = make(map[fieldEffect]int)
-	sbs.opponent.FieldEffects = make(map[fieldEffect]int)
+	sbs.player.fieldEffects = make(map[fieldEffect]int)
+	sbs.opponent.fieldEffects = make(map[fieldEffect]int)
 
 	sbs.player.lost = false
 	sbs.opponent.lost = false
@@ -121,8 +121,8 @@ func (sbs *singleBattleState) reset() {
 }
 
 func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) *singleBattleState {
-	player.PokemonParty = playerParty
-	opponent.PokemonParty = opponentParty
+	player.pokemonParty = playerParty
+	opponent.pokemonParty = opponentParty
 
 	res := singleBattleState{
 		activePlayerSlot: &slot{

@@ -10,7 +10,7 @@ const (
 	defense
 	specialAttack
 	specialDefense
-	Speed
+	speed
 	accuracy
 	evasion
 	noStat
@@ -28,7 +28,7 @@ func (s statState) String() string {
 		return "special attack"
 	case specialDefense:
 		return "special defense"
-	case Speed:
+	case speed:
 		return "speed"
 	case accuracy:
 		return "accuracy"
@@ -53,7 +53,7 @@ func stringToStat(s string) statState {
 	case "special-defense":
 		return specialDefense
 	case "speed":
-		return Speed
+		return speed
 	case "accuracy":
 		return accuracy
 	case "evasion":
@@ -73,27 +73,27 @@ var natureChart = map[string]nature{
 	"lonely":  {attack, defense},
 	"adamant": {attack, specialAttack},
 	"naughty": {attack, specialDefense},
-	"brave":   {attack, Speed},
+	"brave":   {attack, speed},
 	"bold":    {defense, attack},
 	"docile":  {defense, defense},
 	"impish":  {defense, specialAttack},
 	"lax":     {defense, specialDefense},
-	"relaxed": {defense, Speed},
+	"relaxed": {defense, speed},
 	"modest":  {specialAttack, attack},
 	"mild":    {specialAttack, defense},
 	"bashful": {specialAttack, specialAttack},
 	"rash":    {specialAttack, specialDefense},
-	"quiet":   {specialAttack, Speed},
+	"quiet":   {specialAttack, speed},
 	"calm":    {specialDefense, attack},
 	"gentle":  {specialDefense, defense},
-	"careful": {specialDefense, Speed},
+	"careful": {specialDefense, speed},
 	"quirky":  {specialDefense, specialDefense},
-	"sassy":   {specialDefense, Speed},
-	"timid":   {Speed, attack},
-	"hasty":   {Speed, defense},
-	"jolly":   {Speed, specialAttack},
-	"naive":   {Speed, specialDefense},
-	"serious": {Speed, Speed},
+	"sassy":   {specialDefense, speed},
+	"timid":   {speed, attack},
+	"hasty":   {speed, defense},
+	"jolly":   {speed, specialAttack},
+	"naive":   {speed, specialDefense},
+	"serious": {speed, speed},
 }
 
 func getNature(nat string) (nature, error) {

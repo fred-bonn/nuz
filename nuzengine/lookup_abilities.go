@@ -7,11 +7,11 @@ import (
 type abilityState int
 
 const (
-	NoneAbility abilityState = iota
+	noneAbility abilityState = iota
 	insomniaAbility
 	vitalSpiritAbility
 	sweetVeilAbility
-	GluttonyAbility
+	gluttonyAbility
 	innerFocusAbility
 	shieldDustAbility
 	overcoatAbility
@@ -103,7 +103,7 @@ func (a abilityState) String() string {
 		return "vital spirit"
 	case sweetVeilAbility:
 		return "sweet veil"
-	case GluttonyAbility:
+	case gluttonyAbility:
 		return "gluttony"
 	case innerFocusAbility:
 		return "inner focus"
@@ -282,7 +282,7 @@ func stringToAbility(s string) abilityState {
 	case "sweet veil":
 		return sweetVeilAbility
 	case "gluttony":
-		return GluttonyAbility
+		return gluttonyAbility
 	case "inner focus":
 		return innerFocusAbility
 	case "shield dust":
@@ -446,7 +446,7 @@ func stringToAbility(s string) abilityState {
 	case "normalize":
 		return normalizeAbility
 	default:
-		return NoneAbility
+		return noneAbility
 	}
 }
 
@@ -661,7 +661,7 @@ func motorDrive(p *pokemon, t pokemonType, s bool) bool {
 	if s {
 		return true
 	}
-	p.changeStatStageBy(Speed, 1, false)
+	p.changeStatStageBy(speed, 1, false)
 	return true
 }
 

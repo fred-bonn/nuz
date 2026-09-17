@@ -18,7 +18,7 @@ func TestIsImmuneToPowderMovesDetectsPowderImmunity(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			mon := pokemon{
-				base: basePokemon{
+				base: BasePokemon{
 					Types: []pokemonType{
 						tc.t,
 					},
@@ -74,12 +74,12 @@ func TestEffectiveSpeedAppliesSpeedModifiersCorrectly(t *testing.T) {
 		unburden  bool
 		want      int
 	}{
-		"boosts speed with a positive stage":                                   {stage: 1, base: 100, item: noneItem, ability: NoneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 150},
-		"reduces speed with a negative stage":                                  {stage: -1, base: 100, item: noneItem, ability: NoneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 66},
-		"halves speed when paralyzed":                                          {stage: 0, base: 100, item: noneItem, ability: NoneAbility, weather: noneWeather, paralyzed: true, unburden: false, want: 25},
-		"combines paralysis with a positive stage":                             {stage: 1, base: 100, item: noneItem, ability: NoneAbility, weather: noneWeather, paralyzed: true, unburden: false, want: 37},
-		"uses iron ball to halve speed":                                        {stage: 0, base: 100, item: ironBall, ability: NoneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 50},
-		"uses iron ball with a negative stage":                                 {stage: -1, base: 100, item: ironBall, ability: NoneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 33},
+		"boosts speed with a positive stage":                                   {stage: 1, base: 100, item: noneItem, ability: noneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 150},
+		"reduces speed with a negative stage":                                  {stage: -1, base: 100, item: noneItem, ability: noneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 66},
+		"halves speed when paralyzed":                                          {stage: 0, base: 100, item: noneItem, ability: noneAbility, weather: noneWeather, paralyzed: true, unburden: false, want: 25},
+		"combines paralysis with a positive stage":                             {stage: 1, base: 100, item: noneItem, ability: noneAbility, weather: noneWeather, paralyzed: true, unburden: false, want: 37},
+		"uses iron ball to halve speed":                                        {stage: 0, base: 100, item: ironBall, ability: noneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 50},
+		"uses iron ball with a negative stage":                                 {stage: -1, base: 100, item: ironBall, ability: noneAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 33},
 		"does not boost speed with swift swim outside rain":                    {stage: 0, base: 100, item: noneItem, ability: swiftSwimAbility, weather: noneWeather, paralyzed: false, unburden: false, want: 100},
 		"boosts speed with swift swim in rain":                                 {stage: 0, base: 100, item: noneItem, ability: swiftSwimAbility, weather: rainWeather, paralyzed: false, unburden: false, want: 200},
 		"does not boost speed with sand rush in rain":                          {stage: 0, base: 100, item: noneItem, ability: sandRushAbility, weather: rainWeather, paralyzed: false, unburden: false, want: 100},
@@ -88,7 +88,7 @@ func TestEffectiveSpeedAppliesSpeedModifiersCorrectly(t *testing.T) {
 		"does not boost speed with slush rush in hail while holding iron ball": {stage: 0, base: 100, item: ironBall, ability: slushRushAbility, weather: hailWeather, paralyzed: false, unburden: false, want: 100},
 		"does not boost speed with chlorophyll outside sun":                    {stage: 0, base: 100, item: noneItem, ability: chlorophyllAbility, weather: rainWeather, paralyzed: false, unburden: false, want: 100},
 		"boosts speed with chlorophyll in sun":                                 {stage: 1, base: 100, item: noneItem, ability: chlorophyllAbility, weather: sunWeather, paralyzed: false, unburden: false, want: 300},
-		"does not boost speed for unburden without the ability":                {stage: 0, base: 100, item: noneItem, ability: NoneAbility, weather: noneWeather, paralyzed: false, unburden: true, want: 100},
+		"does not boost speed for unburden without the ability":                {stage: 0, base: 100, item: noneItem, ability: noneAbility, weather: noneWeather, paralyzed: false, unburden: true, want: 100},
 		"boosts speed for unburden with the ability":                           {stage: 0, base: 100, item: noneItem, ability: unburdenAbility, weather: noneWeather, paralyzed: false, unburden: true, want: 200},
 	}
 
@@ -101,8 +101,8 @@ func TestEffectiveSpeedAppliesSpeedModifiersCorrectly(t *testing.T) {
 				ailments: make(map[ailmentState]*ailment),
 				unburden: tc.unburden,
 			}
-			mon.stats[Speed] = tc.base
-			mon.stages[Speed] = tc.stage
+			mon.stats[speed] = tc.base
+			mon.stages[speed] = tc.stage
 			item, _ := registerItem(tc.item, &mon)
 			mon.item = item
 			bbs := initBenchBattleState(tc.weather)
@@ -211,8 +211,8 @@ func TestChangeStatStageByUpdatesStagesWithinTheAllowedRange(t *testing.T) {
 	}{
 		"increases the stage by one":                          {initial: 0, stat: attack, change: 1, want: 1},
 		"decreases the stage by one":                          {initial: 0, stat: defense, change: -1, want: -1},
-		"caps a positive stage at the maximum":                {initial: 5, stat: Speed, change: 2, want: 6},
-		"caps a negative stage at the minimum":                {initial: -5, stat: Speed, change: -2, want: -6},
+		"caps a positive stage at the maximum":                {initial: 5, stat: speed, change: 2, want: 6},
+		"caps a negative stage at the minimum":                {initial: -5, stat: speed, change: -2, want: -6},
 		"blocks offensive stat drops with clear body":         {initial: 0, stat: attack, change: -1, offensive: true, ability: clearBodyAbility, want: 0},
 		"does not block defensive stat drops with clear body": {initial: 0, stat: attack, change: -1, offensive: false, ability: clearBodyAbility, want: -1},
 		"blocks accuracy drops with keen eye":                 {initial: 0, stat: accuracy, change: -1, ability: keenEyeAbility, want: 0},
@@ -307,18 +307,18 @@ func TestApplyAilmentAppliesAilmentsWhenAllowed(t *testing.T) {
 		"does not apply burn to a fire type":           {ailment: burnAilment, pokemonType: fireType, ability: intimidateAbility, want: false},
 		"applies paralysis to a normal type":           {ailment: paralysisAilment, pokemonType: normalType, ability: intimidateAbility, want: true},
 		"does not apply paralysis to an electric type": {ailment: paralysisAilment, pokemonType: electricType, ability: intimidateAbility, want: false},
-		"applies freeze to a normal type":              {ailment: freezeAilment, pokemonType: normalType, ability: NoneAbility, want: true},
+		"applies freeze to a normal type":              {ailment: freezeAilment, pokemonType: normalType, ability: noneAbility, want: true},
 		"does not apply freeze to an ice type":         {ailment: freezeAilment, pokemonType: iceType, ability: intimidateAbility, want: false},
 		"does not apply freeze with magma armor":       {ailment: freezeAilment, pokemonType: normalType, ability: magmaArmorAbility, want: false},
 		"applies poison to a normal type":              {ailment: poisonAilment, pokemonType: normalType, ability: intimidateAbility, want: true},
 		"does not apply poison to a steel type":        {ailment: poisonAilment, pokemonType: steelType, ability: intimidateAbility, want: false},
 		"does not apply poison with immunity":          {ailment: poisonAilment, pokemonType: normalType, ability: immunityAbility, want: false},
-		"applies sleep to a normal type":               {ailment: sleepAilment, pokemonType: normalType, ability: NoneAbility, want: true},
+		"applies sleep to a normal type":               {ailment: sleepAilment, pokemonType: normalType, ability: noneAbility, want: true},
 		"does not apply sleep with vital spirit":       {ailment: sleepAilment, pokemonType: normalType, ability: vitalSpiritAbility, want: false},
-		"applies yawn to a normal type":                {ailment: yawnAilment, pokemonType: normalType, ability: NoneAbility, want: true},
+		"applies yawn to a normal type":                {ailment: yawnAilment, pokemonType: normalType, ability: noneAbility, want: true},
 		"does not apply yawn with vital spirit":        {ailment: yawnAilment, pokemonType: normalType, ability: vitalSpiritAbility, want: false},
-		"applies confusion to a normal type":           {ailment: confusionAilment, pokemonType: normalType, ability: NoneAbility, want: true},
-		"applies infatuation to a normal type":         {ailment: infatuationAilment, pokemonType: normalType, ability: NoneAbility, want: true},
+		"applies confusion to a normal type":           {ailment: confusionAilment, pokemonType: normalType, ability: noneAbility, want: true},
+		"applies infatuation to a normal type":         {ailment: infatuationAilment, pokemonType: normalType, ability: noneAbility, want: true},
 		"does not apply infatuation with oblivious":    {ailment: infatuationAilment, pokemonType: normalType, ability: obliviousAbility, want: false},
 		"does not apply burn with water veil":          {ailment: burnAilment, pokemonType: normalType, ability: waterVeilAbility, want: false},
 		"does not apply paralysis with limber":         {ailment: paralysisAilment, pokemonType: normalType, ability: limberAbility, want: false},
@@ -327,7 +327,7 @@ func TestApplyAilmentAppliesAilmentsWhenAllowed(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			mon := pokemon{
-				base: basePokemon{
+				base: BasePokemon{
 					Types: []pokemonType{tc.pokemonType},
 				},
 				ability:  tc.ability,
@@ -393,8 +393,8 @@ func TestToxicConversionTurnsPoisonIntoToxicWhenAppropriate(t *testing.T) {
 			mon := pokemon{
 				ailments: make(map[ailmentState]*ailment),
 			}
-			move := Move{
-				Name: tc.move,
+			move := move{
+				name: tc.move,
 			}
 
 			mon.applyAilment(poisonAilment, &move, nil)
@@ -415,8 +415,8 @@ func TestIsGroundedAccountsForTypeAbilitiesAndItems(t *testing.T) {
 		item        itemState
 		want        bool
 	}{
-		"flying types are not grounded by default":    {pokemonType: flyingType, ability: NoneAbility, item: noneItem, want: false},
-		"flying types become grounded with iron ball": {pokemonType: flyingType, ability: NoneAbility, item: ironBall, want: true},
+		"flying types are not grounded by default":    {pokemonType: flyingType, ability: noneAbility, item: noneItem, want: false},
+		"flying types become grounded with iron ball": {pokemonType: flyingType, ability: noneAbility, item: ironBall, want: true},
 		"normal types are grounded by intimidate":     {pokemonType: normalType, ability: intimidateAbility, item: noneItem, want: true},
 		"normal types remain grounded with iron ball": {pokemonType: normalType, ability: intimidateAbility, item: ironBall, want: true},
 		"levitate prevents grounding by default":      {pokemonType: normalType, ability: levitateAbility, item: noneItem, want: false},
@@ -426,7 +426,7 @@ func TestIsGroundedAccountsForTypeAbilitiesAndItems(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			mon := pokemon{
-				base: basePokemon{
+				base: BasePokemon{
 					Types: []pokemonType{tc.pokemonType},
 				},
 				ability: tc.ability,
@@ -516,7 +516,7 @@ func TestApplyMoveTypeCalculatesTheCorrectDamageMultiplier(t *testing.T) {
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
 			mon := pokemon{
-				base: basePokemon{
+				base: BasePokemon{
 					Types: tc.pokemonTypes,
 				},
 				ability: tc.ability,

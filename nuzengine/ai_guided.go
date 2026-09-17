@@ -24,11 +24,11 @@ func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
 func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	ga.print("Choose an action:\n")
 	for i, action := range actions {
-		ga.print("%d. %s against %s\n", i+1, action.move.Name, action.targetSlot.mon.base.Name)
+		ga.print("%d. %s against %s\n", i+1, action.move.name, action.targetSlot.mon.base.Name)
 	}
 	numberOfChoices := len(actions)
 	canSwitch := false
-	if !slot.isTrapped() && canReplace(slot.Trainer.PokemonParty) {
+	if !slot.isTrapped() && canReplace(slot.Trainer.pokemonParty) {
 		numberOfChoices++
 		canSwitch = true
 		ga.print("%d: switch\n", numberOfChoices)

@@ -1,17 +1,17 @@
 package nuzengine
 
 func (ma *moveAction) scoreActionMove(bs battleState) (int, bool) {
-	if ma.move.Class == statusClass {
+	if ma.move.class == statusClass {
 		return ma.scoreStatusMove(bs), false
 	}
 
 	damageRoll := 0
 	critRate := determineCritRate(ma.userSlot.mon, ma.move)
 	rolls := 1
-	if ma.move.MaxHits == 5 {
+	if ma.move.maxHits == 5 {
 		rolls = 3
-	} else if ma.move.MaxHits > 0 {
-		rolls = ma.move.MaxHits
+	} else if ma.move.maxHits > 0 {
+		rolls = ma.move.maxHits
 	}
 	for i := 0; i < rolls; i++ {
 		damageRoll += calculateDamage(ma.userSlot.mon, ma.targetSlot.mon, ma.move, new(critRate >= 3), bs.getWeather(), false, true, false)
@@ -26,7 +26,7 @@ func (ma *moveAction) scoreActionMove(bs battleState) (int, bool) {
 }
 
 func (ma *moveAction) scoreStatusMove(bs battleState) int {
-	if ma.move.Category == "heal" {
+	if ma.move.category == "heal" {
 		if ma.userSlot.mon.hp > ma.userSlot.mon.MaxHP()*85/100 {
 			return -64
 		}
@@ -36,22 +36,22 @@ func (ma *moveAction) scoreStatusMove(bs battleState) int {
 		return 5
 	}
 
-	if isPowderMove(ma.move.Name) && ma.targetSlot.mon.isImmuneToPowderMoves() {
+	if isPowderMove(ma.move.name) && ma.targetSlot.mon.isImmuneToPowderMoves() {
 		return -64
 	}
-	if isParalysisMove(ma.move.Name) {
+	if isParalysisMove(ma.move.name) {
 		return ma.scoreParalysisMove(bs)
 	}
-	if isSleepMove(ma.move.Name) {
+	if isSleepMove(ma.move.name) {
 		return ma.scoreSleepMove(bs)
 	}
-	if isProtectMove(ma.move.Name) {
+	if isProtectMove(ma.move.name) {
 		return ma.scoreProtectMove(bs)
 	}
 
-	switch ma.move.Name {
+	switch ma.move.name {
 	case "sticky web":
-		if ma.targetSlot.hasFieldEffect(ma.move.Name) {
+		if ma.targetSlot.hasFieldEffect(ma.move.name) {
 			return -64
 		}
 		if ma.userSlot.firstTurn {
@@ -59,7 +59,7 @@ func (ma *moveAction) scoreStatusMove(bs battleState) int {
 		}
 		return 6 + 3*rollInt(3, 4)
 	case "stealth rock", "spikes", "toxic spikes":
-		if ma.targetSlot.hasFieldEffect(ma.move.Name) {
+		if ma.targetSlot.hasFieldEffect(ma.move.name) {
 			return -64
 		}
 		if ma.userSlot.firstTurn {
@@ -91,12 +91,12 @@ func (ma *moveAction) shouldMonHeal(bs battleState) bool {
 	}
 
 	maxDmg := calculateMaxDamage(bs, ma.targetSlot.mon, ma.userSlot.mon, true)
-	if maxDmg >= ma.userSlot.mon.MaxHP()*ma.move.Heal/100 {
+	if maxDmg >= ma.userSlot.mon.MaxHP()*ma.move.heal/100 {
 		return false
 	}
 
 	if ma.userSlot.mon.isFasterThan(bs, ma.targetSlot.mon) {
-		if maxDmg < min(ma.userSlot.mon.MaxHP(), ma.userSlot.mon.hp+ma.userSlot.mon.MaxHP()*ma.move.Heal/100) {
+		if maxDmg < min(ma.userSlot.mon.MaxHP(), ma.userSlot.mon.hp+ma.userSlot.mon.MaxHP()*ma.move.heal/100) {
 			return true
 		} else {
 			if ma.userSlot.mon.hp < ma.userSlot.mon.MaxHP()*40/100 {
@@ -127,8 +127,8 @@ func (ma *moveAction) scoreParalysisMove(bs battleState) int {
 	score := 6
 	if target.isFasterThan(bs, user) && user.effectiveSpeed(bs) > target.effectiveSpeed(bs)/4 {
 		score++
-	} else if user.hasMovePredicate(func(m *Move) bool {
-		return m.Name == "hex" || m.FlinchChance > 0
+	} else if user.hasMovePredicate(func(m *move) bool {
+		return m.name == "hex" || m.flinchChance > 0
 	}) {
 		score++
 	} else if target.hasAilment(confusionAilment) != nil {
@@ -154,8 +154,8 @@ func (ma *moveAction) scoreSleepMove(bs battleState) int {
 		return -64
 	}
 
-	isHex := func(m *Move) bool {
-		return m.Name == "hex"
+	isHex := func(m *move) bool {
+		return m.name == "hex"
 	}
 
 	score := 6
@@ -171,10 +171,10 @@ func (ma *moveAction) scoreSleepMove(bs battleState) int {
 			}
 		}
 
-		if user.hasMovePredicate(func(m *Move) bool {
-			return m.Name == "dream eater" || m.Name == "nightmare"
-		}) && !target.hasMovePredicate(func(m *Move) bool {
-			return m.Name == "snore" || m.Name == "sleep talk"
+		if user.hasMovePredicate(func(m *move) bool {
+			return m.name == "dream eater" || m.name == "nightmare"
+		}) && !target.hasMovePredicate(func(m *move) bool {
+			return m.name == "snore" || m.name == "sleep talk"
 		}) {
 			score += 1
 		}
@@ -200,14 +200,14 @@ func (ma *moveAction) scoreToxic(bs battleState) int {
 	score := 6
 	maxDmg := calculateMaxDamage(bs, target, user, true)
 	if maxDmg < user.hp && roll(19, 50) {
-		if !target.hasMovePredicate(func(m *Move) bool {
-			return m.Class == physicalClass || m.Class == SpecialClass
+		if !target.hasMovePredicate(func(m *move) bool {
+			return m.class == physicalClass || m.class == specialClass
 		}) {
 			score += 1
 		}
 
-		if user.hasMovePredicate(func(m *Move) bool {
-			return m.Name == "hex" || m.Name == "venoshock"
+		if user.hasMovePredicate(func(m *move) bool {
+			return m.name == "hex" || m.name == "venoshock"
 		}) || user.ability == mercilessAbility {
 			score += 2
 		} else {
@@ -273,12 +273,12 @@ func (ma *moveAction) scoreCritStatus() int {
 	if ma.targetSlot.mon.ability.blocksCrits() && user.ability != moldBreakerAbility {
 		return -64
 	}
-	if ma.move.Name == "focus energy" && user.focusEnergy {
+	if ma.move.name == "focus energy" && user.focusEnergy {
 		return -64
 	}
 
-	if user.hasMovePredicate(func(m *Move) bool {
-		return m.CritRate > 0
+	if user.hasMovePredicate(func(m *move) bool {
+		return m.critRate > 0
 	}) {
 		return 7
 	} else if user.item.State == scopeLens {
@@ -294,8 +294,8 @@ func (ma *moveAction) scoreBellyDrum(bs battleState) int {
 	user := ma.userSlot.mon
 	target := ma.targetSlot.mon
 
-	if a := target.hasAilment(freezeAilment); a != nil && target.hasMovePredicate(func(m *Move) bool {
-		return isSelfThawingMove(m.Name)
+	if a := target.hasAilment(freezeAilment); a != nil && target.hasMovePredicate(func(m *move) bool {
+		return isSelfThawingMove(m.name)
 	}) {
 		return 9
 	}
