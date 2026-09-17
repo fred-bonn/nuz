@@ -1,5 +1,7 @@
 package nuzengine
 
+import "fmt"
+
 type statState int
 
 const (
@@ -92,4 +94,14 @@ var natureChart = map[string]nature{
 	"jolly":   {Speed, specialAttack},
 	"naive":   {Speed, specialDefense},
 	"serious": {Speed, Speed},
+}
+
+func getNature(nat string) (nature, error) {
+	res, ok := natureChart[nat]
+	if !ok {
+		return nature{}, fmt.Errorf("invalid nature: %s", nat)
+	}
+
+	return res, nil
+
 }

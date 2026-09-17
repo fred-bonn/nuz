@@ -17,7 +17,7 @@ func TestRnbShouldSwitchRejectsUnsafeReplacements(t *testing.T) {
 			opponent := testSwitchPokemon("opponent", 100, 50, 100, 100, &Move{Name: "sonic boom", Power: 1, PP: 1, Class: SpecialClass})
 			bs := testSwitchBattleState(current, replacement, opponent)
 
-			if got := (rnbAi{}).shouldSwitch(bs, bs.activePlayerSlot, -1, []*Pokemon{current, replacement}); got {
+			if got := (rnbAi{}).shouldSwitch(bs, bs.activePlayerSlot, -1, []*pokemon{current, replacement}); got {
 				t.Fatal("shouldSwitch returned true for an unsafe replacement")
 			}
 		})
@@ -31,36 +31,36 @@ func TestRnbShouldSwitchCanChooseSafeReplacement(t *testing.T) {
 	bs := testSwitchBattleState(current, replacement, opponent)
 
 	for i := 0; i < 100; i++ {
-		if (rnbAi{}).shouldSwitch(bs, bs.activePlayerSlot, -1, []*Pokemon{current, replacement}) {
+		if (rnbAi{}).shouldSwitch(bs, bs.activePlayerSlot, -1, []*pokemon{current, replacement}) {
 			return
 		}
 	}
 	t.Fatal("shouldSwitch never selected a safe replacement")
 }
 
-func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int, move *Move) *Pokemon {
+func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int, move *Move) *pokemon {
 	moves := []*Move{}
 	if move != nil {
 		moves = append(moves, move)
 	}
-	return &Pokemon{
-		Base:     BasePokemon{Name: name, Types: []pokemonType{normalType}},
+	return &pokemon{
+		base:     basePokemon{Name: name, Types: []pokemonType{normalType}},
 		level:    50,
-		Moves:    moves,
-		Stats:    []int{hp, 100, 100, specialAttack, specialDefense, speed},
-		Stages:   make([]int, 8),
-		HP:       hp,
-		Ailments: make(map[ailmentState]*ailment),
-		Item:     &item{State: noneItem},
+		moves:    moves,
+		stats:    []int{hp, 100, 100, specialAttack, specialDefense, speed},
+		stages:   make([]int, 8),
+		hp:       hp,
+		ailments: make(map[ailmentState]*ailment),
+		item:     &item{State: noneItem},
 	}
 }
 
-func testSwitchBattleState(current, replacement, opponent *Pokemon) *singleBattleState {
+func testSwitchBattleState(current, replacement, opponent *pokemon) *singleBattleState {
 	return initSingleBattleState(
 		trainer{AI: rnbAi{}, FieldEffects: make(map[fieldEffect]int)},
 		trainer{AI: rnbAi{}, FieldEffects: make(map[fieldEffect]int)},
-		[]*Pokemon{current, replacement},
-		[]*Pokemon{opponent},
+		[]*pokemon{current, replacement},
+		[]*pokemon{opponent},
 		0,
 	)
 }

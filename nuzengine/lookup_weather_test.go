@@ -38,21 +38,21 @@ func TestWeatherAffectsMonAccordingToTypeAndAbilities(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			dummy := &Pokemon{
-				Base: BasePokemon{
+			dummy := &pokemon{
+				base: basePokemon{
 					Types: []pokemonType{
 						tc.pokemonType,
 					},
 				},
-				Ability: tc.ability,
+				ability: tc.ability,
 			}
 
 			if tc.goggles {
-				dummy.Item = &item{
+				dummy.item = &item{
 					State: safetyGoggles,
 				}
 			} else {
-				dummy.Item = &item{
+				dummy.item = &item{
 					State:    noneItem,
 					Consumed: true,
 				}

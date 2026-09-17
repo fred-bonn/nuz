@@ -25,8 +25,8 @@ func rollInt(numerator int, denominator int) int {
 	return 0
 }
 
-func accuracyRoll(bs battleState, user *Pokemon, target *Pokemon, move *Move) bool {
-	if user.Ability == noGuardAbility || target.Ability == noGuardAbility {
+func accuracyRoll(bs battleState, user *pokemon, target *pokemon, move *Move) bool {
+	if user.ability == noGuardAbility || target.ability == noGuardAbility {
 		return true
 	} else if move.Name == "toxic" && user.hasType(poisonType) {
 		return true
@@ -35,15 +35,15 @@ func accuracyRoll(bs battleState, user *Pokemon, target *Pokemon, move *Move) bo
 	}
 
 	moveAccuracy := move.Accuracy
-	if user.Ability == hustleAbility && move.Class == physicalClass {
+	if user.ability == hustleAbility && move.Class == physicalClass {
 		moveAccuracy = moveAccuracy * 80 / 100
 	}
 
 	accNum, accDen := user.accuracyFraction()
-	evNum, evDen := target.evasionFraction(user.Ability == keenEyeAbility)
+	evNum, evDen := target.evasionFraction(user.ability == keenEyeAbility)
 	numerator := moveAccuracy * accNum * evNum
 	denominator := 100 * accDen * evDen
-	if user.Ability == compoundEyesAbility {
+	if user.ability == compoundEyesAbility {
 		numerator *= 13
 		denominator *= 10
 	}
@@ -51,12 +51,12 @@ func accuracyRoll(bs battleState, user *Pokemon, target *Pokemon, move *Move) bo
 	if bs.getWeather() != noneWeather {
 		switch bs.getWeather() {
 		case hailWeather:
-			if target.Ability == snowCloakAbility {
+			if target.ability == snowCloakAbility {
 				numerator *= 4
 				denominator *= 5
 			}
 		case sandstormWeather:
-			if target.Ability == sandVeilAbility {
+			if target.ability == sandVeilAbility {
 				numerator *= 4
 				denominator *= 5
 			}
@@ -82,22 +82,22 @@ func determineHits(move *Move) int {
 	return move.MaxHits
 }
 
-func determineCrit(user *Pokemon, move *Move) *bool {
+func determineCrit(user *pokemon, move *Move) *bool {
 	rate := determineCritRate(user, move)
 
 	return new(roll(1, critRateMap[rate]))
 }
 
-func determineCritRate(user *Pokemon, move *Move) int {
+func determineCritRate(user *pokemon, move *Move) int {
 	if user.laserFocus {
 		return 3
 	}
 
 	rate := move.CritRate
-	if user.Item.State == scopeLens {
+	if user.item.State == scopeLens {
 		rate++
 	}
-	if user.Ability == superLuckAbility {
+	if user.ability == superLuckAbility {
 		rate++
 	}
 	if user.focusEnergy {
@@ -116,7 +116,7 @@ func monFainted(bs battleState, slot *slot, pursuit bool) {
 	if !pursuit {
 		injectReplaceAction(bs, slot, false)
 	}
-	vprintf("%s fainted!", slot.mon.Base.Name)
+	vprintf("%s fainted!", slot.mon.base.Name)
 }
 
 func fetchPursuitMiddleware(name string) func(a action) bool {
@@ -128,7 +128,7 @@ func fetchPursuitMiddleware(name string) func(a action) bool {
 		if ma.move.Name != "pursuit" {
 			return false
 		}
-		if ma.targetSlot.mon.Base.Name != name {
+		if ma.targetSlot.mon.base.Name != name {
 			return false
 		}
 		return true

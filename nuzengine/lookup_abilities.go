@@ -475,7 +475,7 @@ func trace(s *slot, bs battleState, switchIn bool) {
 		return
 	}
 
-	opponentMons := make([]*Pokemon, 0)
+	opponentMons := make([]*pokemon, 0)
 	for _, slot := range bs.getOtherSlots(s) {
 		if slot.Trainer == s.Trainer {
 			continue
@@ -483,9 +483,9 @@ func trace(s *slot, bs battleState, switchIn bool) {
 		opponentMons = append(opponentMons, slot.mon)
 	}
 
-	s.mon.Ability = opponentMons[rand.Int()%len(opponentMons)].Ability
+	s.mon.ability = opponentMons[rand.Int()%len(opponentMons)].ability
 	s.mon.trace = true
-	vprintf("%s traced %s", s.mon.Base.Name, s.mon.Ability)
+	vprintf("%s traced %s", s.mon.base.Name, s.mon.ability)
 }
 
 func unnerve(s *slot, bs battleState, switchIn bool) {
@@ -506,7 +506,7 @@ func intimidate(s *slot, bs battleState, switchIn bool) {
 		if slot.Trainer == s.Trainer {
 			continue
 		}
-		if slot.mon.Ability == innerFocusAbility {
+		if slot.mon.ability == innerFocusAbility {
 			continue
 		}
 		slot.mon.changeStatStageBy(attack, -1, true)
@@ -527,7 +527,7 @@ func naturalCure(s *slot, bs battleState, switchIn bool) {
 	}
 
 	for ailment := range nonVolatileStatuses {
-		delete(s.mon.Ailments, ailment)
+		delete(s.mon.ailments, ailment)
 	}
 }
 
@@ -587,7 +587,7 @@ func typeConvertingAbilitiesMiddleware(t1 pokemonType) func(t *pokemonType, p *i
 	}
 }
 
-var typeImmunityAbilities = map[abilityState]func(u *Pokemon, t pokemonType, s bool) bool{
+var typeImmunityAbilities = map[abilityState]func(u *pokemon, t pokemonType, s bool) bool{
 	flashFireAbility:    flashFire,
 	drySkinAbility:      drySkin,
 	waterAbsorbAbility:  drySkin,
@@ -599,7 +599,7 @@ var typeImmunityAbilities = map[abilityState]func(u *Pokemon, t pokemonType, s b
 	levitateAbility:     levitate,
 }
 
-func flashFire(p *Pokemon, t pokemonType, s bool) bool {
+func flashFire(p *pokemon, t pokemonType, s bool) bool {
 	if t != fireType {
 		return false
 	}
@@ -608,19 +608,19 @@ func flashFire(p *Pokemon, t pokemonType, s bool) bool {
 }
 
 // still need to implement sunlight penalty
-func drySkin(p *Pokemon, t pokemonType, s bool) bool {
+func drySkin(p *pokemon, t pokemonType, s bool) bool {
 	if t != waterType {
 		return false
 	}
 	if s {
 		return true
 	}
-	vprintf("%s restored health with %s", p.Base.Name, p.Ability)
+	vprintf("%s restored health with %s", p.base.Name, p.ability)
 	p.ChangeHpBy(p.MaxHP() / 4)
 	return true
 }
 
-func stormDrain(p *Pokemon, t pokemonType, s bool) bool {
+func stormDrain(p *pokemon, t pokemonType, s bool) bool {
 	if t != waterType {
 		return false
 	}
@@ -631,19 +631,19 @@ func stormDrain(p *Pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func voltAbsorb(p *Pokemon, t pokemonType, s bool) bool {
+func voltAbsorb(p *pokemon, t pokemonType, s bool) bool {
 	if t != electricType {
 		return false
 	}
 	if s {
 		return true
 	}
-	vprintf("%s restored health with %s", p.Base.Name, p.Ability)
+	vprintf("%s restored health with %s", p.base.Name, p.ability)
 	p.ChangeHpBy(p.MaxHP() / 4)
 	return true
 }
 
-func lightningRod(p *Pokemon, t pokemonType, s bool) bool {
+func lightningRod(p *pokemon, t pokemonType, s bool) bool {
 	if t != electricType {
 		return false
 	}
@@ -654,7 +654,7 @@ func lightningRod(p *Pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func motorDrive(p *Pokemon, t pokemonType, s bool) bool {
+func motorDrive(p *pokemon, t pokemonType, s bool) bool {
 	if t != electricType {
 		return false
 	}
@@ -665,7 +665,7 @@ func motorDrive(p *Pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func sapSipper(p *Pokemon, t pokemonType, s bool) bool {
+func sapSipper(p *pokemon, t pokemonType, s bool) bool {
 	if t != grassType {
 		return false
 	}
@@ -676,7 +676,7 @@ func sapSipper(p *Pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func levitate(p *Pokemon, t pokemonType, s bool) bool {
+func levitate(p *pokemon, t pokemonType, s bool) bool {
 	return t == groundType
 }
 
@@ -699,7 +699,7 @@ var contactDefensiveAbilities = map[abilityState]func(u, t *slot){
 func roughSkin(u, t *slot) {
 	change := u.mon.MaxHP() * 1 / 8
 	u.mon.ChangeHpBy(-change)
-	vprintf("%s was hurt by %s", u.mon.Base.Name, t.mon.Ability)
+	vprintf("%s was hurt by %s", u.mon.base.Name, t.mon.ability)
 }
 
 func cuteCharm(u, t *slot) {
@@ -721,7 +721,7 @@ func poisonPoint(u, t *slot) {
 }
 
 func effectSpore(u, t *slot) {
-	if u.mon.hasType(grassType) || u.mon.Ability == overcoatAbility || u.mon.Item.State == safetyGoggles {
+	if u.mon.hasType(grassType) || u.mon.ability == overcoatAbility || u.mon.item.State == safetyGoggles {
 		return
 	}
 	if roll(30, 100) {
@@ -746,10 +746,10 @@ func poisonTouch(u, t *slot) {
 	}
 }
 
-func cheekPouch(mon *Pokemon) {
-	if mon.Ability == cheekPouchAbility {
+func cheekPouch(mon *pokemon) {
+	if mon.ability == cheekPouchAbility {
 		restore := mon.MaxHP() / 3
 		mon.ChangeHpBy(restore)
-		vprintf("%s ate its cheek pouch and restored %d hp", mon.Base.Name, restore)
+		vprintf("%s ate its cheek pouch and restored %d hp", mon.base.Name, restore)
 	}
 }

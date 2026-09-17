@@ -17,13 +17,13 @@ func TestIsImmuneToPowderMovesDetectsPowderImmunity(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Base: BasePokemon{
+			mon := pokemon{
+				base: basePokemon{
 					Types: []pokemonType{
 						tc.t,
 					},
 				},
-				Ability: tc.a,
+				ability: tc.a,
 			}
 
 			if got := mon.isImmuneToPowderMoves(); got != tc.want {
@@ -49,12 +49,12 @@ func TestEffectiveStatAppliesStagesAndCritRules(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			mon.Stats[tc.stat] = tc.base
-			mon.Stages[tc.stat] = tc.stage
+			mon.stats[tc.stat] = tc.base
+			mon.stages[tc.stat] = tc.stage
 
 			if got := mon.effectiveStat(tc.stat, tc.crit); got != tc.want {
 				t.Errorf("mon.effectiveStat(%s, %t) = %d, want %d", tc.stat, tc.crit, got, tc.want)
@@ -94,17 +94,17 @@ func TestEffectiveSpeedAppliesSpeedModifiersCorrectly(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages:   []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Ability:  tc.ability,
-				Ailments: make(map[ailmentState]*ailment),
+			mon := pokemon{
+				stats:    []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages:   []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				ability:  tc.ability,
+				ailments: make(map[ailmentState]*ailment),
 				unburden: tc.unburden,
 			}
-			mon.Stats[Speed] = tc.base
-			mon.Stages[Speed] = tc.stage
+			mon.stats[Speed] = tc.base
+			mon.stages[Speed] = tc.stage
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 			bbs := initBenchBattleState(tc.weather)
 			if tc.paralyzed {
 				mon.applyAilment(paralysisAilment, nil, nil)
@@ -150,11 +150,11 @@ func TestEvasionFractionCalculatesTheCorrectFraction(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			mon.Stages[evasion] = tc.stage
+			mon.stages[evasion] = tc.stage
 
 			if num, dem := mon.evasionFraction(tc.keenEye); num != tc.want.num || dem != tc.want.dem {
 				t.Errorf("mon.evasionFraction(%t) = (%d, %d), want (%d, %d)", tc.keenEye, num, dem, tc.want.num, tc.want.dem)
@@ -187,11 +187,11 @@ func TestAccuracyFractionCalculatesTheCorrectFraction(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Stages: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+			mon := pokemon{
+				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				stages: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			mon.Stages[accuracy] = tc.stage
+			mon.stages[accuracy] = tc.stage
 
 			if num, dem := mon.accuracyFraction(); num != tc.want.num || dem != tc.want.dem {
 				t.Errorf("mon.evasionFraction() = (%d, %d), want (%d, %d)", num, dem, tc.want.num, tc.want.dem)
@@ -220,15 +220,15 @@ func TestChangeStatStageByUpdatesStagesWithinTheAllowedRange(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stages:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				Ability: tc.ability,
+			mon := pokemon{
+				stages:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				ability: tc.ability,
 			}
-			mon.Stages[tc.stat] = tc.initial
+			mon.stages[tc.stat] = tc.initial
 
 			mon.changeStatStageBy(tc.stat, tc.change, tc.offensive)
 
-			if got := mon.Stages[tc.stat]; got != tc.want {
+			if got := mon.stages[tc.stat]; got != tc.want {
 				t.Errorf("mon.changeStatStageBy(%s, %d, %t) = %d, want %d", tc.stat, tc.change, tc.offensive, got, tc.want)
 			}
 		})
@@ -251,8 +251,8 @@ func TestHasAilmentDetectsAppliedAilments(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Ailments: map[ailmentState]*ailment{
+			mon := pokemon{
+				ailments: map[ailmentState]*ailment{
 					tc.has: {
 						State: tc.has,
 					},
@@ -281,8 +281,8 @@ func TestHasNonVolatileAilmentDetectsNonVolatileStatuses(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Ailments: map[ailmentState]*ailment{
+			mon := pokemon{
+				ailments: map[ailmentState]*ailment{
 					tc.has: {
 						State: tc.has,
 					},
@@ -326,15 +326,15 @@ func TestApplyAilmentAppliesAilmentsWhenAllowed(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Base: BasePokemon{
+			mon := pokemon{
+				base: basePokemon{
 					Types: []pokemonType{tc.pokemonType},
 				},
-				Ability:  tc.ability,
-				Ailments: make(map[ailmentState]*ailment),
+				ability:  tc.ability,
+				ailments: make(map[ailmentState]*ailment),
 			}
 			item, _ := registerItem(noneItem, &mon)
-			mon.Item = item
+			mon.item = item
 
 			got := mon.applyAilment(tc.ailment, nil, nil)
 			if got != tc.want {
@@ -363,15 +363,15 @@ func TestChangeHpByCapsHealingAndDamageAtMaxHP(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-				HP:    tc.initialHP,
+			mon := pokemon{
+				stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				hp:    tc.initialHP,
 			}
-			mon.Stats[hitPoints] = tc.maxHP
+			mon.stats[hitPoints] = tc.maxHP
 
 			mon.ChangeHpBy(tc.change)
 
-			if got := mon.HP; got != tc.want {
+			if got := mon.hp; got != tc.want {
 				t.Fatalf("mon.changeHpBy(%d) hp = %d, want %d", tc.change, got, tc.want)
 			}
 		})
@@ -390,8 +390,8 @@ func TestToxicConversionTurnsPoisonIntoToxicWhenAppropriate(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Ailments: make(map[ailmentState]*ailment),
+			mon := pokemon{
+				ailments: make(map[ailmentState]*ailment),
 			}
 			move := Move{
 				Name: tc.move,
@@ -425,14 +425,14 @@ func TestIsGroundedAccountsForTypeAbilitiesAndItems(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Base: BasePokemon{
+			mon := pokemon{
+				base: basePokemon{
 					Types: []pokemonType{tc.pokemonType},
 				},
-				Ability: tc.ability,
+				ability: tc.ability,
 			}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			if got := mon.isGrounded(); got != tc.want {
 				t.Fatalf("mon.isGrounded() = %t, want %t", got, tc.want)
@@ -515,14 +515,14 @@ func TestApplyMoveTypeCalculatesTheCorrectDamageMultiplier(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			mon := Pokemon{
-				Base: BasePokemon{
+			mon := pokemon{
+				base: basePokemon{
 					Types: tc.pokemonTypes,
 				},
-				Ability: tc.ability,
+				ability: tc.ability,
 			}
 			item, _ := registerItem(tc.item, &mon)
-			mon.Item = item
+			mon.item = item
 
 			if num, dem := mon.applyMoveType(tc.input.num, tc.input.dem, tc.moveType); num != tc.want.num || dem != tc.want.dem {
 				t.Fatalf("mon.applyMoveType(%d, %d, %s) = %d, %d; want %d, %d", tc.input.num, tc.input.dem, tc.moveType.String(), num, dem, tc.want.num, tc.want.dem)

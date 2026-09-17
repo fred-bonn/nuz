@@ -21,10 +21,10 @@ func (la *learningAi) evaluateActions(bs battleState, slot *slot, actions []*mov
 	return nil, 0
 }
 
-func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	return nil
 }
 
-func (la *learningAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
+func (la *learningAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
 	return false
 }

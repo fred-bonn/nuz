@@ -84,7 +84,7 @@ func (a *actionQueue) sort(bs battleState) {
 	a.queue.sortBy(cmp)
 }
 
-func (a *actionQueue) containstSwitchTo(mon *Pokemon) bool {
+func (a *actionQueue) containstSwitchTo(mon *pokemon) bool {
 	for _, action := range a.queue {
 		if sa, ok := action.(*switchAction); ok && sa.new == mon {
 			return true
@@ -93,7 +93,7 @@ func (a *actionQueue) containstSwitchTo(mon *Pokemon) bool {
 	return false
 }
 
-func (a *actionQueue) getMoveActionBy(mon *Pokemon) *moveAction {
+func (a *actionQueue) getMoveActionBy(mon *pokemon) *moveAction {
 	for _, action := range a.queue {
 		if ma, ok := action.(*moveAction); ok && mon == ma.userSlot.mon {
 			return ma

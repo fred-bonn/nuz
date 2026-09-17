@@ -3,24 +3,24 @@ package nuzengine
 type singleBattleState struct {
 	activePlayerSlot   *slot
 	activeOpponentSlot *slot
-	Player             *trainer
+	player             *trainer
 	opponent           *trainer
 	actions            actionQueue
 	weather            weatherState
 	fieldEffects       map[fieldEffect]int
 	err                error
-	initialPlayer      trainer
-	initialOpponent    trainer
+	initialPlayerMon   *pokemon
+	initialOpponentMon *pokemon
 	initialWeather     weatherState
 }
 
 func (sbs *singleBattleState) execute() error {
 	vprintln("\nStarting battle...")
 
-	for k := 0; !sbs.Player.lost && !sbs.opponent.lost; k++ {
+	for k := 0; !sbs.player.lost && !sbs.opponent.lost; k++ {
 		vprintln("=====")
 		vprintf("Turn %d:", k+1)
-		vprintf("%s %d/%d - %s %d/%d", sbs.activePlayerSlot.mon.Base.Name, sbs.activePlayerSlot.mon.HP, sbs.activePlayerSlot.mon.MaxHP(), sbs.activeOpponentSlot.mon.Base.Name, sbs.activeOpponentSlot.mon.HP, sbs.activeOpponentSlot.mon.MaxHP())
+		vprintf("%s %d/%d - %s %d/%d", sbs.activePlayerSlot.mon.base.Name, sbs.activePlayerSlot.mon.hp, sbs.activePlayerSlot.mon.MaxHP(), sbs.activeOpponentSlot.mon.base.Name, sbs.activeOpponentSlot.mon.hp, sbs.activeOpponentSlot.mon.MaxHP())
 
 		sbs.gatherActions()
 		sbs.actions.sort(sbs)
@@ -52,7 +52,7 @@ func (sbs *singleBattleState) setError(err error) {
 }
 
 func (sbs *singleBattleState) gatherActions() {
-	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activePlayerSlot, sbs.Player.PokemonParty, sbs.Player.AI))
+	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activePlayerSlot, sbs.player.PokemonParty, sbs.player.AI))
 	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activeOpponentSlot, sbs.opponent.PokemonParty, sbs.opponent.AI))
 }
 
@@ -78,7 +78,7 @@ func (sbs *singleBattleState) getOpponentSlot(s *slot) *slot {
 }
 
 func (sbs *singleBattleState) getPlayerTrainer() *trainer {
-	return sbs.Player
+	return sbs.player
 }
 
 func (sbs *singleBattleState) getActions() *actionQueue {
@@ -99,43 +99,30 @@ func (sbs *singleBattleState) getFieldEffects() map[fieldEffect]int {
 }
 
 func (sbs *singleBattleState) reset() error {
-	playerParty := clonePokemonParty(sbs.initialPlayer.PokemonParty)
-	opponentParty := clonePokemonParty(sbs.initialOpponent.PokemonParty)
-	resetPokemonPartyPPs(playerParty)
-	resetPokemonPartyPPs(opponentParty)
+	sbs.activePlayerSlot.mon.switchReset()
+	sbs.activePlayerSlot.mon = sbs.initialPlayerMon
+	sbs.activeOpponentSlot.mon.switchReset()
+	sbs.activeOpponentSlot.mon = sbs.initialOpponentMon
 
-	player := sbs.initialPlayer
-	player.PokemonParty = playerParty
-	player.lost = false
-	player.FieldEffects = cloneFieldEffects(sbs.initialPlayer.FieldEffects)
+	resetPokemonParty(sbs.player.PokemonParty)
+	resetPokemonParty(sbs.opponent.PokemonParty)
 
-	opponent := sbs.initialOpponent
-	opponent.PokemonParty = opponentParty
-	opponent.lost = false
-	opponent.FieldEffects = cloneFieldEffects(sbs.initialOpponent.FieldEffects)
+	sbs.player.FieldEffects = make(map[fieldEffect]int)
+	sbs.opponent.FieldEffects = make(map[fieldEffect]int)
 
-	sbs.activePlayerSlot = &slot{
-		mon:       playerParty[0],
-		Trainer:   &player,
-		firstTurn: true,
-	}
-	sbs.activeOpponentSlot = &slot{
-		mon:       opponentParty[0],
-		Trainer:   &opponent,
-		firstTurn: true,
-	}
-	sbs.Player = &player
-	sbs.opponent = &opponent
-	sbs.actions = actionQueue{queue: make(priorityQueue[action], 0, 3)}
+	sbs.player.lost = false
+	sbs.opponent.lost = false
+
 	sbs.weather = sbs.initialWeather
+
 	sbs.err = nil
 
-	sbs.setWeather(sbs.initialWeather)
 	resolveOnEntry(sbs)
+
 	return nil
 }
 
-func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*Pokemon, weather weatherState) *singleBattleState {
+func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) *singleBattleState {
 	player.PokemonParty = playerParty
 	opponent.PokemonParty = opponentParty
 
@@ -150,24 +137,18 @@ func initSingleBattleState(player, opponent trainer, playerParty, opponentParty 
 			Trainer:   &opponent,
 			firstTurn: true,
 		},
-		Player:   &player,
+		player:   &player,
 		opponent: &opponent,
 		actions: actionQueue{
 			queue: make(priorityQueue[action], 0, 3),
 		},
-		initialPlayer:   player,
-		initialOpponent: opponent,
-		initialWeather:  weather,
+		initialPlayerMon:   playerParty[0],
+		initialOpponentMon: opponentParty[0],
+		initialWeather:     weather,
 	}
 
-	res.initialPlayer.PokemonParty = clonePokemonParty(playerParty)
-	res.initialOpponent.PokemonParty = clonePokemonParty(opponentParty)
-	res.initialPlayer.FieldEffects = cloneFieldEffects(player.FieldEffects)
-	res.initialOpponent.FieldEffects = cloneFieldEffects(opponent.FieldEffects)
-	res.Player.PokemonParty = playerParty
-	res.opponent.PokemonParty = opponentParty
-
 	res.setWeather(weather)
+
 	resolveOnEntry(&res)
 
 	return &res

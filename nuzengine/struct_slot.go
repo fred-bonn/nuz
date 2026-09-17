@@ -3,7 +3,7 @@ package nuzengine
 import "fmt"
 
 type slot struct {
-	mon                *Pokemon
+	mon                *pokemon
 	Trainer            *trainer
 	firstTurn          bool
 	suckerPunch        bool
@@ -13,7 +13,7 @@ type slot struct {
 	unnerved           bool
 }
 
-func (s *slot) setMon(bs battleState, new *Pokemon) {
+func (s *slot) setMon(bs battleState, new *pokemon) {
 	s.mon.switchReset()
 	s.firstTurn = true
 	s.suckerPunch = false

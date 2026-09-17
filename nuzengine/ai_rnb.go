@@ -6,7 +6,7 @@ import (
 
 type rnbAi struct{}
 
-func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Pokemon) bool {
+func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
 	opponent := bs.getOpponentSlot(slot).mon
 	for _, mon := range party {
 		if mon == slot.mon || mon.fainted {
@@ -14,10 +14,10 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*Po
 		}
 
 		opponentDamage := calculateMaxDamage(bs, opponent, mon, false)
-		oneHitKill := opponentDamage >= mon.HP
-		twoHitKillWhileSlower := opponentDamage*2 >= mon.HP && !opponent.isFasterThan(bs, mon)
+		oneHitKill := opponentDamage >= mon.hp
+		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponent.isFasterThan(bs, mon)
 		if !oneHitKill && !twoHitKillWhileSlower {
-			return score <= 0 && !roll(1, 2) && slot.mon.HP > slot.mon.MaxHP()/2
+			return score <= 0 && !roll(1, 2) && slot.mon.hp > slot.mon.MaxHP()/2
 		}
 	}
 
@@ -53,7 +53,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			scores[i] = 7
 			continue
 		} else if a.move.Name == "fake out" {
-			if !a.userSlot.firstTurn || a.targetSlot.mon.Ability == innerFocusAbility || a.targetSlot.mon.Ability == shieldDustAbility {
+			if !a.userSlot.firstTurn || a.targetSlot.mon.ability == innerFocusAbility || a.targetSlot.mon.ability == shieldDustAbility {
 				damage[i] = -1
 				scores[i] = -64
 				continue
@@ -64,7 +64,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			damage[i] = -1
 			scores[i] = -64
 			continue
-		} else if a.move.Name == "belch" && (!a.userSlot.mon.Item.State.isBerry() || !a.userSlot.mon.Item.Consumed) {
+		} else if a.move.Name == "belch" && (!a.userSlot.mon.item.State.isBerry() || !a.userSlot.mon.item.Consumed) {
 			damage[i] = -1
 			scores[i] = -64
 			continue
@@ -73,7 +73,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 		}
 
 		if a.move.Ailment == trapAilment {
-			if _, ok := a.targetSlot.mon.Ailments[trapAilment]; !ok {
+			if _, ok := a.targetSlot.mon.ailments[trapAilment]; !ok {
 				scores[i] = 6 + 2*rollInt(1, 5)
 			}
 		}
@@ -112,9 +112,9 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			if kills[i] {
 				scores[i] = 10
 			} else {
-				if a.targetSlot.mon.HP < a.targetSlot.mon.MaxHP()/5 {
+				if a.targetSlot.mon.hp < a.targetSlot.mon.MaxHP()/5 {
 					scores[i] = 10
-				} else if a.targetSlot.mon.HP < a.targetSlot.mon.MaxHP()*2/5 {
+				} else if a.targetSlot.mon.hp < a.targetSlot.mon.MaxHP()*2/5 {
 					scores[i] = 8 * rollInt(1, 2)
 				}
 			}
@@ -126,11 +126,11 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 
 		// add score if fast dead and the move has priority
 		if a.move.Priority > 0 && !a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) {
-			for _, move := range a.targetSlot.mon.Moves {
+			for _, move := range a.targetSlot.mon.moves {
 				if move.PP <= 0 || move.Class == statusClass {
 					continue
 				}
-				if a.targetSlot.mon.LockedMove != nil && a.targetSlot.mon.LockedMove != move {
+				if a.targetSlot.mon.lockedMove != nil && a.targetSlot.mon.lockedMove != move {
 					continue
 				}
 
@@ -145,7 +145,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 				for i := 0; i < rolls; i++ {
 					dmg += calculateDamage(a.targetSlot.mon, a.userSlot.mon, move, new(critRate >= 3), bs.getWeather(), false, true, false)
 				}
-				if a.userSlot.mon.HP <= dmg {
+				if a.userSlot.mon.hp <= dmg {
 					scores[i] += 11
 					break
 				}
@@ -210,7 +210,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 	return actions[bestIndices[resultIndex]], scores[bestIndices[resultIndex]]
 }
 
-func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot *slot) *Pokemon {
+func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if len(mons) == 1 {
 		return mons[0]
 	}
@@ -219,7 +219,7 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot 
 	opponent := opponentSlot.mon
 
 	for i, mon := range mons {
-		if mon.Base.Name == "ditto" || mon.Base.Name == "wobbufet" {
+		if mon.base.Name == "ditto" || mon.base.Name == "wobbufet" {
 			scores[i] = 2
 			continue
 		}
@@ -229,11 +229,11 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot 
 		monDamage := calculateMaxDamage(bs, mon, opponent, false)
 		opponentDamage := calculateMaxDamage(bs, opponent, mon, false)
 
-		killsOpponent := monDamage >= opponent.HP
-		monKilled := opponentDamage >= mon.HP
+		killsOpponent := monDamage >= opponent.hp
+		monKilled := opponentDamage >= mon.hp
 
-		monDamagePercent := monDamage * 100 / max(1, opponent.HP)
-		opponentDamagePercent := opponentDamage * 100 / max(1, mon.HP)
+		monDamagePercent := monDamage * 100 / max(1, opponent.hp)
+		opponentDamagePercent := opponentDamage * 100 / max(1, mon.hp)
 
 		if outspeeds && killsOpponent {
 			scores[i] = 5
@@ -265,10 +265,10 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*Pokemon, opponentSlot 
 	return mons[bestIndex]
 }
 
-func calculateMaxDamage(bs battleState, user, target *Pokemon, checkChoice bool) int {
+func calculateMaxDamage(bs battleState, user, target *pokemon, checkChoice bool) int {
 	var maxDmg, dmg int
 	rolls := 1
-	for _, move := range user.Moves {
+	for _, move := range user.moves {
 		if move.Name == "fake out" {
 			continue
 		}
@@ -278,7 +278,7 @@ func calculateMaxDamage(bs battleState, user, target *Pokemon, checkChoice bool)
 		if move.PP <= 0 || move.Class == statusClass {
 			continue
 		}
-		if checkChoice && user.LockedMove != nil && user.LockedMove != move {
+		if checkChoice && user.lockedMove != nil && user.lockedMove != move {
 			continue
 		}
 
@@ -294,8 +294,8 @@ func calculateMaxDamage(bs battleState, user, target *Pokemon, checkChoice bool)
 		}
 
 		target.checkItemTrigger(false, makeFocusSashEvent(&dmg))
-		if target.Ability == sturdyAbility && target.HP == target.MaxHP() {
-			dmg = min(dmg, target.HP-1)
+		if target.ability == sturdyAbility && target.hp == target.MaxHP() {
+			dmg = min(dmg, target.hp-1)
 		}
 
 		if dmg > maxDmg {

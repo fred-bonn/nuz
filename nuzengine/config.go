@@ -15,7 +15,7 @@ type config struct {
 	client pokeapi.Client
 }
 
-func (cfg *config) validateInput(trainerContent string) ([]*Pokemon, error) {
+func (cfg *config) validateInput(trainerContent string) ([]*pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(trainerContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
@@ -24,7 +24,7 @@ func (cfg *config) validateInput(trainerContent string) ([]*Pokemon, error) {
 	return cfg.validateParty(trainerPokemon)
 }
 
-func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*Pokemon, error) {
+func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*pokemon, error) {
 	if len(trainerPokemon) == 0 {
 		return nil, fmt.Errorf("showdown party is empty")
 	}
@@ -37,8 +37,8 @@ func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*Poke
 	return trainerParty, nil
 }
 
-func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*Pokemon, error) {
-	var res []*Pokemon
+func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*pokemon, error) {
+	var res []*pokemon
 
 	for _, parsedPokemon := range parsedPokemons {
 		var moves []*Move
@@ -61,7 +61,7 @@ func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*Pokem
 			moves = append(moves, &baseMove)
 		}
 
-		finalPokemon, err := InitPokemon(basePokemon, moves, parsedPokemon)
+		finalPokemon, err := initPokemon(basePokemon, moves, parsedPokemon)
 		if err != nil {
 			return nil, err
 		}
@@ -72,15 +72,15 @@ func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*Pokem
 	return res, nil
 }
 
-func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
-	var p BasePokemon
+func (cfg *config) loadPokemon(name string) (basePokemon, error) {
+	var p basePokemon
 
 	data, err := os.ReadFile(fmt.Sprintf("data/pokemon/%s.json", name))
 	if err == nil {
 		// If the file exists and is read successfully, unmarshal it into a Pokemon struct
 		err = json.Unmarshal(data, &p)
 		if err != nil {
-			return BasePokemon{}, fmt.Errorf("failed unmarshaling '%s' Pokemon data: %w", name, err)
+			return basePokemon{}, fmt.Errorf("failed unmarshaling '%s' Pokemon data: %w", name, err)
 		}
 
 		return p, nil
@@ -89,19 +89,19 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	// Otherwise, fetch the Pokemon data from the API
 	pokemonJSON, err := cfg.client.FetchPokemon(name)
 	if err != nil {
-		return BasePokemon{}, fmt.Errorf("failed fetching Pokemon '%s': %w", name, err)
+		return basePokemon{}, fmt.Errorf("failed fetching Pokemon '%s': %w", name, err)
 	}
 	fmt.Printf("Fetched '%s' from API\n", name)
 
 	p, err = ToPokemon(pokemonJSON)
 	if err != nil {
-		return BasePokemon{}, err
+		return basePokemon{}, err
 	}
 
 	// Save the fetched Pokemon data to a file for future use
 	data, err = json.Marshal(p)
 	if err != nil {
-		return BasePokemon{}, fmt.Errorf("failed marshaling Pokemon JSON data '%s' to file: %w", name, err)
+		return basePokemon{}, fmt.Errorf("failed marshaling Pokemon JSON data '%s' to file: %w", name, err)
 	}
 	writeToFile(fmt.Sprintf("data/pokemon/%s.json", name), data)
 

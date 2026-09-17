@@ -1,7 +1,7 @@
 package nuzengine
 
 type trainer struct {
-	PokemonParty []*Pokemon
+	PokemonParty []*pokemon
 	Player       bool
 	AI           ai
 	FieldEffects map[fieldEffect]int

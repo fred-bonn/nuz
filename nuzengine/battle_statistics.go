@@ -1,7 +1,6 @@
 package nuzengine
 
 import (
-	"fmt"
 	"log"
 )
 
@@ -26,7 +25,6 @@ func (bs *battleStatistics) record() {
 	}
 
 	for i, mon := range bs.battleState.getPlayerTrainer().PokemonParty {
-		fmt.Println(mon.Base.Name, mon.fainted)
 		if !mon.fainted {
 			bs.monSurvivalCount[i]++
 		}
@@ -42,7 +40,7 @@ func (bs *battleStatistics) print() {
 	log.Printf("player win rate: %.2f%% (%d/%d)", winRate, bs.winCount, bs.battleCount)
 	for index, mon := range bs.battleState.getPlayerTrainer().PokemonParty {
 		survivalRate := float64(bs.monSurvivalCount[index]) * 100.0 / float64(bs.battleCount)
-		log.Printf("%s survival rate: %.2f%% (%d/%d)", mon.Base.Name, survivalRate, bs.monSurvivalCount[index], bs.battleCount)
+		log.Printf("%s survival rate: %.2f%% (%d/%d)", mon.base.Name, survivalRate, bs.monSurvivalCount[index], bs.battleCount)
 	}
 }
 

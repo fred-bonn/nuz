@@ -382,27 +382,27 @@ func (i item) String() string {
 	return i.State.String()
 }
 
-func (p *Pokemon) checkItemTrigger(consume bool, event any) {
-	if p.Item == nil {
-		if p.Base.Name != "" {
-			elogf("warning: p.checkItemTrigger: item is nil for %s", p.Base.Name)
+func (p *pokemon) checkItemTrigger(consume bool, event any) {
+	if p.item == nil {
+		if p.base.Name != "" {
+			elogf("warning: p.checkItemTrigger: item is nil for %s", p.base.Name)
 		}
 		return
 	}
-	if p.Item.trigger == nil || p.Item.Consumed {
+	if p.item.trigger == nil || p.item.Consumed {
 		return
 	}
 
-	if p.Item.trigger(event) {
+	if p.item.trigger(event) {
 		if consume {
-			p.Item.Consumed = true
+			p.item.Consumed = true
 			p.unburden = true
 		}
-		p.Item.activate()
+		p.item.activate()
 	}
 }
 
-type itemFactoryBuilder func(*Pokemon) *item
+type itemFactoryBuilder func(*pokemon) *item
 
 var itemBuilders = map[itemState]itemFactoryBuilder{
 	berryJuice:    makeBerryJuice,
@@ -491,13 +491,13 @@ var itemBuilders = map[itemState]itemFactoryBuilder{
 	focusSash:     makeFocusSash,
 }
 
-func createItemFactory(builder itemFactoryBuilder, mon *Pokemon) func() *item {
+func createItemFactory(builder itemFactoryBuilder, mon *pokemon) func() *item {
 	return func() *item {
 		return builder(mon)
 	}
 }
 
-func registerItem(is itemState, mon *Pokemon) (*item, error) {
+func registerItem(is itemState, mon *pokemon) (*item, error) {
 	if is == noneItem {
 		return &item{
 			Consumed: true,
@@ -510,8 +510,8 @@ func registerItem(is itemState, mon *Pokemon) (*item, error) {
 	return factory(), nil
 }
 
-func makePassiveItemMiddleware(is itemState) func(mon *Pokemon) *item {
-	return func(mon *Pokemon) *item {
+func makePassiveItemMiddleware(is itemState) func(mon *pokemon) *item {
+	return func(mon *pokemon) *item {
 		return &item{
 			State: is,
 			trigger: func(e any) bool {
@@ -521,8 +521,8 @@ func makePassiveItemMiddleware(is itemState) func(mon *Pokemon) *item {
 	}
 }
 
-func makeTypeBoostingItemMiddleware(is itemState, pokemonType pokemonType) func(mon *Pokemon) *item {
-	return func(mon *Pokemon) *item {
+func makeTypeBoostingItemMiddleware(is itemState, pokemonType pokemonType) func(mon *pokemon) *item {
+	return func(mon *pokemon) *item {
 		var p *int
 		return &item{
 			State: is,
@@ -544,159 +544,159 @@ func makeTypeBoostingItemMiddleware(is itemState, pokemonType pokemonType) func(
 	}
 }
 
-func makeBerryJuice(mon *Pokemon) *item {
+func makeBerryJuice(mon *pokemon) *item {
 	return &item{
 		State: berryJuice,
 		trigger: func(any) bool {
-			return mon.HP > 0 && mon.HP*2 <= mon.MaxHP()
+			return mon.hp > 0 && mon.hp*2 <= mon.MaxHP()
 		},
 		activate: func() {
 			mon.ChangeHpBy(20)
-			vprintItem("%s drank its berry juice and restored 20 hp", mon.Base.Name)
+			vprintItem("%s drank its berry juice and restored 20 hp", mon.base.Name)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeOranBerry(mon *Pokemon) *item {
+func makeOranBerry(mon *pokemon) *item {
 	return &item{
 		State: oranBerry,
 		trigger: func(any) bool {
-			return mon.HP > 0 && !mon.unnerved && mon.HP*2 <= mon.MaxHP()
+			return mon.hp > 0 && !mon.unnerved && mon.hp*2 <= mon.MaxHP()
 		},
 		activate: func() {
 			mon.ChangeHpBy(10)
-			vprintItem("%s ate its oran berry and restored 10 hp", mon.Base.Name)
+			vprintItem("%s ate its oran berry and restored 10 hp", mon.base.Name)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeSitrusBerry(mon *Pokemon) *item {
+func makeSitrusBerry(mon *pokemon) *item {
 	return &item{
 		State: sitrusBerry,
 		trigger: func(any) bool {
-			return mon.HP > 0 && !mon.unnerved && mon.HP*2 <= mon.MaxHP()
+			return mon.hp > 0 && !mon.unnerved && mon.hp*2 <= mon.MaxHP()
 		},
 		activate: func() {
 			restore := mon.MaxHP() / 4
 			mon.ChangeHpBy(restore)
-			vprintItem("%s ate its sitrus berry and restored %d hp", mon.Base.Name, restore)
+			vprintItem("%s ate its sitrus berry and restored %d hp", mon.base.Name, restore)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeCheriBerry(mon *Pokemon) *item {
+func makeCheriBerry(mon *pokemon) *item {
 	return &item{
 		State: cheriBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(paralysisAilment) != nil
 		},
 		activate: func() {
-			vprintItem("%s ate its cheri berry", mon.Base.Name)
-			delete(mon.Ailments, paralysisAilment)
+			vprintItem("%s ate its cheri berry", mon.base.Name)
+			delete(mon.ailments, paralysisAilment)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeChestoBerry(mon *Pokemon) *item {
+func makeChestoBerry(mon *pokemon) *item {
 	return &item{
 		State: chestoBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(sleepAilment) != nil
 		},
 		activate: func() {
-			vprintItem("%s ate its chesto berry", mon.Base.Name)
-			delete(mon.Ailments, sleepAilment)
+			vprintItem("%s ate its chesto berry", mon.base.Name)
+			delete(mon.ailments, sleepAilment)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makePechaBerry(mon *Pokemon) *item {
+func makePechaBerry(mon *pokemon) *item {
 	return &item{
 		State: pechaBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && (mon.hasAilment(poisonAilment) != nil || mon.hasAilment(toxicAilment) != nil)
 		},
 		activate: func() {
-			vprintItem("%s ate its pecha berry", mon.Base.Name)
-			delete(mon.Ailments, poisonAilment)
-			delete(mon.Ailments, toxicAilment)
+			vprintItem("%s ate its pecha berry", mon.base.Name)
+			delete(mon.ailments, poisonAilment)
+			delete(mon.ailments, toxicAilment)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeRawstBerry(mon *Pokemon) *item {
+func makeRawstBerry(mon *pokemon) *item {
 	return &item{
 		State: rawstBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(burnAilment) != nil
 		},
 		activate: func() {
-			vprintItem("%s ate its rawst berry", mon.Base.Name)
-			delete(mon.Ailments, burnAilment)
+			vprintItem("%s ate its rawst berry", mon.base.Name)
+			delete(mon.ailments, burnAilment)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeAspearBerry(mon *Pokemon) *item {
+func makeAspearBerry(mon *pokemon) *item {
 	return &item{
 		State: aspearBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(freezeAilment) != nil
 		},
 		activate: func() {
-			vprintItem("%s ate its aspear berry", mon.Base.Name)
-			delete(mon.Ailments, freezeAilment)
+			vprintItem("%s ate its aspear berry", mon.base.Name)
+			delete(mon.ailments, freezeAilment)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makePersimBerry(mon *Pokemon) *item {
+func makePersimBerry(mon *pokemon) *item {
 	return &item{
 		State: persimBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(confusionAilment) != nil
 		},
 		activate: func() {
-			vprintItem("%s ate its persim berry", mon.Base.Name)
-			delete(mon.Ailments, confusionAilment)
+			vprintItem("%s ate its persim berry", mon.base.Name)
+			delete(mon.ailments, confusionAilment)
 			cheekPouch(mon)
 		},
 	}
 }
 
-func makeLumBerry(mon *Pokemon) *item {
+func makeLumBerry(mon *pokemon) *item {
 	return &item{
 		State: lumBerry,
 		trigger: func(any) bool {
 			return !mon.unnerved && (mon.hasNonVolatileAilment() || mon.hasAilment(confusionAilment) != nil)
 		},
 		activate: func() {
-			vprintItem("%s ate its lum berry", mon.Base.Name)
+			vprintItem("%s ate its lum berry", mon.base.Name)
 			for ailment := range nonVolatileStatuses {
 				if mon.hasAilment(ailment) != nil {
-					delete(mon.Ailments, ailment)
-					vprintItem("%s had its %s removed", mon.Base.Name, ailment.String())
+					delete(mon.ailments, ailment)
+					vprintItem("%s had its %s removed", mon.base.Name, ailment.String())
 					break
 				}
 			}
 			if mon.hasAilment(confusionAilment) != nil {
-				delete(mon.Ailments, confusionAilment)
-				vprintItem("%s had its confusion removed", mon.Base.Name)
+				delete(mon.ailments, confusionAilment)
+				vprintItem("%s had its confusion removed", mon.base.Name)
 				cheekPouch(mon)
 			}
 		},
 	}
 }
 
-func makeLeppaBerry(mon *Pokemon) *item {
+func makeLeppaBerry(mon *pokemon) *item {
 	var m *Move
 	return &item{
 		trigger: func(e any) bool {
@@ -714,24 +714,24 @@ func makeLeppaBerry(mon *Pokemon) *item {
 	}
 }
 
-func makeStatBoostBerryMiddleware(is itemState, stat statState) func(mon *Pokemon) *item {
-	return func(mon *Pokemon) *item {
+func makeStatBoostBerryMiddleware(is itemState, stat statState) func(mon *pokemon) *item {
+	return func(mon *pokemon) *item {
 		return &item{
 			State: is,
 			trigger: func(any) bool {
 				if mon.unnerved {
 					return false
 				}
-				if mon.HP <= 0 {
+				if mon.hp <= 0 {
 					return false
 				}
-				if mon.Ability == GluttonyAbility {
-					return mon.HP*2 <= mon.MaxHP()
+				if mon.ability == GluttonyAbility {
+					return mon.hp*2 <= mon.MaxHP()
 				}
-				return mon.HP*4 <= mon.MaxHP()
+				return mon.hp*4 <= mon.MaxHP()
 			},
 			activate: func() {
-				vprintItem("%s ate its %s", mon.Base.Name, is)
+				vprintItem("%s ate its %s", mon.base.Name, is)
 				mon.changeStatStageBy(stat, 1, false)
 				cheekPouch(mon)
 			},
@@ -739,26 +739,26 @@ func makeStatBoostBerryMiddleware(is itemState, stat statState) func(mon *Pokemo
 	}
 }
 
-func makePinchHealingBerryMiddleware(is itemState, stat statState) func(mon *Pokemon) *item {
-	return func(mon *Pokemon) *item {
+func makePinchHealingBerryMiddleware(is itemState, stat statState) func(mon *pokemon) *item {
+	return func(mon *pokemon) *item {
 		return &item{
 			State: is,
 			trigger: func(any) bool {
 				if mon.unnerved {
 					return false
 				}
-				if mon.HP <= 0 {
+				if mon.hp <= 0 {
 					return false
 				}
-				if mon.Ability == GluttonyAbility {
-					return mon.HP*2 <= mon.MaxHP()
+				if mon.ability == GluttonyAbility {
+					return mon.hp*2 <= mon.MaxHP()
 				}
-				return mon.HP*4 <= mon.MaxHP()
+				return mon.hp*4 <= mon.MaxHP()
 			},
 			activate: func() {
 				restore := mon.MaxHP() / 2
 				mon.ChangeHpBy(restore)
-				vprintItem("%s ate its %s and restored %d hp", mon.Base.Name, is.String(), restore)
+				vprintItem("%s ate its %s and restored %d hp", mon.base.Name, is.String(), restore)
 				cheekPouch(mon)
 				if mon.nat.negative == stat {
 					mon.applyAilment(confusionAilment, nil, nil)
@@ -768,8 +768,8 @@ func makePinchHealingBerryMiddleware(is itemState, stat statState) func(mon *Pok
 	}
 }
 
-func makeResistBerryMiddleware(is itemState, pokemonType pokemonType) func(mon *Pokemon) *item {
-	return func(mon *Pokemon) *item {
+func makeResistBerryMiddleware(is itemState, pokemonType pokemonType) func(mon *pokemon) *item {
+	return func(mon *pokemon) *item {
 		var d *int
 		return &item{
 			State: is,
@@ -783,7 +783,7 @@ func makeResistBerryMiddleware(is itemState, pokemonType pokemonType) func(mon *
 			},
 			activate: func() {
 				if d == nil {
-					vprintItem("%s ate its %s and reduced the damage", mon.Base.Name, is)
+					vprintItem("%s ate its %s and reduced the damage", mon.base.Name, is)
 					cheekPouch(mon)
 				} else {
 					*d /= 2
@@ -793,8 +793,8 @@ func makeResistBerryMiddleware(is itemState, pokemonType pokemonType) func(mon *
 	}
 }
 
-func makeGemMiddleware(is itemState, pokemonType pokemonType) func(mon *Pokemon) *item {
-	return func(mon *Pokemon) *item {
+func makeGemMiddleware(is itemState, pokemonType pokemonType) func(mon *pokemon) *item {
+	return func(mon *pokemon) *item {
 		var p *int
 		return &item{
 			State: is,
@@ -808,7 +808,7 @@ func makeGemMiddleware(is itemState, pokemonType pokemonType) func(mon *Pokemon)
 			},
 			activate: func() {
 				if p == nil {
-					vprintItem("%s consumed its %s gem and boosted the damage", mon.Base.Name, pokemonType.String())
+					vprintItem("%s consumed its %s gem and boosted the damage", mon.base.Name, pokemonType.String())
 				} else {
 					*p = *p * 3 / 2
 				}
@@ -817,7 +817,7 @@ func makeGemMiddleware(is itemState, pokemonType pokemonType) func(mon *Pokemon)
 	}
 }
 
-func makeAssaultVest(mon *Pokemon) *item {
+func makeAssaultVest(mon *pokemon) *item {
 	var s *int
 	return &item{
 		State: assaultVest,
@@ -838,7 +838,7 @@ func makeAssaultVest(mon *Pokemon) *item {
 	}
 }
 
-func makeChoiceScarf(mon *Pokemon) *item {
+func makeChoiceScarf(mon *pokemon) *item {
 	var s *int
 	return &item{
 		State: choiceScarf,
@@ -859,7 +859,7 @@ func makeChoiceScarf(mon *Pokemon) *item {
 	}
 }
 
-func makeChoiceBand(mon *Pokemon) *item {
+func makeChoiceBand(mon *pokemon) *item {
 	var s *int
 	return &item{
 		State: choiceBand,
@@ -880,7 +880,7 @@ func makeChoiceBand(mon *Pokemon) *item {
 	}
 }
 
-func makeChoiceSpecs(mon *Pokemon) *item {
+func makeChoiceSpecs(mon *pokemon) *item {
 	var s *int
 	return &item{
 		State: choiceSpecs,
@@ -901,7 +901,7 @@ func makeChoiceSpecs(mon *Pokemon) *item {
 	}
 }
 
-func makeFocusSash(mon *Pokemon) *item {
+func makeFocusSash(mon *pokemon) *item {
 	var dmg *int
 	return &item{
 		trigger: func(e any) bool {
@@ -910,10 +910,10 @@ func makeFocusSash(mon *Pokemon) *item {
 				return false
 			}
 			dmg = event.damage
-			return mon.HP == mon.MaxHP() && *event.damage >= mon.HP
+			return mon.hp == mon.MaxHP() && *event.damage >= mon.hp
 		},
 		activate: func() {
-			*dmg = mon.HP - 1
+			*dmg = mon.hp - 1
 		},
 	}
 }

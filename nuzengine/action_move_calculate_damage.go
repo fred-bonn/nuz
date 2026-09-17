@@ -2,8 +2,8 @@ package nuzengine
 
 import "math/rand"
 
-func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weatherState, maxRoll, forScoring, pursuit bool) int {
-	if f, ok := typeImmunityAbilities[target.Ability]; ok && user.Ability != moldBreakerAbility && f(target, move.Type, forScoring) {
+func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weatherState, maxRoll, forScoring, pursuit bool) int {
+	if f, ok := typeImmunityAbilities[target.ability]; ok && user.ability != moldBreakerAbility && f(target, move.Type, forScoring) {
 		return 0
 	}
 
@@ -23,7 +23,7 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 		}
 	}
 
-	if f, ok := typeConvertingAbilities[user.Ability]; ok {
+	if f, ok := typeConvertingAbilities[user.ability]; ok {
 		f(&moveType, &power)
 	}
 	numerator, denominator = target.applyMoveType(numerator, denominator, moveType)
@@ -33,11 +33,11 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 		}
 		switch weather {
 		case sunWeather:
-			if user.Ability == solarPowerAbility && move.Class == SpecialClass {
+			if user.ability == solarPowerAbility && move.Class == SpecialClass {
 				offensiveStat = offensiveStat * 3 / 2
 			}
 		case sandstormWeather:
-			if user.Ability == sandForceAbility && (moveType == rockType || moveType == groundType || moveType == steelType) {
+			if user.ability == sandForceAbility && (moveType == rockType || moveType == groundType || moveType == steelType) {
 				power = power * 13 / 10
 			}
 		}
@@ -64,13 +64,13 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 		return 40
 	case "endeavor":
 		*crit = false
-		return target.HP - user.HP
+		return target.hp - user.hp
 	case "super fang":
 		*crit = false
-		return max(1, target.HP/2)
+		return max(1, target.hp/2)
 	}
 
-	if move.Name == "acrobatics" && (user.Item.Consumed || user.Item.State == flyingGem) {
+	if move.Name == "acrobatics" && (user.item.Consumed || user.item.State == flyingGem) {
 		power *= 2
 	} else if move.Name == "wake up slap" && target.hasAilment(sleepAilment) != nil {
 		power *= 2
@@ -79,7 +79,7 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 	} else if move.Name == "hex" && target.hasNonVolatileAilment() {
 		power *= 2
 	} else if move.Name == "flail" || move.Name == "reversal" {
-		res := int(48 * (float64(user.HP) / float64(user.MaxHP())))
+		res := int(48 * (float64(user.hp) / float64(user.MaxHP())))
 		if res <= 1 {
 			power = 200
 		} else if res <= 4 {
@@ -95,19 +95,19 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 		}
 	} else if move.Name == "pursuit" && pursuit {
 		power *= 2
-	} else if move.Name == "knock off" && !target.Item.Consumed {
+	} else if move.Name == "knock off" && !target.item.Consumed {
 		power *= 2
 	}
 
-	if user.Ability == technicianAbility && move.Power <= 60 {
+	if user.ability == technicianAbility && move.Power <= 60 {
 		power = power * 3 / 2
-	} else if t, ok := pinchAbilities[user.Ability]; ok && t == moveType && user.HP*3 <= user.MaxHP() {
+	} else if t, ok := pinchAbilities[user.ability]; ok && t == moveType && user.hp*3 <= user.MaxHP() {
 		offensiveStat = offensiveStat * 3 / 2
 	} else if user.flashFire && moveType == fireType {
 		offensiveStat = offensiveStat * 3 / 2
-	} else if user.Ability == hustleAbility && move.Class == physicalClass {
+	} else if user.ability == hustleAbility && move.Class == physicalClass {
 		offensiveStat = offensiveStat * 3 / 2
-	} else if user.Ability == mercilessAbility {
+	} else if user.ability == mercilessAbility {
 		if a := target.hasAilment(poisonAilment); a != nil {
 			*crit = true
 		} else if a := target.hasAilment(toxicAilment); a != nil {
@@ -115,7 +115,7 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 		}
 	}
 
-	if target.Ability.blocksCrits() && (forScoring || user.Ability != moldBreakerAbility) {
+	if target.ability.blocksCrits() && (forScoring || user.ability != moldBreakerAbility) {
 		*crit = false
 	}
 
@@ -124,12 +124,12 @@ func calculateDamage(user, target *Pokemon, move *Move, crit *bool, weather weat
 		denominator *= 2
 	}
 
-	if target.Ability == drySkinAbility && moveType == fireType {
+	if target.ability == drySkinAbility && moveType == fireType {
 		power = power * 5 / 4
 	}
 
 	if *crit {
-		if user.Ability == sniperAbility {
+		if user.ability == sniperAbility {
 			numerator *= 3
 			denominator *= 2
 		}

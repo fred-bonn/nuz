@@ -18,16 +18,16 @@ func (ma *moveAction) scoreActionMove(bs battleState) (int, bool) {
 	}
 
 	ma.targetSlot.mon.checkItemTrigger(false, makeFocusSashEvent(&damageRoll))
-	if ma.targetSlot.mon.Ability == sturdyAbility && ma.targetSlot.mon.HP == ma.targetSlot.mon.MaxHP() {
-		damageRoll = min(damageRoll, ma.targetSlot.mon.HP-1)
+	if ma.targetSlot.mon.ability == sturdyAbility && ma.targetSlot.mon.hp == ma.targetSlot.mon.MaxHP() {
+		damageRoll = min(damageRoll, ma.targetSlot.mon.hp-1)
 	}
 
-	return damageRoll, damageRoll >= ma.targetSlot.mon.HP
+	return damageRoll, damageRoll >= ma.targetSlot.mon.hp
 }
 
 func (ma *moveAction) scoreStatusMove(bs battleState) int {
 	if ma.move.Category == "heal" {
-		if ma.userSlot.mon.HP > ma.userSlot.mon.MaxHP()*85/100 {
+		if ma.userSlot.mon.hp > ma.userSlot.mon.MaxHP()*85/100 {
 			return -64
 		}
 		if ma.shouldMonHeal(bs) {
@@ -67,7 +67,7 @@ func (ma *moveAction) scoreStatusMove(bs battleState) int {
 		}
 		return 6 + rollInt(3, 4)
 	case "attract":
-		if ma.targetSlot.mon.hasAilment(infatuationAilment) != nil || ma.targetSlot.mon.Ability == obliviousAbility {
+		if ma.targetSlot.mon.hasAilment(infatuationAilment) != nil || ma.targetSlot.mon.ability == obliviousAbility {
 			return -64
 		}
 	case "leech seed":
@@ -96,19 +96,19 @@ func (ma *moveAction) shouldMonHeal(bs battleState) bool {
 	}
 
 	if ma.userSlot.mon.isFasterThan(bs, ma.targetSlot.mon) {
-		if maxDmg < min(ma.userSlot.mon.MaxHP(), ma.userSlot.mon.HP+ma.userSlot.mon.MaxHP()*ma.move.Heal/100) {
+		if maxDmg < min(ma.userSlot.mon.MaxHP(), ma.userSlot.mon.hp+ma.userSlot.mon.MaxHP()*ma.move.Heal/100) {
 			return true
 		} else {
-			if ma.userSlot.mon.HP < ma.userSlot.mon.MaxHP()*40/100 {
+			if ma.userSlot.mon.hp < ma.userSlot.mon.MaxHP()*40/100 {
 				return true
-			} else if ma.userSlot.mon.HP <= ma.userSlot.mon.MaxHP()*66/100 {
+			} else if ma.userSlot.mon.hp <= ma.userSlot.mon.MaxHP()*66/100 {
 				return roll(1, 2)
 			}
 		}
 	} else {
-		if ma.userSlot.mon.HP < ma.userSlot.mon.MaxHP()*50/100 {
+		if ma.userSlot.mon.hp < ma.userSlot.mon.MaxHP()*50/100 {
 			return true
-		} else if ma.userSlot.mon.HP <= ma.userSlot.mon.MaxHP()*70/100 {
+		} else if ma.userSlot.mon.hp <= ma.userSlot.mon.MaxHP()*70/100 {
 			return roll(3, 4)
 		}
 	}
@@ -120,7 +120,7 @@ func (ma *moveAction) scoreParalysisMove(bs battleState) int {
 	target := ma.targetSlot.mon
 	user := ma.userSlot.mon
 
-	if target.hasNonVolatileAilment() || target.hasType(electricType) || target.Ability == limberAbility {
+	if target.hasNonVolatileAilment() || target.hasType(electricType) || target.ability == limberAbility {
 		return -64
 	}
 
@@ -144,7 +144,7 @@ func (ma *moveAction) scoreSleepMove(bs battleState) int {
 	target := ma.targetSlot.mon
 	user := ma.userSlot.mon
 
-	if target.Ability.blocksSleep() {
+	if target.ability.blocksSleep() {
 		return -64
 	}
 	if a := target.hasAilment(yawnAilment); a != nil {
@@ -160,7 +160,7 @@ func (ma *moveAction) scoreSleepMove(bs battleState) int {
 
 	score := 6
 	maxDmg := calculateMaxDamage(bs, target, ma.userSlot.mon, true)
-	if maxDmg < user.HP && roll(1, 2) {
+	if maxDmg < user.hp && roll(1, 2) {
 		if user.hasMovePredicate(isHex) {
 			score += 1
 		} else {
@@ -190,16 +190,16 @@ func (ma *moveAction) scoreToxic(bs battleState) int {
 	if target.hasNonVolatileAilment() {
 		return -64
 	}
-	if target.Ability == immunityAbility {
+	if target.ability == immunityAbility {
 		return -64
 	}
-	if (target.hasType(poisonType) || target.hasType(steelType)) && ma.userSlot.mon.Ability != corrosionAbility {
+	if (target.hasType(poisonType) || target.hasType(steelType)) && ma.userSlot.mon.ability != corrosionAbility {
 		return -64
 	}
 
 	score := 6
 	maxDmg := calculateMaxDamage(bs, target, user, true)
-	if maxDmg < user.HP && roll(19, 50) {
+	if maxDmg < user.hp && roll(19, 50) {
 		if !target.hasMovePredicate(func(m *Move) bool {
 			return m.Class == physicalClass || m.Class == SpecialClass
 		}) {
@@ -208,7 +208,7 @@ func (ma *moveAction) scoreToxic(bs battleState) int {
 
 		if user.hasMovePredicate(func(m *Move) bool {
 			return m.Name == "hex" || m.Name == "venoshock"
-		}) || user.Ability == mercilessAbility {
+		}) || user.ability == mercilessAbility {
 			score += 2
 		} else {
 			score += 1
@@ -245,8 +245,8 @@ func (ma *moveAction) scoreProtectMove(bs battleState) int {
 	return score
 }
 
-func deadToSecondaryDamage(mon *Pokemon, bs battleState) bool {
-	if mon.Ability == magicGuardAbility {
+func deadToSecondaryDamage(mon *pokemon, bs battleState) bool {
+	if mon.ability == magicGuardAbility {
 		return false
 	}
 
@@ -265,12 +265,12 @@ func deadToSecondaryDamage(mon *Pokemon, bs battleState) bool {
 		dmg += mon.MaxHP() / 16
 	}
 
-	return dmg >= mon.HP
+	return dmg >= mon.hp
 }
 
 func (ma *moveAction) scoreCritStatus() int {
 	user := ma.userSlot.mon
-	if ma.targetSlot.mon.Ability.blocksCrits() && user.Ability != moldBreakerAbility {
+	if ma.targetSlot.mon.ability.blocksCrits() && user.ability != moldBreakerAbility {
 		return -64
 	}
 	if ma.move.Name == "focus energy" && user.focusEnergy {
@@ -281,9 +281,9 @@ func (ma *moveAction) scoreCritStatus() int {
 		return m.CritRate > 0
 	}) {
 		return 7
-	} else if user.Item.State == scopeLens {
+	} else if user.item.State == scopeLens {
 		return 7
-	} else if user.Ability == superLuckAbility || user.Ability == sniperAbility {
+	} else if user.ability == superLuckAbility || user.ability == sniperAbility {
 		return 7
 	}
 
@@ -304,8 +304,8 @@ func (ma *moveAction) scoreBellyDrum(bs battleState) int {
 	}
 
 	dmg := calculateMaxDamage(bs, target, user, true)
-	threshhold := user.HP - (user.MaxHP() / 2)
-	if user.Item.State == sitrusBerry && !user.Item.Consumed {
+	threshhold := user.hp - (user.MaxHP() / 2)
+	if user.item.State == sitrusBerry && !user.item.Consumed {
 		threshhold += user.MaxHP() / 4
 	}
 	if dmg < threshhold {

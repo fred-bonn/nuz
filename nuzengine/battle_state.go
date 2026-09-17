@@ -122,7 +122,7 @@ func injectReplaceAction(bs battleState, slot *slot, midTurn bool) {
 func resolveEndOfTurn(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
 		// resolve end of return effects from ailments and statuses
-		for _, ailment := range slot.mon.Ailments {
+		for _, ailment := range slot.mon.ailments {
 			switch ailment.State {
 			case burnAilment:
 				takeResidualDamage(bs, slot, ailment.State.String(), 1, 16)
@@ -135,18 +135,18 @@ func resolveEndOfTurn(bs battleState) {
 				ailment.Turns--
 				takeResidualDamage(bs, slot, ailment.State.String(), 1, 8)
 				if ailment.Turns <= 0 {
-					vprintf("%s was freed", slot.mon.Base.Name)
-					delete(slot.mon.Ailments, ailment.State)
+					vprintf("%s was freed", slot.mon.base.Name)
+					delete(slot.mon.ailments, ailment.State)
 				}
 			case leechSeedAilment:
-				vprintf("%s leeched health from %s", ailment.afflictedBy.mon.Base.Name, slot.mon.Base.Name)
+				vprintf("%s leeched health from %s", ailment.afflictedBy.mon.base.Name, slot.mon.base.Name)
 				dmg := takeResidualDamage(bs, slot, ailment.State.String(), 1, 8)
 				ailment.afflictedBy.mon.ChangeHpBy(dmg)
 			case yawnAilment:
 				ailment.Turns--
 				if ailment.Turns == 0 {
 					slot.mon.applyAilment(sleepAilment, nil, ailment.afflictedBy)
-					delete(slot.mon.Ailments, ailment.State)
+					delete(slot.mon.ailments, ailment.State)
 				}
 			}
 		}
@@ -166,17 +166,17 @@ func resolveEndOfTurn(bs battleState) {
 			slot.protected = false
 		}
 
-		if slot.mon.Ability == harvestAbility && roll(1, 2) && slot.mon.Item.State.isBerry() {
-			vprintf("%s harvested its %s", slot.mon.Base.Name, slot.mon.Item.String())
-			slot.mon.Item.Consumed = false
+		if slot.mon.ability == harvestAbility && roll(1, 2) && slot.mon.item.State.isBerry() {
+			vprintf("%s harvested its %s", slot.mon.base.Name, slot.mon.item.String())
+			slot.mon.item.Consumed = false
 			slot.mon.checkItemTrigger(true, nil)
-		} else if slot.mon.Ability == speedBoostAbility && !slot.firstTurn {
+		} else if slot.mon.ability == speedBoostAbility && !slot.firstTurn {
 			slot.mon.changeStatStageBy(Speed, 1, false)
 		}
 
-		if slot.mon.Item.State == leftovers {
+		if slot.mon.item.State == leftovers {
 			change := slot.mon.MaxHP() / 16
-			vprintItem("%s restored %d health from leftovers", slot.mon.Base.Name, change)
+			vprintItem("%s restored %d health from leftovers", slot.mon.base.Name, change)
 			slot.mon.ChangeHpBy(change)
 		}
 
@@ -190,20 +190,26 @@ func takeResidualDamage(bs battleState, slot *slot, effect string, num, den int)
 	}
 
 	change := slot.mon.MaxHP() * num / den
-	vprintf("%s took %d damage from %s", slot.mon.Base.Name, change, effect)
+	vprintf("%s took %d damage from %s", slot.mon.base.Name, change, effect)
 	slot.mon.ChangeHpBy(-change)
-	if slot.mon.HP <= 0 {
+	if slot.mon.hp <= 0 {
 		slot.mon.fainted = true
 		injectReplaceAction(bs, slot, false)
-		vprintf("%s fainted!", slot.mon.Base.Name)
+		vprintf("%s fainted!", slot.mon.base.Name)
 	}
 	return change
 }
 
 func resolveOnEntry(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
-		if f, ok := onSwitchAbilities[slot.mon.Ability]; ok {
+		if f, ok := onSwitchAbilities[slot.mon.ability]; ok {
 			f(slot, bs, true)
 		}
+	}
+}
+
+func resetPokemonParty(party []*pokemon) {
+	for _, mon := range party {
+		mon.reset()
 	}
 }
