@@ -13,7 +13,7 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*po
 			continue
 		}
 
-		opponentDamage := calculateMaxDamage(bs, opponent, mon, false)
+		opponentDamage := calculateMaxDamage(bs, opponent, mon, false, false)
 		oneHitKill := opponentDamage >= mon.hp
 		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponent.isFasterThan(bs, mon)
 		if !oneHitKill && !twoHitKillWhileSlower {
@@ -226,8 +226,8 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 
 		outspeeds := mon.isFasterThan(bs, opponent)
 
-		monDamage := calculateMaxDamage(bs, mon, opponent, false)
-		opponentDamage := calculateMaxDamage(bs, opponent, mon, false)
+		monDamage := calculateMaxDamage(bs, mon, opponent, false, false)
+		opponentDamage := calculateMaxDamage(bs, opponent, mon, false, false)
 
 		killsOpponent := monDamage >= opponent.hp
 		monKilled := opponentDamage >= mon.hp
@@ -265,14 +265,14 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 	return mons[bestIndex]
 }
 
-func calculateMaxDamage(bs battleState, user, target *pokemon, checkChoice bool) int {
+func calculateMaxDamage(bs battleState, user, target *pokemon, checkChoice, checkOnlyPriority bool) int {
 	var maxDmg, dmg int
 	rolls := 1
 	for _, move := range user.moves {
-		if move.name == "fake out" {
+		if checkOnlyPriority && move.priority == 0 {
 			continue
 		}
-		if move.name == "first impression" {
+		if (move.name == "fake out" || move.name == "first impression") && !bs.getPokemonSlot(user).firstTurn {
 			continue
 		}
 		if move.pp <= 0 || move.class == statusClass {

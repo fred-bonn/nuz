@@ -81,6 +81,16 @@ func (sbs *singleBattleState) getPlayerTrainer() *trainer {
 	return sbs.player
 }
 
+func (sbs *singleBattleState) getPokemonSlot(p *pokemon) *slot {
+	if sbs.activePlayerSlot.mon == p {
+		return sbs.activePlayerSlot
+	}
+	if sbs.activeOpponentSlot.mon == p {
+		return sbs.activeOpponentSlot
+	}
+	return nil
+}
+
 func (sbs *singleBattleState) getActions() *actionQueue {
 	return &sbs.actions
 }

@@ -30,12 +30,10 @@ func (bs *dummyBattleState) getAllSlots() []*slot                 { return bs.sl
 func (bs *dummyBattleState) getOtherSlots(s *slot) []*slot        { return nil }
 func (bs *dummyBattleState) getOpponentSlot(s *slot) *slot        { return nil }
 func (bs *dummyBattleState) getPlayerTrainer() *trainer           { return nil }
+func (bs *dummyBattleState) getPokemonSlot(p *pokemon) *slot      { return nil }
 func (bs *dummyBattleState) getActions() *actionQueue             { return bs.actions }
 func (bs *dummyBattleState) getWeather() weatherState             { return bs.weather }
 func (bs *dummyBattleState) setWeather(weatherState)              {}
 func (bs *dummyBattleState) getFieldEffects() map[fieldEffect]int { return nil }
 func (bs *dummyBattleState) reset()                               {}
-func (bs *dummyBattleState) getStatistics() *battleStatistics     { return nil }
-func (bs *dummyBattleState) recordStatistics()                    {}
-func (bs *dummyBattleState) printStatistics()                     {}
 func (bs *dummyBattleState) discretize() discreteBattleState      { return discreteDummyBattleState{} }

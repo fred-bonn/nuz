@@ -13,9 +13,10 @@ type battleState interface {
 	setError(error)
 	gatherActions()
 	getAllSlots() []*slot
-	getOtherSlots(slot *slot) []*slot
-	getOpponentSlot(slot *slot) *slot
+	getOtherSlots(*slot) []*slot
+	getOpponentSlot(*slot) *slot
 	getPlayerTrainer() *trainer
+	getPokemonSlot(*pokemon) *slot
 	getActions() *actionQueue
 	getWeather() weatherState
 	setWeather(weatherState)
