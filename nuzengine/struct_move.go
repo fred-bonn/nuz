@@ -32,35 +32,35 @@ func stringToMoveClass(s string) moveClass {
 	}
 }
 
-type move struct {
-	name          string
-	moveType      pokemonType
-	power         int
-	accuracy      int
-	pp            int
-	maxPP         int
-	class         moveClass
-	priority      int
-	critRate      int
-	drain         int
-	heal          int
-	flinchChance  int
-	isContact     bool
-	ailment       ailmentState
-	ailmentChance int
-	maxHits       int
-	minHits       int
-	maxTurns      int
-	minTurns      int
-	statChance    int
-	statChanges   map[string]int
-	target        string
-	category      string
+type Move struct {
+	Move          string
+	Type          pokemonType
+	Power         int
+	Accuracy      int
+	PP            int
+	MaxPP         int
+	Class         moveClass
+	Priority      int
+	CritRate      int
+	Drain         int
+	Heal          int
+	FlinchChance  int
+	IsContact     bool
+	Ailment       ailmentState
+	AilmentChance int
+	MaxHits       int
+	MinHits       int
+	MaxTurns      int
+	MinTurns      int
+	StatChance    int
+	StatChanges   map[string]int
+	Target        string
+	Category      string
 }
 
 var contactMoves map[string]any
 
-func toMove(mj pokeapi.MoveJSON) (move, error) {
+func toMove(mj pokeapi.MoveJSON) (Move, error) {
 	isContact := false
 	statChanges := make(map[string]int)
 	for _, sc := range mj.StatChanges {
@@ -84,43 +84,43 @@ func toMove(mj pokeapi.MoveJSON) (move, error) {
 
 	class := stringToMoveClass(mj.DamageClass.Name)
 	if class == noneClass {
-		return move{}, fmt.Errorf("%s is not a valid move class for %s", mj.DamageClass.Name, mj.Name)
+		return Move{}, fmt.Errorf("%s is not a valid move class for %s", mj.DamageClass.Name, mj.Name)
 	}
 
 	moveType := stringToPokemonType(mj.Type.Name)
 	if moveType == noType {
-		return move{}, fmt.Errorf("%s is not a valid type for %s", mj.Type.Name, mj.Name)
+		return Move{}, fmt.Errorf("%s is not a valid type for %s", mj.Type.Name, mj.Name)
 	}
 
 	ailment := stringToAilmentState(mj.Meta.Ailment.Name)
 	if mj.Meta.Ailment.Name != "" && mj.Meta.Ailment.Name != "none" && ailment == noneAilment {
-		return move{}, fmt.Errorf("%s is not a valid ailment for %s", mj.Meta.Ailment.Name, mj.Name)
+		return Move{}, fmt.Errorf("%s is not a valid ailment for %s", mj.Meta.Ailment.Name, mj.Name)
 	}
 
-	return move{
-		name:          mj.Name,
-		moveType:      moveType,
-		power:         mj.Power,
-		accuracy:      mj.Accuracy,
-		pp:            mj.PP,
-		maxPP:         mj.PP,
-		class:         class,
-		priority:      mj.Priority,
-		critRate:      mj.Meta.CritRate,
-		drain:         mj.Meta.Drain,
-		heal:          mj.Meta.Heal,
-		flinchChance:  mj.Meta.FlinchChance,
-		isContact:     isContact,
-		ailment:       ailment,
-		ailmentChance: ailmentChance,
-		maxHits:       mj.Meta.MaxHits,
-		minHits:       mj.Meta.MinHits,
-		maxTurns:      mj.Meta.MaxTurns,
-		minTurns:      mj.Meta.MinTurns,
-		statChance:    statChance,
-		statChanges:   statChanges,
-		target:        mj.Target.Name,
-		category:      mj.Meta.Category.Name,
+	return Move{
+		Move:          mj.Name,
+		Type:          moveType,
+		Power:         mj.Power,
+		Accuracy:      mj.Accuracy,
+		PP:            mj.PP,
+		MaxPP:         mj.PP,
+		Class:         class,
+		Priority:      mj.Priority,
+		CritRate:      mj.Meta.CritRate,
+		Drain:         mj.Meta.Drain,
+		Heal:          mj.Meta.Heal,
+		FlinchChance:  mj.Meta.FlinchChance,
+		IsContact:     isContact,
+		Ailment:       ailment,
+		AilmentChance: ailmentChance,
+		MaxHits:       mj.Meta.MaxHits,
+		MinHits:       mj.Meta.MinHits,
+		MaxTurns:      mj.Meta.MaxTurns,
+		MinTurns:      mj.Meta.MinTurns,
+		StatChance:    statChance,
+		StatChanges:   statChanges,
+		Target:        mj.Target.Name,
+		Category:      mj.Meta.Category.Name,
 	}, nil
 }
 

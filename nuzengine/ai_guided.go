@@ -24,7 +24,7 @@ func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
 func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	ga.print("Choose an action:\n")
 	for i, action := range actions {
-		ga.print("%d. %s against %s\n", i+1, action.move.name, action.targetSlot.mon.base.Name)
+		ga.print("%d. %s against %s\n", i+1, action.move.Move, action.targetSlot.mon.base.Name)
 	}
 	numberOfChoices := len(actions)
 	canSwitch := false

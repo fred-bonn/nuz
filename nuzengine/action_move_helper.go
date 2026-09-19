@@ -25,17 +25,17 @@ func rollInt(numerator int, denominator int) int {
 	return 0
 }
 
-func accuracyRoll(bs battleState, user *pokemon, target *pokemon, move *move) bool {
+func accuracyRoll(bs battleState, user *pokemon, target *pokemon, move *Move) bool {
 	if user.ability == noGuardAbility || target.ability == noGuardAbility {
 		return true
-	} else if move.name == "toxic" && user.hasType(poisonType) {
+	} else if move.Move == "toxic" && user.hasType(poisonType) {
 		return true
-	} else if move.name == "thunder wave" && user.hasType(electricType) {
+	} else if move.Move == "thunder wave" && user.hasType(electricType) {
 		return true
 	}
 
-	moveAccuracy := move.accuracy
-	if user.ability == hustleAbility && move.class == physicalClass {
+	moveAccuracy := move.Accuracy
+	if user.ability == hustleAbility && move.Class == physicalClass {
 		moveAccuracy = moveAccuracy * 80 / 100
 	}
 
@@ -66,8 +66,8 @@ func accuracyRoll(bs battleState, user *pokemon, target *pokemon, move *move) bo
 	return roll(numerator, denominator)
 }
 
-func determineHits(move *move) int {
-	if move.maxHits == 5 && move.minHits == 2 {
+func determineHits(move *Move) int {
+	if move.MaxHits == 5 && move.MinHits == 2 {
 		r := rand.Intn(100) + 1
 		if r <= 35 {
 			return 2
@@ -79,21 +79,21 @@ func determineHits(move *move) int {
 			return 5
 		}
 	}
-	return move.maxHits
+	return move.MaxHits
 }
 
-func determineCrit(user *pokemon, move *move) *bool {
+func determineCrit(user *pokemon, move *Move) *bool {
 	rate := determineCritRate(user, move)
 
 	return new(roll(1, critRateMap[rate]))
 }
 
-func determineCritRate(user *pokemon, move *move) int {
+func determineCritRate(user *pokemon, move *Move) int {
 	if user.laserFocus {
 		return 3
 	}
 
-	rate := move.critRate
+	rate := move.CritRate
 	if user.item.State == scopeLens {
 		rate++
 	}
@@ -125,7 +125,7 @@ func fetchPursuitMiddleware(name string) func(a action) bool {
 		if !ok {
 			return false
 		}
-		if ma.move.name != "pursuit" {
+		if ma.move.Move != "pursuit" {
 			return false
 		}
 		if ma.targetSlot.mon.base.Name != name {
@@ -135,20 +135,20 @@ func fetchPursuitMiddleware(name string) func(a action) bool {
 	}
 }
 
-func getStruggleMove() *move {
-	return &move{
-		name:     "struggle",
-		moveType: noType,
-		power:    50,
-		class:    physicalClass,
+func getStruggleMove() *Move {
+	return &Move{
+		Move:  "struggle",
+		Type:  noType,
+		Power: 50,
+		Class: physicalClass,
 	}
 }
 
-func getConfusionMove() *move {
-	return &move{
-		name:     "confusion",
-		moveType: noType,
-		power:    40,
-		class:    physicalClass,
+func getConfusionMove() *Move {
+	return &Move{
+		Move:  "confusion",
+		Type:  noType,
+		Power: 40,
+		Class: physicalClass,
 	}
 }

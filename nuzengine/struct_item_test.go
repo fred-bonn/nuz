@@ -117,10 +117,10 @@ func TestLeppaBerryRestoresPP(t *testing.T) {
 			item, _ := registerItem(leppaBerry, &mon)
 			mon.item = item
 
-			move := move{pp: tc.initialPP, maxPP: tc.maxPP}
+			move := Move{PP: tc.initialPP, MaxPP: tc.maxPP}
 			mon.checkItemTrigger(true, makeLeppaBerryEvent(&move))
 
-			if got := move.pp; got != tc.wantPP {
+			if got := move.PP; got != tc.wantPP {
 				t.Errorf("move.PP = %d, want %d", got, tc.wantPP)
 			}
 
@@ -499,8 +499,8 @@ func TestChoiceBand(t *testing.T) {
 				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			move := move{
-				class: tc.class,
+			move := Move{
+				Class: tc.class,
 			}
 			item, _ := registerItem(choiceBand, &mon)
 			mon.item = item
@@ -543,8 +543,8 @@ func TestChoiceSpecs(t *testing.T) {
 				stats:  []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
 				stages: []int{0, 0, 0, 0, 0, 0, 0, 0},
 			}
-			move := move{
-				class: tc.class,
+			move := Move{
+				Class: tc.class,
 			}
 			item, _ := registerItem(choiceSpecs, &mon)
 			mon.item = item

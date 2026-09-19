@@ -697,7 +697,7 @@ func makeLumBerry(mon *pokemon) *item {
 }
 
 func makeLeppaBerry(mon *pokemon) *item {
-	var m *move
+	var m *Move
 	return &item{
 		trigger: func(e any) bool {
 			event, ok := e.(leppaBerryEvent)
@@ -705,10 +705,10 @@ func makeLeppaBerry(mon *pokemon) *item {
 				return false
 			}
 			m = event.move
-			return event.move.pp <= 0
+			return event.move.PP <= 0
 		},
 		activate: func() {
-			m.pp += min(10, m.maxPP)
+			m.PP += min(10, m.MaxPP)
 			cheekPouch(mon)
 		},
 	}
@@ -868,7 +868,7 @@ func makeChoiceBand(mon *pokemon) *item {
 			if !ok {
 				return false
 			}
-			if event.move.class != physicalClass {
+			if event.move.Class != physicalClass {
 				return false
 			}
 			s = event.stat
@@ -889,7 +889,7 @@ func makeChoiceSpecs(mon *pokemon) *item {
 			if !ok {
 				return false
 			}
-			if event.move.class != specialClass {
+			if event.move.Class != specialClass {
 				return false
 			}
 			s = event.stat
@@ -943,24 +943,24 @@ func makeGemEvent(pokemonType pokemonType, power *int) gemEvent {
 }
 
 type leppaBerryEvent struct {
-	move *move
+	move *Move
 }
 
-func makeLeppaBerryEvent(move *move) leppaBerryEvent {
+func makeLeppaBerryEvent(move *Move) leppaBerryEvent {
 	return leppaBerryEvent{
 		move: move,
 	}
 }
 
 type choiceItemEvent struct {
-	move      *move
+	move      *Move
 	statState statState
 	stat      *int
 }
 
-func makeChoiceItemEvent(mv *move, statState statState, stat *int) choiceItemEvent {
+func makeChoiceItemEvent(mv *Move, statState statState, stat *int) choiceItemEvent {
 	if mv == nil {
-		mv = &move{}
+		mv = &Move{}
 	}
 	return choiceItemEvent{
 		move:      mv,

@@ -49,11 +49,11 @@ func TestMoveParsingAllowsMovesWithNoAilment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("toMove should accept a move with no ailment: %v", err)
 	}
-	if move.name != "low-sweep" {
-		t.Fatalf("unexpected move parsed: %s", move.name)
+	if move.Move != "low-sweep" {
+		t.Fatalf("unexpected move parsed: %s", move.Move)
 	}
-	if move.ailment != noneAilment {
-		t.Fatalf("move ailment = %v, want %v", move.ailment, noneAilment)
+	if move.Ailment != noneAilment {
+		t.Fatalf("move ailment = %v, want %v", move.Ailment, noneAilment)
 	}
 }
 

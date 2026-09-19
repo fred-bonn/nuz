@@ -29,12 +29,12 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 
 	possibleActions := make([]*moveAction, 0)
 	for _, opponentSlot := range bs.getOtherSlots(slot) {
-		if slot.mon.lockedMove != nil && slot.mon.lockedMove.pp > 0 {
+		if slot.mon.lockedMove != nil && slot.mon.lockedMove.PP > 0 {
 			possibleActions = append(possibleActions, &moveAction{userSlot: slot, targetSlot: opponentSlot, move: slot.mon.lockedMove})
 			continue
 		}
 		for _, move := range slot.mon.moves {
-			if move.pp <= 0 || (slot.mon.item.State == assaultVest && move.class != statusClass) {
+			if move.PP <= 0 || (slot.mon.item.State == assaultVest && move.Class != statusClass) {
 				continue
 			}
 			possibleActions = append(possibleActions, &moveAction{userSlot: slot, targetSlot: opponentSlot, move: move})

@@ -8,21 +8,21 @@ type moveBalance struct {
 	pokemonType  *pokemonType
 }
 
-func (mb moveBalance) apply(m *move) {
+func (mb moveBalance) apply(m *Move) {
 	if mb.power != nil {
-		m.power = *mb.power
+		m.Power = *mb.power
 	}
 	if mb.accuracy != nil {
-		m.accuracy = *mb.accuracy
+		m.Accuracy = *mb.accuracy
 	}
 	if mb.pp != nil {
-		m.pp = *mb.pp
+		m.PP = *mb.pp
 	}
 	if mb.effectChance != nil {
-		m.statChance = *mb.effectChance
+		m.StatChance = *mb.effectChance
 	}
 	if mb.pokemonType != nil {
-		m.moveType = *mb.pokemonType
+		m.Type = *mb.pokemonType
 	}
 }
 

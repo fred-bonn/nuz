@@ -14,7 +14,7 @@ func TestRnbShouldSwitchRejectsUnsafeReplacements(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			current := testSwitchPokemon("current", 100, 100, 100, 100, nil)
 			replacement := testSwitchPokemon("replacement", tc.hp, 100, 100, 100, nil)
-			opponent := testSwitchPokemon("opponent", 100, 50, 100, 100, &move{name: "sonic boom", power: 1, pp: 1, class: specialClass})
+			opponent := testSwitchPokemon("opponent", 100, 50, 100, 100, &Move{Move: "sonic boom", Power: 1, PP: 1, Class: specialClass})
 			bs := testSwitchBattleState(current, replacement, opponent)
 
 			if got := (rnbAi{}).shouldSwitch(bs, bs.activePlayerSlot, -1, []*pokemon{current, replacement}); got {
@@ -27,7 +27,7 @@ func TestRnbShouldSwitchRejectsUnsafeReplacements(t *testing.T) {
 func TestRnbShouldSwitchCanChooseSafeReplacement(t *testing.T) {
 	current := testSwitchPokemon("current", 100, 100, 100, 100, nil)
 	replacement := testSwitchPokemon("replacement", 50, 100, 100, 100, nil)
-	opponent := testSwitchPokemon("opponent", 100, 50, 100, 100, &move{name: "sonic boom", power: 1, pp: 1, class: specialClass})
+	opponent := testSwitchPokemon("opponent", 100, 50, 100, 100, &Move{Move: "sonic boom", Power: 1, PP: 1, Class: specialClass})
 	bs := testSwitchBattleState(current, replacement, opponent)
 
 	for i := 0; i < 100; i++ {
@@ -38,8 +38,8 @@ func TestRnbShouldSwitchCanChooseSafeReplacement(t *testing.T) {
 	t.Fatal("shouldSwitch never selected a safe replacement")
 }
 
-func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int, mv *move) *pokemon {
-	moves := make([]*move, 0)
+func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int, mv *Move) *pokemon {
+	moves := make([]*Move, 0)
 	if mv != nil {
 		moves = append(moves, mv)
 	}

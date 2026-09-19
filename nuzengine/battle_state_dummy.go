@@ -15,14 +15,6 @@ type dummyBattleState struct {
 	slots   []*slot
 }
 
-type discreteDummyBattleState struct{}
-
-func initBenchBattleState(w weatherState) *dummyBattleState {
-	return &dummyBattleState{
-		weather: w,
-	}
-}
-
 func (bs *dummyBattleState) execute() error                       { return nil }
 func (bs *dummyBattleState) setError(error)                       {}
 func (bs *dummyBattleState) gatherActions()                       {}
@@ -37,3 +29,13 @@ func (bs *dummyBattleState) setWeather(weatherState)              {}
 func (bs *dummyBattleState) getFieldEffects() map[fieldEffect]int { return nil }
 func (bs *dummyBattleState) reset()                               {}
 func (bs *dummyBattleState) discretize() discreteBattleState      { return discreteDummyBattleState{} }
+
+type discreteDummyBattleState struct{}
+
+func (ds discreteDummyBattleState) update(bs battleState) bool { return true }
+
+func initBenchBattleState(w weatherState) *dummyBattleState {
+	return &dummyBattleState{
+		weather: w,
+	}
+}

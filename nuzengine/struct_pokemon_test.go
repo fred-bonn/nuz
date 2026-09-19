@@ -393,8 +393,8 @@ func TestToxicConversionTurnsPoisonIntoToxicWhenAppropriate(t *testing.T) {
 			mon := pokemon{
 				ailments: make(map[ailmentState]*ailment),
 			}
-			move := move{
-				name: tc.move,
+			move := Move{
+				Move: tc.move,
 			}
 
 			mon.applyAilment(poisonAilment, &move, nil)
