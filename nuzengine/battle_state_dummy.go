@@ -28,11 +28,7 @@ func (bs *dummyBattleState) getWeather() weatherState             { return bs.we
 func (bs *dummyBattleState) setWeather(weatherState)              {}
 func (bs *dummyBattleState) getFieldEffects() map[fieldEffect]int { return nil }
 func (bs *dummyBattleState) reset()                               {}
-func (bs *dummyBattleState) discretize() discreteBattleState      { return discreteDummyBattleState{} }
-
-type discreteDummyBattleState struct{}
-
-func (ds discreteDummyBattleState) update(bs battleState) bool { return true }
+func (bs *dummyBattleState) key() string                          { return "" }
 
 func initBenchBattleState(w weatherState) *dummyBattleState {
 	return &dummyBattleState{

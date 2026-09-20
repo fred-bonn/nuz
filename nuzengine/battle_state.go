@@ -21,7 +21,7 @@ type battleState interface {
 	getWeather() weatherState
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
-	discretize() discreteBattleState
+	key() string
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
