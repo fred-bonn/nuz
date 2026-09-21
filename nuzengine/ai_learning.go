@@ -1,5 +1,9 @@
 package nuzengine
 
+func Learn(playerParty, opponentParty string, weather int) {
+
+}
+
 type learningAi struct {
 }
 

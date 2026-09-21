@@ -28,7 +28,8 @@ func run(args []string) int {
 
 	verbose := fs.BoolP("verbose", "v", false, "verbose logging")
 	weather := fs.IntP("weather", "w", 0, "weather\n 0: None (default)\n 1: Rain\n 2: Sun\n 3: Sandstorm\n 4: Hail")
-	inputAi := fs.IntP("input-ai", "a", 0, "input AI\n 0: Run & Bun (default)\n 1: Learning\n 2: Guided\n 3: Random")
+	inputAi := fs.IntP("input-ai", "a", 0, "input AI\n 0: Run & Bun (default)\n 1: Guided\n 2: Random")
+	learning := fs.BoolP("learning", "l", false, "enable learning mode for the input AI")
 	policyFile := fs.StringP("policy-file", "f", "", "path to a saved policy JSON file to load and use for the player trainer; the player and opponent parties embedded in the policy are used")
 	iterations := fs.IntP("iterations", "i", 1, "number of times to run the same battle scenario for statistics or training")
 	if err := fs.Parse(args); err != nil {
@@ -83,6 +84,11 @@ func run(args []string) int {
 			return 1
 		}
 		opponentParty = string(opponentPartyData)
+	}
+
+	if *learning {
+		nuzengine.Learn(playerParty, opponentParty, *weather)
+		return 0
 	}
 
 	battleState, err := nuzengine.InitBattleState(0, playerParty, opponentParty, *inputAi, *weather, *policyFile)
