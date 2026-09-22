@@ -49,10 +49,8 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 		case 0:
 			playerAi = &rnbAi{}
 		case 1:
-			playerAi = newLearningAI()
-		case 2:
 			playerAi = newGuidedAI(os.Stdin, os.Stdout)
-		case 3:
+		case 2:
 			playerAi = &randomAi{}
 		}
 	}
