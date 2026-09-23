@@ -33,17 +33,19 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 		return nil, fmt.Errorf("invalid battle state type: %d", battleStateInt)
 	}
 
-	if weatherInt < 0 || weatherInt > 4 {
-		return nil, fmt.Errorf("invalid weather type: %d", weatherInt)
-	}
-	weather := weatherState(weatherInt)
-
 	if aiInt < 0 || aiInt > 3 {
 		return nil, fmt.Errorf("invalid AI type: %d", aiInt)
 	}
 	var playerAi ai
 	if policyFile != "" {
-		return nil, fmt.Errorf("not implemented")
+		policy, err := loadPolicy(policyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed loading policy file: %w", err)
+		}
+		playerPartyStr = policy.PlayerParty
+		opponentPartyStr = policy.OpponentParty
+		weatherInt = policy.Weather
+		playerAi = newPolicyAI(policy.Policy)
 	} else {
 		switch aiInt {
 		case 0:
@@ -54,6 +56,11 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 			playerAi = &randomAi{}
 		}
 	}
+
+	if weatherInt < 0 || weatherInt > 4 {
+		return nil, fmt.Errorf("invalid weather type: %d", weatherInt)
+	}
+	weather := weatherState(weatherInt)
 
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {

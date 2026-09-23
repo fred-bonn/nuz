@@ -2,17 +2,46 @@ package nuzengine
 
 import (
 	"os"
+	"sync"
 	"testing"
+
+	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
 
 func LearnSingle(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{}
-	q := runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, iterations)
-	runPolicy(cfg, q, playerPartyStr, opponentPartyStr, weatherInt)
+	runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, iterations)
 }
 
-func BenchmarkLearn(b *testing.B) {
-	benchmarkLearn(b, Learn)
+func LearnParallel(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+	Verbose = false
+	cfg := &config{
+		client: pokeapi.NewClient(),
+	}
+
+	episodesPerWorker := iterations / monteCarloWorkers
+
+	results := make(chan qMap, monteCarloWorkers)
+	var wg sync.WaitGroup
+	for range monteCarloWorkers {
+		wg.Go(func() {
+			q := runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker)
+			if q != nil {
+				results <- q
+			}
+		})
+	}
+	wg.Wait()
+	close(results)
+
+	var workerMaps []qMap
+	for q := range results {
+		workerMaps = append(workerMaps, q)
+	}
+}
+
+func BenchmarkLearnParallel(b *testing.B) {
+	benchmarkLearn(b, LearnParallel)
 }
 
 func BenchmarkLearnSingle(b *testing.B) {

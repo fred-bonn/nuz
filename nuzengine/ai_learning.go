@@ -1,7 +1,10 @@
 package nuzengine
 
 import (
+	"encoding/json"
+	"fmt"
 	"math/rand"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -10,28 +13,18 @@ import (
 )
 
 const (
-	monteCarloWorkers          = 10
-	monteCarloEpsilon          = 0.5
-	monteCarloPolicyIterations = 3
+	monteCarloWorkers = 10
+	monteCarloEpsilon = 0.5
 
 	faintedMonPenalty = 10
+
+	policyFilePath = "data/policy.json"
 )
 
 func Learn(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	Verbose = false
-
 	cfg := &config{
 		client: pokeapi.NewClient(),
-	}
-	_, err := cfg.validateInput(playerPartyStr)
-	if err != nil {
-		elogf("error: failed validating player party: %s", err)
-		return
-	}
-	_, err = cfg.validateInput(opponentPartyStr)
-	if err != nil {
-		elogf("error: failed validating opponent party: %s", err)
-		return
 	}
 
 	episodesPerWorker := iterations / monteCarloWorkers
@@ -54,7 +47,9 @@ func Learn(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) 
 		workerMaps = append(workerMaps, q)
 	}
 
-	runPolicy(cfg, mergeQMaps(workerMaps), playerPartyStr, opponentPartyStr, weatherInt)
+	if err := savePolicy(mergeQMaps(workerMaps), playerPartyStr, opponentPartyStr, weatherInt); err != nil {
+		elogf("error: failed saving policy: %s", err)
+	}
 }
 
 func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int) qMap {
@@ -94,28 +89,11 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 	return la.q
 }
 
-func runPolicy(cfg *config, q qMap, playerPartyStr, opponentPartyStr string, weatherInt int) {
-	playerParty, err := cfg.validateInput(playerPartyStr)
-	if err != nil {
-		elogf("error: failed validating player party: %s", err)
-		return
-	}
-	opponentParty, err := cfg.validateInput(opponentPartyStr)
-	if err != nil {
-		elogf("error: failed validating opponent party: %s", err)
-		return
-	}
-	bs := initSingleBattleState(
-		trainer{ai: newPolicyAI(q), player: true, fieldEffects: make(map[fieldEffect]int)},
-		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
-		playerParty,
-		opponentParty,
-		weatherState(weatherInt),
-	)
-
-	if err := Execute(bs, monteCarloPolicyIterations); err != nil {
-		elogf("error: failed executing policy battle state: %s", err)
-	}
+type policyData struct {
+	PlayerParty   string `json:"player_party"`
+	OpponentParty string `json:"opponent_party"`
+	Weather       int    `json:"weather"`
+	Policy        qMap   `json:"policy"`
 }
 
 func monteCarloReward(bs battleState) float64 {
@@ -131,8 +109,8 @@ func monteCarloReward(bs battleState) float64 {
 }
 
 type qEntry struct {
-	value float64
-	count int
+	Value float64 `json:"value"`
+	Count int     `json:"count"`
 }
 
 type trajectoryStep struct {
@@ -157,8 +135,8 @@ func (q qMap) update(state, action string, reward float64) {
 		entry = &qEntry{}
 		actions[action] = entry
 	}
-	entry.count++
-	entry.value += (reward - entry.value) / float64(entry.count)
+	entry.Count++
+	entry.Value += (reward - entry.Value) / float64(entry.Count)
 }
 
 func (q qMap) valueFor(state, action string) float64 {
@@ -170,7 +148,7 @@ func (q qMap) valueFor(state, action string) float64 {
 	if !ok {
 		return 0
 	}
-	return entry.value
+	return entry.Value
 }
 
 func mergeQMaps(maps []qMap) qMap {
@@ -185,12 +163,12 @@ func mergeQMaps(maps []qMap) qMap {
 			for action, entry := range actions {
 				existing, ok := dst[action]
 				if !ok {
-					dst[action] = &qEntry{value: entry.value, count: entry.count}
+					dst[action] = &qEntry{Value: entry.Value, Count: entry.Count}
 					continue
 				}
-				totalCount := existing.count + entry.count
-				existing.value = (existing.value*float64(existing.count) + entry.value*float64(entry.count)) / float64(totalCount)
-				existing.count = totalCount
+				totalCount := existing.Count + entry.Count
+				existing.Value = (existing.Value*float64(existing.Count) + entry.Value*float64(entry.Count)) / float64(totalCount)
+				existing.Count = totalCount
 			}
 		}
 	}
@@ -312,4 +290,36 @@ func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponent
 	chosen := la.choose(state, buildSwitchCandidates(mons))
 	la.trajectory = append(la.trajectory, trajectoryStep{state: state, action: chosen.key})
 	return chosen.target
+}
+
+func savePolicy(q qMap, playerPartyStr, opponentPartyStr string, weatherInt int) error {
+	data := policyData{
+		PlayerParty:   playerPartyStr,
+		OpponentParty: opponentPartyStr,
+		Weather:       weatherInt,
+		Policy:        q,
+	}
+
+	bytes, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return fmt.Errorf("failed marshaling policy: %w", err)
+	}
+
+	if err := os.WriteFile(policyFilePath, bytes, 0644); err != nil {
+		return fmt.Errorf("failed writing policy file: %w", err)
+	}
+	return nil
+}
+
+func loadPolicy(path string) (policyData, error) {
+	bytes, err := os.ReadFile(path)
+	if err != nil {
+		return policyData{}, fmt.Errorf("failed reading policy file: %w", err)
+	}
+
+	var data policyData
+	if err := json.Unmarshal(bytes, &data); err != nil {
+		return policyData{}, fmt.Errorf("failed parsing policy file: %w", err)
+	}
+	return data, nil
 }
