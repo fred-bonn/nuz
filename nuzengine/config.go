@@ -66,11 +66,6 @@ func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*pokem
 			return nil, err
 		}
 
-		finalPokemon.item, err = registerItem(finalPokemon.initialItem, finalPokemon)
-		if err != nil {
-			return nil, err
-		}
-
 		res = append(res, finalPokemon)
 	}
 
