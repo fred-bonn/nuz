@@ -5,7 +5,7 @@ Ability: Sturdy
 - Knock Off
 - Sticky Web
 
-Sandygast @ Rindo Berry
+Sandygast
 Level: 17
 Lonely Nature
 Ability: Water Compaction

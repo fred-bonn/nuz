@@ -10,80 +10,64 @@ import (
 )
 
 const (
-	monteCarloEpisodes         = 100000
 	monteCarloWorkers          = 10
-	monteCarloEpsilon          = 0.3
-	monteCarloPolicyIterations = 10
+	monteCarloEpsilon          = 0.5
+	monteCarloPolicyIterations = 3
 
-	winReward         = 15
-	faintedMonPenalty = 5
+	faintedMonPenalty = 10
 )
 
-// Learn trains a Monte Carlo control policy by running monteCarloWorkers battle states
-// concurrently, each with its own Q-map, then merges the maps and evaluates the resulting
-// greedy policy for monteCarloPolicyIterations battles.
-func Learn(playerPartyStr, opponentPartyStr string, weatherInt int) {
+func Learn(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+	Verbose = false
+
 	cfg := &config{
 		client: pokeapi.NewClient(),
 	}
+	_, err := cfg.validateInput(playerPartyStr)
+	if err != nil {
+		elogf("error: failed validating player party: %s", err)
+		return
+	}
+	_, err = cfg.validateInput(opponentPartyStr)
+	if err != nil {
+		elogf("error: failed validating opponent party: %s", err)
+		return
+	}
 
-	episodesPerWorker := monteCarloEpisodes / monteCarloWorkers
+	episodesPerWorker := iterations / monteCarloWorkers
 
-	results := make(chan *workerResult, monteCarloWorkers)
+	results := make(chan qMap, monteCarloWorkers)
 	var wg sync.WaitGroup
 	for range monteCarloWorkers {
 		wg.Go(func() {
-			result := runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker)
-			if result != nil {
-				results <- result
+			q := runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker)
+			if q != nil {
+				results <- q
 			}
 		})
 	}
 	wg.Wait()
 	close(results)
 
-	var combinedStats *battleStatistics
 	var workerMaps []qMap
-	for result := range results {
-		if combinedStats == nil {
-			combinedStats = result.stats
-		} else {
-			combinedStats.battleCount += result.stats.battleCount
-			combinedStats.winCount += result.stats.winCount
-			for i, survived := range result.stats.monSurvivalCount {
-				combinedStats.monSurvivalCount[i] += survived
-			}
-		}
-		workerMaps = append(workerMaps, result.q)
-	}
-	if combinedStats != nil {
-		combinedStats.print()
+	for q := range results {
+		workerMaps = append(workerMaps, q)
 	}
 
 	runPolicy(cfg, mergeQMaps(workerMaps), playerPartyStr, opponentPartyStr, weatherInt)
 }
 
-// workerResult is one worker's outcome: its battle statistics and its own, unshared Q-map.
-type workerResult struct {
-	stats *battleStatistics
-	q     qMap
-}
-
-// runWorker runs one goroutine's battle state for episodeCount episodes, training its own
-// Q-map; no locking is needed since each worker owns an independent map.
-func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int) *workerResult {
+func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int) qMap {
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {
 		elogf("error: failed validating player party: %s", err)
 		return nil
 	}
-
 	opponentParty, err := cfg.validateInput(opponentPartyStr)
 	if err != nil {
 		elogf("error: failed validating opponent party: %s", err)
 		return nil
 	}
-
 	la := newLearningAI()
 
 	bs := initSingleBattleState(
@@ -94,8 +78,6 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 		weatherState(weatherInt),
 	)
 
-	statistics := newBattleStatistics(bs)
-
 	for episode := range episodeCount {
 		if episode > 0 {
 			bs.reset()
@@ -104,29 +86,25 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 		la.beginEpisode()
 		if err := bs.execute(); err != nil {
 			elogf("error: failed executing battle state: %s", err)
-			return &workerResult{stats: statistics, q: la.q}
+			return la.q
 		}
-		statistics.record()
 		la.endEpisode(monteCarloReward(bs))
 	}
 
-	return &workerResult{stats: statistics, q: la.q}
+	return la.q
 }
 
-// runPolicy evaluates the merged, greedy policy for monteCarloPolicyIterations battles.
 func runPolicy(cfg *config, q qMap, playerPartyStr, opponentPartyStr string, weatherInt int) {
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {
 		elogf("error: failed validating player party: %s", err)
 		return
 	}
-
 	opponentParty, err := cfg.validateInput(opponentPartyStr)
 	if err != nil {
 		elogf("error: failed validating opponent party: %s", err)
 		return
 	}
-
 	bs := initSingleBattleState(
 		trainer{ai: newPolicyAI(q), player: true, fieldEffects: make(map[fieldEffect]int)},
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
@@ -140,14 +118,10 @@ func runPolicy(cfg *config, q qMap, playerPartyStr, opponentPartyStr string, wea
 	}
 }
 
-// monteCarloReward is the terminal reward applied to every (state, action) pair visited in an episode.
 func monteCarloReward(bs battleState) float64 {
 	trainer := bs.getPlayerTrainer()
 
 	reward := 0.0
-	if !trainer.lost {
-		reward += winReward
-	}
 	for _, mon := range trainer.pokemonParty {
 		if mon.fainted {
 			reward -= faintedMonPenalty
@@ -156,7 +130,6 @@ func monteCarloReward(bs battleState) float64 {
 	return reward
 }
 
-// qEntry is the running sample average of returns observed for a (state, action) pair.
 type qEntry struct {
 	value float64
 	count int
@@ -167,15 +140,12 @@ type trajectoryStep struct {
 	action string
 }
 
-// qMap is a state -> action -> running-average Q-value table. Each worker trains its own,
-// unshared qMap, so no locking is required; maps are merged only after training completes.
 type qMap map[string]map[string]*qEntry
 
 func newQMap() qMap {
 	return make(qMap)
 }
 
-// update applies one first-visit Monte Carlo sample-average update.
 func (q qMap) update(state, action string, reward float64) {
 	actions, ok := q[state]
 	if !ok {
@@ -203,8 +173,6 @@ func (q qMap) valueFor(state, action string) float64 {
 	return entry.value
 }
 
-// mergeQMaps combines independently-trained worker Q-maps into one, weighting each
-// (state, action) value by how many samples contributed to it.
 func mergeQMaps(maps []qMap) qMap {
 	merged := newQMap()
 	for _, m := range maps {
@@ -229,7 +197,6 @@ func mergeQMaps(maps []qMap) qMap {
 	return merged
 }
 
-// learningAi trains its own, unshared Q-map via epsilon-greedy Monte Carlo control.
 type learningAi struct {
 	epsilon    float64
 	q          qMap
@@ -244,12 +211,10 @@ func newLearningAI() *learningAi {
 	}
 }
 
-// beginEpisode clears the recorded trajectory ahead of a new battle.
 func (la *learningAi) beginEpisode() {
 	la.trajectory = la.trajectory[:0]
 }
 
-// endEpisode applies a first-visit Monte Carlo update using the given terminal reward.
 func (la *learningAi) endEpisode(reward float64) {
 	visited := make(map[trajectoryStep]bool, len(la.trajectory))
 	for _, step := range la.trajectory {
@@ -262,15 +227,12 @@ func (la *learningAi) endEpisode(reward float64) {
 	}
 }
 
-// candidate is one of the actions available to the active slot: either a move or a switch target.
 type candidate struct {
 	key    string
 	move   *moveAction
 	target *pokemon
 }
 
-// buildCandidates lists every legal move plus, when the slot may voluntarily switch, every
-// alive, non-active, not-already-queued party member as a switch candidate.
 func buildCandidates(bs battleState, slot *slot, actions []*moveAction) []candidate {
 	candidates := make([]candidate, 0, len(actions))
 	for _, a := range actions {
@@ -289,7 +251,6 @@ func buildCandidates(bs battleState, slot *slot, actions []*moveAction) []candid
 	return candidates
 }
 
-// buildSwitchCandidates lists only the mons actually offered for a (possibly forced) switch-in.
 func buildSwitchCandidates(mons []*pokemon) []candidate {
 	candidates := make([]candidate, 0, len(mons))
 	for _, mon := range mons {
@@ -298,7 +259,6 @@ func buildSwitchCandidates(mons []*pokemon) []candidate {
 	return candidates
 }
 
-// argmaxCandidate picks the candidate with the highest known Q-value, breaking ties uniformly at random.
 func argmaxCandidate(q qMap, state string, candidates []candidate) candidate {
 	best := candidates[0]
 	bestValue := q.valueFor(state, best.key)
@@ -319,7 +279,6 @@ func argmaxCandidate(q qMap, state string, candidates []candidate) candidate {
 	return best
 }
 
-// choose picks a candidate using epsilon-greedy selection over the current Q-map.
 func (la *learningAi) choose(state string, candidates []candidate) candidate {
 	if rand.Float64() < la.epsilon {
 		return candidates[rand.Intn(len(candidates))]
@@ -345,46 +304,12 @@ func (la *learningAi) shouldSwitch(bs battleState, slot *slot, score int, party 
 }
 
 func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
-	// the voluntary-switch decision from evaluateActions is still valid if its target is still available
 	if la.pending.target != nil && slices.Contains(mons, la.pending.target) {
 		return la.pending.target
 	}
 
-	// forced replacement (a mon fainted): choose independently over the mons actually available now
 	state := bs.key()
 	chosen := la.choose(state, buildSwitchCandidates(mons))
 	la.trajectory = append(la.trajectory, trajectoryStep{state: state, action: chosen.key})
 	return chosen.target
-}
-
-// policyAi always exploits a fixed, already-trained Q-map: no exploration, no learning.
-type policyAi struct {
-	q       qMap
-	pending candidate
-}
-
-func newPolicyAI(q qMap) *policyAi {
-	return &policyAi{q: q}
-}
-
-func (pa *policyAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
-	chosen := argmaxCandidate(pa.q, bs.key(), buildCandidates(bs, slot, actions))
-	pa.pending = chosen
-
-	if chosen.move != nil {
-		return chosen.move, 0
-	}
-	return actions[0], -1
-}
-
-func (pa *policyAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
-	return pa.pending.move == nil
-}
-
-func (pa *policyAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
-	if pa.pending.target != nil && slices.Contains(mons, pa.pending.target) {
-		return pa.pending.target
-	}
-
-	return argmaxCandidate(pa.q, bs.key(), buildSwitchCandidates(mons)).target
 }

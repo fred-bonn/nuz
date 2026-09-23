@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	defaultLearningIterations = 1000
+	defaultLearningIterations = 100000
 )
 
 func main() {
@@ -31,7 +31,7 @@ func run(args []string) int {
 	inputAi := fs.IntP("input-ai", "a", 0, "input AI\n 0: Run & Bun (default)\n 1: Guided\n 2: Random")
 	learning := fs.BoolP("learning", "l", false, "enable learning mode for the input AI")
 	policyFile := fs.StringP("policy-file", "f", "", "path to a saved policy JSON file to load and use for the player trainer; the player and opponent parties embedded in the policy are used")
-	iterations := fs.IntP("iterations", "i", 1, "number of times to run the same battle scenario for statistics or training")
+	iterations := fs.IntP("iterations", "i", 0, "number of times to run the same battle scenario for statistics or training")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, pflag.ErrHelp) {
 			return 0
@@ -43,16 +43,19 @@ func run(args []string) int {
 		log.Printf("error: weather (-w) must be between 0 and 4")
 		return 1
 	}
-	if *iterations <= 0 {
+	if *iterations < 0 {
 		log.Printf("error: iterations must be greater than 0")
 		return 1
+	} else if *iterations == 0 {
+		if *learning {
+			*iterations = defaultLearningIterations
+		} else {
+			*iterations = 1
+		}
 	}
 	if *inputAi < 0 || *inputAi > 3 {
 		log.Printf("error: input AI (-a) must be between 0 and 3")
 		return 1
-	}
-	if *inputAi == 1 && *iterations == 1 {
-		*iterations = defaultLearningIterations
 	}
 	if *verbose {
 		nuzengine.Verbose = true
@@ -87,7 +90,7 @@ func run(args []string) int {
 	}
 
 	if *learning {
-		nuzengine.Learn(playerParty, opponentParty, *weather)
+		nuzengine.Learn(playerParty, opponentParty, *weather, *iterations)
 		return 0
 	}
 
