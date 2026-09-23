@@ -76,9 +76,9 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 | ---- | --- |
 | `-v` | Verbose logging |
 | `-a <0..2>` | AI override for the player: `0=rnb`, `1=guided`, `2=random`; default `0` | 
-| `-l` | Enables learning and policy save |
+| `-l` | Enables learning and saving a policy; `data/policy.json`|
 | `-f <path>` | Load a saved policy JSON and use it as a static policy for the player |
-| `-i <n>` | Number of battle repetitions; default `1` |
+| `-i <n>` | Number of battle iterations; default `1` |
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
 
 Examples:
