@@ -1,16 +1,38 @@
 package nuzengine
 
 import (
-	"encoding/json"
-	"fmt"
 	"math/rand"
-	"os"
 	"slices"
 	"strings"
 	"sync"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
+
+type learningAiMonteCarlo struct {
+	epsilon    float64
+	q          qMap
+	trajectory []trajectoryStep
+	pending    actionCandidate
+}
+
+type qMap map[string]map[string]*qEntry
+
+type qEntry struct {
+	Value float64 `json:"value"`
+	Count int     `json:"count"`
+}
+
+type actionCandidate struct {
+	key    string
+	move   *moveAction
+	target *pokemon
+}
+
+type trajectoryStep struct {
+	state  string
+	action string
+}
 
 const (
 	monteCarloWorkers = 10
@@ -63,7 +85,7 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 		elogf("error: failed validating opponent party: %s", err)
 		return nil
 	}
-	la := newLearningAI()
+	la := newLearningAIMonteCarlo()
 
 	bs := initSingleBattleState(
 		trainer{ai: la, player: true, fieldEffects: make(map[fieldEffect]int)},
@@ -89,13 +111,6 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 	return la.q
 }
 
-type policyData struct {
-	PlayerParty   string `json:"player_party"`
-	OpponentParty string `json:"opponent_party"`
-	Weather       int    `json:"weather"`
-	Policy        qMap   `json:"policy"`
-}
-
 func monteCarloReward(bs battleState) float64 {
 	trainer := bs.getPlayerTrainer()
 
@@ -107,18 +122,6 @@ func monteCarloReward(bs battleState) float64 {
 	}
 	return reward
 }
-
-type qEntry struct {
-	Value float64 `json:"value"`
-	Count int     `json:"count"`
-}
-
-type trajectoryStep struct {
-	state  string
-	action string
-}
-
-type qMap map[string]map[string]*qEntry
 
 func newQMap() qMap {
 	return make(qMap)
@@ -175,25 +178,18 @@ func mergeQMaps(maps []qMap) qMap {
 	return merged
 }
 
-type learningAi struct {
-	epsilon    float64
-	q          qMap
-	trajectory []trajectoryStep
-	pending    candidate
-}
-
-func newLearningAI() *learningAi {
-	return &learningAi{
+func newLearningAIMonteCarlo() *learningAiMonteCarlo {
+	return &learningAiMonteCarlo{
 		epsilon: monteCarloEpsilon,
 		q:       newQMap(),
 	}
 }
 
-func (la *learningAi) beginEpisode() {
+func (la *learningAiMonteCarlo) beginEpisode() {
 	la.trajectory = la.trajectory[:0]
 }
 
-func (la *learningAi) endEpisode(reward float64) {
+func (la *learningAiMonteCarlo) endEpisode(reward float64) {
 	visited := make(map[trajectoryStep]bool, len(la.trajectory))
 	for _, step := range la.trajectory {
 		if visited[step] {
@@ -205,39 +201,33 @@ func (la *learningAi) endEpisode(reward float64) {
 	}
 }
 
-type candidate struct {
-	key    string
-	move   *moveAction
-	target *pokemon
-}
-
-func buildCandidates(bs battleState, slot *slot, actions []*moveAction) []candidate {
-	candidates := make([]candidate, 0, len(actions))
+func buildCandidates(bs battleState, slot *slot, actions []*moveAction) []actionCandidate {
+	candidates := make([]actionCandidate, 0, len(actions))
 	for _, a := range actions {
-		candidates = append(candidates, candidate{key: "move:" + strings.ToLower(a.move.Move), move: a})
+		candidates = append(candidates, actionCandidate{key: "move:" + strings.ToLower(a.move.Move), move: a})
 	}
-
 	if canReplace(slot.Trainer.pokemonParty) && !slot.isTrapped() {
+		var possibleMons []*pokemon
 		for _, mon := range slot.Trainer.pokemonParty {
-			if mon == slot.mon || mon.fainted || bs.getActions().containstSwitchTo(mon) {
-				continue
+			if mon != slot.mon && !mon.fainted {
+				possibleMons = append(possibleMons, mon)
 			}
-			candidates = append(candidates, candidate{key: "switch:" + strings.ToLower(mon.base.Name), target: mon})
 		}
+		candidates = append(candidates, buildSwitchCandidates(possibleMons)...)
 	}
 
 	return candidates
 }
 
-func buildSwitchCandidates(mons []*pokemon) []candidate {
-	candidates := make([]candidate, 0, len(mons))
+func buildSwitchCandidates(mons []*pokemon) []actionCandidate {
+	candidates := make([]actionCandidate, 0, len(mons))
 	for _, mon := range mons {
-		candidates = append(candidates, candidate{key: "switch:" + strings.ToLower(mon.base.Name), target: mon})
+		candidates = append(candidates, actionCandidate{key: "switch:" + strings.ToLower(mon.base.Name), target: mon})
 	}
 	return candidates
 }
 
-func argmaxCandidate(q qMap, state string, candidates []candidate) candidate {
+func argmaxCandidate(q qMap, state string, candidates []actionCandidate) actionCandidate {
 	best := candidates[0]
 	bestValue := q.valueFor(state, best.key)
 	bestCount := 1
@@ -257,14 +247,14 @@ func argmaxCandidate(q qMap, state string, candidates []candidate) candidate {
 	return best
 }
 
-func (la *learningAi) choose(state string, candidates []candidate) candidate {
+func (la *learningAiMonteCarlo) choose(state string, candidates []actionCandidate) actionCandidate {
 	if rand.Float64() < la.epsilon {
 		return candidates[rand.Intn(len(candidates))]
 	}
 	return argmaxCandidate(la.q, state, candidates)
 }
 
-func (la *learningAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (la *learningAiMonteCarlo) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	state := bs.key()
 	chosen := la.choose(state, buildCandidates(bs, slot, actions))
 
@@ -277,11 +267,7 @@ func (la *learningAi) evaluateActions(bs battleState, slot *slot, actions []*mov
 	return actions[0], -1
 }
 
-func (la *learningAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
-	return la.pending.move == nil
-}
-
-func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
+func (la *learningAiMonteCarlo) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if la.pending.target != nil && slices.Contains(mons, la.pending.target) {
 		return la.pending.target
 	}
@@ -292,34 +278,6 @@ func (la *learningAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponent
 	return chosen.target
 }
 
-func savePolicy(q qMap, playerPartyStr, opponentPartyStr string, weatherInt int) error {
-	data := policyData{
-		PlayerParty:   playerPartyStr,
-		OpponentParty: opponentPartyStr,
-		Weather:       weatherInt,
-		Policy:        q,
-	}
-
-	bytes, err := json.MarshalIndent(data, "", "  ")
-	if err != nil {
-		return fmt.Errorf("failed marshaling policy: %w", err)
-	}
-
-	if err := os.WriteFile(policyFilePath, bytes, 0644); err != nil {
-		return fmt.Errorf("failed writing policy file: %w", err)
-	}
-	return nil
-}
-
-func loadPolicy(path string) (policyData, error) {
-	bytes, err := os.ReadFile(path)
-	if err != nil {
-		return policyData{}, fmt.Errorf("failed reading policy file: %w", err)
-	}
-
-	var data policyData
-	if err := json.Unmarshal(bytes, &data); err != nil {
-		return policyData{}, fmt.Errorf("failed parsing policy file: %w", err)
-	}
-	return data, nil
+func (la *learningAiMonteCarlo) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
+	return la.pending.move == nil
 }
