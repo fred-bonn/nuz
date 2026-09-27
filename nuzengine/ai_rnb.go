@@ -13,7 +13,7 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*po
 			continue
 		}
 
-		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, false, false, rollMax)
+		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, false, false, false, rollMax)
 		oneHitKill := opponentDamage >= mon.hp
 		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponent.isFasterThan(bs, mon)
 		if !oneHitKill && !twoHitKillWhileSlower {
@@ -226,8 +226,8 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 
 		outspeeds := mon.isFasterThan(bs, opponent)
 
-		monDamage := calculateMaxDamageAmongMoves(bs, mon, opponent, false, false, rollMax)
-		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, false, false, rollMax)
+		monDamage := calculateMaxDamageAmongMoves(bs, mon, opponent, false, false, false, rollMax)
+		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, false, false, false, rollMax)
 
 		killsOpponent := monDamage >= opponent.hp
 		monKilled := opponentDamage >= mon.hp
@@ -265,7 +265,7 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 	return mons[bestIndex]
 }
 
-func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, checkChoice, checkOnlyPriority bool, roll damageRollType) int {
+func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, checkChoice, checkOnlyPriority, crit bool, roll damageRollType) int {
 	var maxDmg, dmg int
 	rolls := 1
 	for _, move := range user.moves {
@@ -283,14 +283,14 @@ func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, checkCh
 		}
 
 		rolls = 1
-		critRate := determineCritRate(user, move)
+		crit = crit || determineCritRate(user, move) > 3
 		if move.MaxHits == 5 {
 			rolls = 3
 		} else if move.MaxHits > 0 {
 			rolls = move.MaxHits
 		}
 		for i := 0; i < rolls; i++ {
-			dmg += calculateDamage(user, target, move, new(critRate >= 3), bs.getWeather(), roll, true, false)
+			dmg += calculateDamage(user, target, move, &crit, bs.getWeather(), roll, true, false)
 		}
 
 		target.checkItemTrigger(false, makeFocusSashEvent(&dmg))

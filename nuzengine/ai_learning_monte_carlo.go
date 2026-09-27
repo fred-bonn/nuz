@@ -36,7 +36,7 @@ type trajectoryStep struct {
 
 const (
 	monteCarloWorkers = 10
-	monteCarloEpsilon = 0.5
+	monteCarloEpsilon = 0.1
 
 	faintedMonPenalty = 10
 

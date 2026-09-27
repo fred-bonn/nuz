@@ -2,7 +2,6 @@ package nuzengine
 
 import (
 	"encoding/json"
-	"slices"
 	"strings"
 )
 
@@ -12,14 +11,12 @@ type singleBattleStateKey struct {
 	PlayerMonHasFastKill   bool            `json:"player_mon_has_fast_kill"`
 	PlayerMonIsTrapped     bool            `json:"player_mon_is_trapped"`
 	AlivePlayerMons        []bool          `json:"alive_player_mons"`
-	PlayerAilments         []ailmentState  `json:"player_ailments"`
-	PlayerStatStages       []int           `json:"player_stat_stages"`
+	PlayerAilment          ailmentState    `json:"player_ailment"`
 	OpponentMon            string          `json:"opponent_mon"`
 	OpponentMonHasKill     bool            `json:"opponent_mon_has_kill"`
 	OpponentMonHasFastKill bool            `json:"opponent_mon_has_fast_kill"`
 	AliveOpponentMons      []bool          `json:"alive_opponent_mons"`
-	OpponentAilments       []ailmentState  `json:"opponent_ailments"`
-	OpponentStatStages     []int           `json:"opponent_stat_stages"`
+	OpponentAilment        ailmentState    `json:"opponent_ailment"`
 	MovesOutOfPP           map[string]bool `json:"moves_out_of_pp"`
 	ItemsConsumed          map[string]bool `json:"items_consumed"`
 	Weather                weatherState    `json:"weather"`
@@ -39,10 +36,8 @@ func (sbs *singleBattleState) key() string {
 
 	stateKey.PlayerMon = playerMon.base.Name
 	stateKey.OpponentMon = opponentMon.base.Name
-	stateKey.PlayerAilments = sortedAilments(playerMon)
-	stateKey.OpponentAilments = sortedAilments(opponentMon)
-	stateKey.PlayerStatStages = append([]int(nil), playerMon.stages...)
-	stateKey.OpponentStatStages = append([]int(nil), opponentMon.stages...)
+	stateKey.PlayerAilment = addNonVolatileAilmentState(playerMon)
+	stateKey.OpponentAilment = addNonVolatileAilmentState(opponentMon)
 	stateKey.addMoveAndItemState(playerMon)
 	stateKey.addMoveAndItemState(opponentMon)
 
@@ -53,10 +48,10 @@ func (sbs *singleBattleState) key() string {
 		stateKey.AliveOpponentMons[i] = !mon.fainted
 	}
 
-	playerMonMax := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, true, false, rollMin)
-	playerMonMaxPrio := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, true, true, rollMin)
-	opponentMonMax := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, true, false, rollMax)
-	opponentMonMaxPrio := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, true, true, rollMax)
+	playerMonMax := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, true, false, false, rollMin)
+	playerMonMaxPrio := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, true, true, false, rollMin)
+	opponentMonMax := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, true, false, true, rollMax)
+	opponentMonMaxPrio := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, true, true, true, rollMax)
 
 	stateKey.PlayerMonHasKill = playerMonMax >= opponentMon.hp
 	stateKey.PlayerMonHasFastKill = playerMonMaxPrio >= opponentMon.hp || (stateKey.PlayerMonHasKill && playerMon.isFasterThan(sbs, opponentMon))
@@ -85,11 +80,11 @@ func (stateKey *singleBattleStateKey) addMoveAndItemState(mon *pokemon) {
 	stateKey.ItemsConsumed[monName+": "+itemName] = consumed
 }
 
-func sortedAilments(mon *pokemon) []ailmentState {
-	ailments := make([]ailmentState, 0, len(mon.ailments))
-	for state := range mon.ailments {
-		ailments = append(ailments, state)
+func addNonVolatileAilmentState(mon *pokemon) ailmentState {
+	for ailment := range mon.ailments {
+		if ailment.isNonVolatileStatus() {
+			return ailment
+		}
 	}
-	slices.Sort(ailments)
-	return ailments
+	return noneAilment
 }
