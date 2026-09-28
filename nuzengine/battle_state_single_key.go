@@ -48,10 +48,26 @@ func (sbs *singleBattleState) key() string {
 		stateKey.AliveOpponentMons[i] = !mon.fainted
 	}
 
-	playerMonMax := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, true, false, false, rollMin)
-	playerMonMaxPrio := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, true, true, false, rollMin)
-	opponentMonMax := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, true, false, true, rollMax)
-	opponentMonMaxPrio := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, true, true, true, rollMax)
+	playerMonMax := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, calculateMaxDamageFlags{
+		checkChoice: true,
+		isFirstTurn: sbs.activePlayerSlot.firstTurn,
+	}, rollMin)
+	playerMonMaxPrio := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, calculateMaxDamageFlags{
+		checkChoice:       true,
+		checkOnlyPriority: true,
+		isFirstTurn:       sbs.activePlayerSlot.firstTurn,
+	}, rollMin)
+	opponentMonMax := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, calculateMaxDamageFlags{
+		checkChoice: true,
+		checkCrit:   true,
+		isFirstTurn: sbs.activeOpponentSlot.firstTurn,
+	}, rollMax)
+	opponentMonMaxPrio := calculateMaxDamageAmongMoves(sbs, opponentMon, playerMon, calculateMaxDamageFlags{
+		checkChoice:       true,
+		checkOnlyPriority: true,
+		checkCrit:         true,
+		isFirstTurn:       sbs.activeOpponentSlot.firstTurn,
+	}, rollMax)
 
 	stateKey.PlayerMonHasKill = playerMonMax >= opponentMon.hp
 	stateKey.PlayerMonHasFastKill = playerMonMaxPrio >= opponentMon.hp || (stateKey.PlayerMonHasKill && playerMon.isFasterThan(sbs, opponentMon))

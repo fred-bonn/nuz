@@ -7,15 +7,17 @@ import (
 type rnbAi struct{}
 
 func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
-	opponent := bs.getOpponentSlot(slot).mon
+	opponentSlot := bs.getOpponentSlot(slot)
 	for _, mon := range party {
 		if mon == slot.mon || mon.fainted {
 			continue
 		}
 
-		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, false, false, false, rollMax)
+		opponentDamage := calculateMaxDamageAmongMoves(bs, opponentSlot.mon, mon, calculateMaxDamageFlags{
+			isFirstTurn: opponentSlot.firstTurn,
+		}, rollMax)
 		oneHitKill := opponentDamage >= mon.hp
-		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponent.isFasterThan(bs, mon)
+		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponentSlot.mon.isFasterThan(bs, mon)
 		if !oneHitKill && !twoHitKillWhileSlower {
 			return score <= 0 && !roll(1, 2) && slot.mon.hp > slot.mon.MaxHP()/2
 		}
@@ -226,8 +228,12 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 
 		outspeeds := mon.isFasterThan(bs, opponent)
 
-		monDamage := calculateMaxDamageAmongMoves(bs, mon, opponent, false, false, false, rollMax)
-		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, false, false, false, rollMax)
+		monDamage := calculateMaxDamageAmongMoves(bs, mon, opponent, calculateMaxDamageFlags{
+			checkSwitchIn: true,
+		}, rollMax)
+		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, calculateMaxDamageFlags{
+			isFirstTurn: opponentSlot.firstTurn,
+		}, rollMax)
 
 		killsOpponent := monDamage >= opponent.hp
 		monKilled := opponentDamage >= mon.hp
@@ -265,32 +271,41 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 	return mons[bestIndex]
 }
 
-func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, checkChoice, checkOnlyPriority, crit bool, roll damageRollType) int {
+type calculateMaxDamageFlags struct {
+	checkChoice       bool
+	checkOnlyPriority bool
+	checkCrit         bool
+	checkSwitchIn     bool
+	isFirstTurn       bool
+}
+
+func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, flags calculateMaxDamageFlags, roll damageRollType) int {
 	var maxDmg, dmg int
 	rolls := 1
 	for _, move := range user.moves {
-		if checkOnlyPriority && move.Priority == 0 {
+		if flags.checkOnlyPriority && move.Priority == 0 {
 			continue
 		}
-		if (move.Move == "fake out" || move.Move == "first impression") && !bs.getPokemonSlot(user).firstTurn {
+
+		if (move.Move == "fake out" || move.Move == "first impression") && !(flags.checkSwitchIn || flags.isFirstTurn) {
 			continue
 		}
 		if move.PP <= 0 || move.Class == statusClass {
 			continue
 		}
-		if checkChoice && user.lockedMove != nil && user.lockedMove != move {
+		if flags.checkChoice && user.lockedMove != nil && user.lockedMove != move {
 			continue
 		}
 
 		rolls = 1
-		crit = crit || determineCritRate(user, move) > 3
+		flags.checkCrit = flags.checkCrit || determineCritRate(user, move) > 3
 		if move.MaxHits == 5 {
 			rolls = 3
 		} else if move.MaxHits > 0 {
 			rolls = move.MaxHits
 		}
 		for i := 0; i < rolls; i++ {
-			dmg += calculateDamage(user, target, move, &crit, bs.getWeather(), roll, true, false)
+			dmg += calculateDamage(user, target, move, &flags.checkCrit, bs.getWeather(), roll, true, false)
 		}
 
 		target.checkItemTrigger(false, makeFocusSashEvent(&dmg))

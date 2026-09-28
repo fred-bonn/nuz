@@ -64,7 +64,7 @@ func stringToAilmentState(s string) ailmentState {
 		return trapAilment
 	case "bound":
 		return boundAilment
-	case "leech seed":
+	case "leech seed", "leech-seed":
 		return leechSeedAilment
 	case "yawn":
 		return yawnAilment
