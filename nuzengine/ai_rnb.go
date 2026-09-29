@@ -15,7 +15,8 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*po
 
 		opponentDamage := calculateMaxDamageAmongMoves(bs, opponentSlot.mon, mon, calculateMaxDamageFlags{
 			isFirstTurn: opponentSlot.firstTurn,
-		}, rollMax)
+			rollType:    rollMax,
+		})
 		oneHitKill := opponentDamage >= mon.hp
 		twoHitKillWhileSlower := opponentDamage*2 >= mon.hp && !opponentSlot.mon.isFasterThan(bs, mon)
 		if !oneHitKill && !twoHitKillWhileSlower {
@@ -229,11 +230,13 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 		outspeeds := mon.isFasterThan(bs, opponent)
 
 		monDamage := calculateMaxDamageAmongMoves(bs, mon, opponent, calculateMaxDamageFlags{
-			checkSwitchIn: true,
-		}, rollMax)
+			isSwitchIn: true,
+			rollType:   rollMax,
+		})
 		opponentDamage := calculateMaxDamageAmongMoves(bs, opponent, mon, calculateMaxDamageFlags{
 			isFirstTurn: opponentSlot.firstTurn,
-		}, rollMax)
+			rollType:    rollMax,
+		})
 
 		killsOpponent := monDamage >= opponent.hp
 		monKilled := opponentDamage >= mon.hp
@@ -272,14 +275,15 @@ func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot 
 }
 
 type calculateMaxDamageFlags struct {
-	checkChoice       bool
+	rollType          damageRollType
+	checkChoiceItem   bool
 	checkOnlyPriority bool
-	checkCrit         bool
-	checkSwitchIn     bool
+	isCrit            bool
+	isSwitchIn        bool
 	isFirstTurn       bool
 }
 
-func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, flags calculateMaxDamageFlags, roll damageRollType) int {
+func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, flags calculateMaxDamageFlags) int {
 	var maxDmg, dmg int
 	rolls := 1
 	for _, move := range user.moves {
@@ -287,25 +291,25 @@ func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, flags c
 			continue
 		}
 
-		if (move.Move == "fake out" || move.Move == "first impression") && !(flags.checkSwitchIn || flags.isFirstTurn) {
+		if (move.Move == "fake out" || move.Move == "first impression") && !(flags.isSwitchIn || flags.isFirstTurn) {
 			continue
 		}
 		if move.PP <= 0 || move.Class == statusClass {
 			continue
 		}
-		if flags.checkChoice && user.lockedMove != nil && user.lockedMove != move {
+		if flags.checkChoiceItem && user.lockedMove != nil && user.lockedMove != move {
 			continue
 		}
 
 		rolls = 1
-		flags.checkCrit = flags.checkCrit || determineCritRate(user, move) > 3
+		flags.isCrit = flags.isCrit || determineCritRate(user, move) > 3
 		if move.MaxHits == 5 {
 			rolls = 3
 		} else if move.MaxHits > 0 {
 			rolls = move.MaxHits
 		}
 		for i := 0; i < rolls; i++ {
-			dmg += calculateDamage(user, target, move, &flags.checkCrit, bs.getWeather(), roll, true, false)
+			dmg += calculateDamage(user, target, move, &flags.isCrit, bs.getWeather(), flags.rollType, true, false)
 		}
 
 		target.checkItemTrigger(false, makeFocusSashEvent(&dmg))

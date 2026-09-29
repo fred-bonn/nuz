@@ -91,9 +91,10 @@ func (ma *moveAction) shouldMonHeal(bs battleState) bool {
 	}
 
 	maxDmg := calculateMaxDamageAmongMoves(bs, ma.targetSlot.mon, ma.userSlot.mon, calculateMaxDamageFlags{
-		checkChoice: true,
-		isFirstTurn: ma.targetSlot.firstTurn,
-	}, rollMax)
+		checkChoiceItem: true,
+		isFirstTurn:     ma.targetSlot.firstTurn,
+		rollType:        rollMax,
+	})
 	if maxDmg >= ma.userSlot.mon.MaxHP()*ma.move.Heal/100 {
 		return false
 	}
@@ -163,9 +164,10 @@ func (ma *moveAction) scoreSleepMove(bs battleState) int {
 
 	score := 6
 	maxDmg := calculateMaxDamageAmongMoves(bs, target, ma.userSlot.mon, calculateMaxDamageFlags{
-		checkChoice: true,
-		isFirstTurn: ma.targetSlot.firstTurn,
-	}, rollMax)
+		checkChoiceItem: true,
+		isFirstTurn:     ma.targetSlot.firstTurn,
+		rollType:        rollMax,
+	})
 	if maxDmg < user.hp && roll(1, 2) {
 		if user.hasMovePredicate(isHex) {
 			score += 1
@@ -205,9 +207,10 @@ func (ma *moveAction) scoreToxic(bs battleState) int {
 
 	score := 6
 	maxDmg := calculateMaxDamageAmongMoves(bs, target, user, calculateMaxDamageFlags{
-		checkChoice: true,
-		isFirstTurn: ma.targetSlot.firstTurn,
-	}, rollMax)
+		checkChoiceItem: true,
+		isFirstTurn:     ma.targetSlot.firstTurn,
+		rollType:        rollMax,
+	})
 	if maxDmg < user.hp && roll(19, 50) {
 		if !target.hasMovePredicate(func(m *Move) bool {
 			return m.Class == physicalClass || m.Class == specialClass
@@ -313,9 +316,10 @@ func (ma *moveAction) scoreBellyDrum(bs battleState) int {
 	}
 
 	dmg := calculateMaxDamageAmongMoves(bs, target, user, calculateMaxDamageFlags{
-		checkChoice: true,
-		isFirstTurn: ma.targetSlot.firstTurn,
-	}, rollMax)
+		checkChoiceItem: true,
+		isFirstTurn:     ma.targetSlot.firstTurn,
+		rollType:        rollMax,
+	})
 	threshhold := user.hp - (user.MaxHP() / 2)
 	if user.item.State == sitrusBerry && !user.item.Consumed {
 		threshhold += user.MaxHP() / 4
