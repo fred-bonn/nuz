@@ -290,7 +290,6 @@ func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, flags c
 		if flags.checkOnlyPriority && move.Priority == 0 {
 			continue
 		}
-
 		if (move.Move == "fake out" || move.Move == "first impression") && !(flags.isSwitchIn || flags.isFirstTurn) {
 			continue
 		}
