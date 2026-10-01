@@ -53,8 +53,8 @@ func run(args []string) int {
 			*iterations = 1
 		}
 	}
-	if *inputAi < 0 || *inputAi > 3 {
-		log.Printf("error: input AI (-a) must be between 0 and 3")
+	if *inputAi < 0 || *inputAi > 2 {
+		log.Printf("error: input AI (-a) must be between 0 and 2")
 		return 1
 	}
 	if *verbose {

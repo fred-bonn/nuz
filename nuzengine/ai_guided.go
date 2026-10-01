@@ -5,13 +5,15 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strconv"
 	"strings"
 )
 
 type guidedAi struct {
-	input  *bufio.Reader
-	output io.Writer
+	input   *bufio.Reader
+	output  io.Writer
+	pending actionCandidate
 }
 
 func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
@@ -22,17 +24,17 @@ func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
 }
 
 func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+	candidates := buildCandidates(bs, slot, actions)
+
 	ga.print("Choose an action:\n")
-	for i, action := range actions {
-		ga.print("%d. %s against %s\n", i+1, action.move.Move, action.targetSlot.mon.base.Name)
+	for i, c := range candidates {
+		if c.move != nil {
+			ga.print("%d. %s against %s\n", i+1, c.move.move.Move, c.move.targetSlot.mon.base.Name)
+			continue
+		}
+		ga.print("%d. switch to %s (%d/%d HP)\n", i+1, c.target.base.Name, c.target.hp, c.target.MaxHP())
 	}
-	numberOfChoices := len(actions)
-	canSwitch := false
-	if !slot.isTrapped() && canReplace(slot.Trainer.pokemonParty) {
-		numberOfChoices++
-		canSwitch = true
-		ga.print("%d: switch\n", numberOfChoices)
-	}
+	numberOfChoices := len(candidates)
 
 	for {
 		ga.print("> ")
@@ -51,45 +53,27 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 			ga.print("error: choice out of range, please enter a number between 1 and %d\n", numberOfChoices)
 			continue
 		}
-		if canSwitch && choice == numberOfChoices {
-			return nil, -1
-		}
 
-		return actions[choice-1], 1
+		chosen := candidates[choice-1]
+		ga.pending = chosen
+		if chosen.move != nil {
+			return chosen.move, 1
+		}
+		return actions[0], -1
 	}
 }
 
 func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
-	ga.print("Choose a Pokemon to switch in:\n")
-	for i, mon := range mons {
-		ga.print("%d. %s (%d/%d HP)\n", i+1, mon.base.Name, mon.hp, mon.MaxHP())
+	if ga.pending.target != nil && slices.Contains(mons, ga.pending.target) {
+		return ga.pending.target
 	}
-	numberOfChoices := len(mons)
 
-	for {
-		ga.print("> ")
-		line, err := ga.input.ReadString('\n')
-		if err != nil && len(line) == 0 {
-			ga.print("error: guided AI input ended before a valid choice was entered\n")
-			continue
-		}
-
-		choice, err := strconv.Atoi(strings.TrimSpace(line))
-		if err != nil {
-			ga.print("error: invalid input, please enter a number between 1 and %d\n", numberOfChoices)
-			continue
-		}
-		if choice < 1 || choice > numberOfChoices {
-			ga.print("error: choice out of range, please enter a number between 1 and %d\n", numberOfChoices)
-			continue
-		}
-
-		return mons[choice-1]
-	}
+	bs.setError(fmt.Errorf("error: no valid switch-in candidate available"))
+	return nil
 }
 
 func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
-	return score == -1
+	return ga.pending.move == nil
 }
 
 func (ga *guidedAi) print(format string, args ...any) {
