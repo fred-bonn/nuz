@@ -43,7 +43,7 @@ const (
 	policyFilePath = "data/policy.json"
 )
 
-func Learn(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),

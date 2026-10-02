@@ -80,7 +80,7 @@ func toMove(mj pokeapi.MoveJSON) (Move, error) {
 		initContactMoves()
 	}
 
-	_, isContact = contactMoves[mj.Name]
+	_, isContact = contactMoves[apiName(mj.Name)]
 
 	class := stringToMoveClass(mj.DamageClass.Name)
 	if class == noneClass {

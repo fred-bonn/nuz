@@ -19,6 +19,12 @@ func main() {
 }
 
 func run(args []string) int {
+	for i, arg := range args {
+		if arg == "-sl" {
+			args[i] = "--stateless-learning"
+		}
+	}
+
 	fs := pflag.NewFlagSet("nuz", pflag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	fs.Usage = func() {
@@ -30,6 +36,7 @@ func run(args []string) int {
 	weather := fs.IntP("weather", "w", 0, "weather\n 0: None (default)\n 1: Rain\n 2: Sun\n 3: Sandstorm\n 4: Hail")
 	inputAi := fs.IntP("input-ai", "a", 0, "input AI\n 0: Run & Bun (default)\n 1: Guided\n 2: Random")
 	learning := fs.BoolP("learning", "l", false, "enable learning mode for the input AI")
+	statelessLearning := fs.Bool("stateless-learning", false, "enable stateless learning mode for the input AI")
 	policyFile := fs.StringP("policy-file", "f", "", "path to a saved policy JSON file to load and use for the player trainer; the player and opponent parties embedded in the policy are used")
 	iterations := fs.IntP("iterations", "i", 0, "number of times to run the same battle scenario for statistics or training")
 	if err := fs.Parse(args); err != nil {
@@ -47,7 +54,7 @@ func run(args []string) int {
 		log.Printf("error: iterations must be greater than 0")
 		return 1
 	} else if *iterations == 0 {
-		if *learning {
+		if *learning || *statelessLearning {
 			*iterations = defaultLearningIterations
 		} else {
 			*iterations = 1
@@ -89,8 +96,12 @@ func run(args []string) int {
 		opponentParty = string(opponentPartyData)
 	}
 
+	if *statelessLearning {
+		nuzengine.LearnStateless(playerParty, opponentParty, *weather, *iterations)
+		return 0
+	}
 	if *learning {
-		nuzengine.Learn(playerParty, opponentParty, *weather, *iterations)
+		nuzengine.LearnMonteCarlo(playerParty, opponentParty, *weather, *iterations)
 		return 0
 	}
 
