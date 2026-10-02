@@ -68,8 +68,32 @@ func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSl
 		return ga.pending.target
 	}
 
-	bs.setError(fmt.Errorf("error: no valid switch-in candidate available"))
-	return nil
+	ga.print("Choose a replacement:\n")
+	for i, mon := range mons {
+		ga.print("%d. %s (%d/%d HP)\n", i+1, mon.base.Name, mon.hp, mon.MaxHP())
+	}
+
+	for {
+		ga.print("> ")
+		line, err := ga.input.ReadString('\n')
+		if err != nil && len(line) == 0 {
+			inputErr := fmt.Errorf("error: guided AI input ended before a valid replacement was chosen")
+			ga.print("%s\n", inputErr)
+			bs.setError(inputErr)
+			return nil
+		}
+
+		choice, err := strconv.Atoi(strings.TrimSpace(line))
+		if err != nil {
+			ga.print("error: invalid input, please enter a number between 1 and %d\n", len(mons))
+			continue
+		}
+		if choice < 1 || choice > len(mons) {
+			ga.print("error: choice out of range, please enter a number between 1 and %d\n", len(mons))
+			continue
+		}
+		return mons[choice-1]
+	}
 }
 
 func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
