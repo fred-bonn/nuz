@@ -93,7 +93,6 @@ func (la *learningAiStateless) endEpisode(reward float64) {
 	if reward > la.bestValue {
 		la.bestValue = reward
 		la.sequences = make(sMap)
-		return
 	}
 
 	key := strings.Join(la.sequence, ";")
