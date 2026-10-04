@@ -1,20 +1,15 @@
 package nuzengine
 
 import (
-	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
-	"sync"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
 
 type learningAiStateless struct {
-	epsilon       float64
-	sMap          sMap
-	bestKeys      []string
-	bestIndex     map[string]int
+	sequences     sMap
 	bestValue     float64
 	pending       actionCandidate
 	pendingSwitch bool
@@ -22,56 +17,33 @@ type learningAiStateless struct {
 	replay        []string
 	replayIndex   int
 	replaying     bool
+	verbose       bool
 }
 
-type sMap map[string]struct {
-	count int
-	value float64
-}
-
-const (
-	statelessWorkers = 10
-	statelessEpsilon = 0.1
-)
+type sMap map[string]int
 
 func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
-	Verbose = false
 	cfg := &config{client: pokeapi.NewClient()}
-
-	episodesPerWorker := iterations / statelessWorkers
-
-	results := make(chan sMap, statelessWorkers)
-	var wg sync.WaitGroup
-	for range monteCarloWorkers {
-		wg.Go(func() {
-			if s := runStatelessWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker); s != nil {
-				results <- s
-			}
-		})
-	}
-	wg.Wait()
-	close(results)
-
-	merged := make(sMap)
-	for s := range results {
-		mergeSMaps(merged, s)
-	}
-	printStatelessResults(merged)
-}
-
-func runStatelessWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int) sMap {
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {
 		elogf("error: failed validating player party: %s", err)
-		return nil
+		return
 	}
 	opponentParty, err := cfg.validateInput(opponentPartyStr)
 	if err != nil {
 		elogf("error: failed validating opponent party: %s", err)
-		return nil
+		return
 	}
 
-	la := newLearningAIStateless()
+	la := &learningAiStateless{
+		sequences: make(sMap),
+		bestValue: -1e9,
+	}
+	if Verbose {
+		la.verbose = true
+	}
+	Verbose = false
+
 	bs := initSingleBattleState(
 		trainer{ai: la, player: true, fieldEffects: make(map[fieldEffect]int)},
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
@@ -80,53 +52,29 @@ func runStatelessWorker(cfg *config, playerPartyStr, opponentPartyStr string, we
 		weatherState(weatherInt),
 	)
 
-	for episode := range episodeCount {
+	for episode := range iterations {
 		if episode > 0 {
 			bs.reset()
 		}
 		la.beginEpisode()
 		if err := bs.execute(); err != nil {
 			elogf("error: failed executing battle state: %s", err)
-			return la.sMap
+			return
 		}
 		la.endEpisode(monteCarloReward(bs))
 	}
 
-	return la.sMap
-}
-
-func mergeSMaps(dst, src sMap) {
-	for key, entry := range src {
-		existing := dst[key]
-		total := existing.count + entry.count
-		existing.value = (existing.value*float64(existing.count) + entry.value*float64(entry.count)) / float64(total)
-		existing.count = total
-		dst[key] = existing
+	if la.verbose {
+		Verbose = true
+		la.printStatelessResults()
 	}
 }
 
-func printStatelessResults(results sMap) {
-	bestKey := ""
-	bestValue := -100.0
-	bestCount := 0
-	for key, entry := range results {
-		if bestKey == "" || entry.value > bestValue || (entry.value == bestValue && entry.count > bestCount) {
-			bestKey = key
-			bestValue, bestCount = entry.value, entry.count
-		}
-		if entry.value == 0.0 {
-			fmt.Printf("%s\n - score: %.2f\n - runs: %d\n", key, entry.value, entry.count)
-		}
-	}
-	fmt.Println("=== Best Sequence ===")
-	fmt.Printf("%s\n - score: %.2f\n - runs: %d\n", bestKey, bestValue, bestCount)
-}
-
-func newLearningAIStateless() *learningAiStateless {
-	return &learningAiStateless{
-		epsilon:   statelessEpsilon,
-		sMap:      make(sMap),
-		bestIndex: make(map[string]int),
+func (la *learningAiStateless) printStatelessResults() {
+	vprintln("=== Stateless Learning Results ===")
+	vprintf("Score: %.2f\n", la.bestValue)
+	for key, _ := range la.sequences {
+		vprintf("%s", key)
 	}
 }
 
@@ -135,76 +83,21 @@ func (la *learningAiStateless) beginEpisode() {
 	la.replay = nil
 	la.replayIndex = 0
 	la.replaying = false
-	if rand.Float64() < la.epsilon && len(la.bestKeys) > 0 {
-		la.replay = strings.Split(la.bestKeys[rand.Intn(len(la.bestKeys))], ";")
-		la.replaying = len(la.replay) > 0
-	}
 	la.pendingSwitch = false
 }
 
 func (la *learningAiStateless) endEpisode(reward float64) {
-	if len(la.sequence) == 0 {
+	if reward < la.bestValue {
+		return
+	}
+	if reward > la.bestValue {
+		la.bestValue = reward
+		la.sequences = make(sMap)
 		return
 	}
 
 	key := strings.Join(la.sequence, ";")
-	entry := la.sMap[key]
-	entry.count++
-	entry.value += (reward - entry.value) / float64(entry.count)
-	la.sMap[key] = entry
-	la.updateBestKeys(key)
-}
-
-func (la *learningAiStateless) updateBestKeys(key string) {
-	value := la.sMap[key].value
-	_, isBest := la.bestIndex[key]
-	switch {
-	case len(la.bestKeys) == 0 || value > la.bestValue:
-		la.resetBest(key, value)
-	case value == la.bestValue:
-		if !isBest {
-			la.addBest(key)
-		}
-	case isBest:
-		la.removeBest(key)
-		if len(la.bestKeys) == 0 {
-			la.recomputeBestKeys()
-		}
-	}
-}
-
-func (la *learningAiStateless) resetBest(key string, value float64) {
-	la.bestKeys = la.bestKeys[:0]
-	clear(la.bestIndex)
-	la.bestValue = value
-	la.addBest(key)
-}
-
-func (la *learningAiStateless) addBest(key string) {
-	la.bestIndex[key] = len(la.bestKeys)
-	la.bestKeys = append(la.bestKeys, key)
-}
-
-func (la *learningAiStateless) removeBest(key string) {
-	i := la.bestIndex[key]
-	last := len(la.bestKeys) - 1
-	la.bestKeys[i] = la.bestKeys[last]
-	la.bestIndex[la.bestKeys[i]] = i
-	la.bestKeys = la.bestKeys[:last]
-	delete(la.bestIndex, key)
-}
-
-func (la *learningAiStateless) recomputeBestKeys() {
-	la.bestKeys = la.bestKeys[:0]
-	clear(la.bestIndex)
-	for key, entry := range la.sMap {
-		switch {
-		case len(la.bestKeys) == 0 || entry.value > la.bestValue:
-			la.resetBest(key, entry.value)
-		case entry.value == la.bestValue:
-			la.addBest(key)
-		}
-	}
+	la.sequences[key] = 1
 }
 
 func (la *learningAiStateless) choose(candidates []actionCandidate) actionCandidate {
