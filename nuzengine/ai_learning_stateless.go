@@ -71,10 +71,33 @@ func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterati
 }
 
 func (la *learningAiStateless) printStatelessResults() {
-	vprintln("=== Stateless Learning Results ===")
-	vprintf("Score: %.2f\n", la.bestValue)
-	for key, _ := range la.sequences {
-		vprintf("%s", key)
+	firstActionCounts := make(map[string]int)
+	for sequence, count := range la.sequences {
+		firstAction, _, _ := strings.Cut(sequence, ";")
+		if firstAction != "" {
+			firstActionCounts[firstAction] += count
+		}
+	}
+
+	mostFrequentActions := make([]string, 0)
+	mostFrequentCount := 0
+	for action, count := range firstActionCounts {
+		switch {
+		case count > mostFrequentCount:
+			mostFrequentActions = append(mostFrequentActions[:0], action)
+			mostFrequentCount = count
+		case count == mostFrequentCount:
+			mostFrequentActions = append(mostFrequentActions, action)
+		}
+	}
+	slices.Sort(mostFrequentActions)
+	vprintln("Most frequent first action(s):")
+	if len(mostFrequentActions) == 0 {
+		vprintln("none")
+		return
+	}
+	for _, action := range mostFrequentActions {
+		vprintf("%s - %d occurrences", action, mostFrequentCount)
 	}
 }
 
