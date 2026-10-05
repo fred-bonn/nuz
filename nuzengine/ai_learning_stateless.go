@@ -1,7 +1,6 @@
 package nuzengine
 
 import (
-	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
@@ -23,8 +22,6 @@ type learningAiStateless struct {
 }
 
 type sMap map[string]int
-
-const finalReplays = 1000
 
 func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{client: pokeapi.NewClient()}
@@ -86,26 +83,6 @@ func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterati
 			Verbose = false
 		}
 	}
-
-	wins, losses, inconclusive := 0, 0, 0
-	for range finalReplays {
-		bs.reset()
-		la.beginEpisode()
-		if err := bs.execute(); err != nil {
-			elogf("error: failed executing battle state: %s", err)
-			return
-		}
-		// Any divergence or extra random action means the replay did not decide the battle.
-		switch {
-		case !slices.Equal(la.sequence, la.bestSequence):
-			inconclusive++
-		case bs.getPlayerTrainer().lost:
-			losses++
-		default:
-			wins++
-		}
-	}
-	fmt.Printf("%d %d %d\n", wins, losses, inconclusive)
 
 	if la.verbose {
 		Verbose = true
