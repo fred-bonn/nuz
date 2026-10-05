@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"fmt"
 	"math/rand"
 	"slices"
 	"strings"
@@ -11,6 +12,7 @@ import (
 type learningAiStateless struct {
 	sequences     sMap
 	bestValue     float64
+	bestSequence  []string
 	pending       actionCandidate
 	pendingSwitch bool
 	sequence      []string
@@ -21,6 +23,8 @@ type learningAiStateless struct {
 }
 
 type sMap map[string]int
+
+const finalReplays = 1000
 
 func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{client: pokeapi.NewClient()}
@@ -52,30 +56,70 @@ func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterati
 		weatherState(weatherInt),
 	)
 
-	for episode := range iterations {
-		if episode > 0 {
-			bs.reset()
+	started := false
+	for {
+		la.bestValue = -1e9
+		la.sequences = make(sMap)
+		for range iterations {
+			if started {
+				bs.reset()
+			}
+			started = true
+			la.beginEpisode()
+			if err := bs.execute(); err != nil {
+				elogf("error: failed executing battle state: %s", err)
+				return
+			}
+			la.endEpisode(monteCarloReward(bs))
 		}
+
+		depth := len(la.bestSequence)
+		actions, count := la.mostFrequentActionsAt(depth)
+		if len(actions) == 0 {
+			break
+		}
+		la.bestSequence = append(la.bestSequence, actions[0])
+		if la.verbose {
+			Verbose = true
+			vprintf("best action %d: %s - %d occurrences", depth, actions[0], count)
+			vprintf("score: %f\n", la.bestValue)
+			Verbose = false
+		}
+	}
+
+	wins, losses, inconclusive := 0, 0, 0
+	for range finalReplays {
+		bs.reset()
 		la.beginEpisode()
 		if err := bs.execute(); err != nil {
 			elogf("error: failed executing battle state: %s", err)
 			return
 		}
-		la.endEpisode(monteCarloReward(bs))
+		// Any divergence or extra random action means the replay did not decide the battle.
+		switch {
+		case !slices.Equal(la.sequence, la.bestSequence):
+			inconclusive++
+		case bs.getPlayerTrainer().lost:
+			losses++
+		default:
+			wins++
+		}
 	}
+	fmt.Printf("%d %d %d\n", wins, losses, inconclusive)
 
 	if la.verbose {
 		Verbose = true
-		la.printStatelessResults()
+		vprintln("Best sequence:")
+		vprintln(strings.Join(la.bestSequence, ";"))
 	}
 }
 
-func (la *learningAiStateless) printStatelessResults() {
+func (la *learningAiStateless) mostFrequentActionsAt(depth int) ([]string, int) {
 	firstActionCounts := make(map[string]int)
 	for sequence, count := range la.sequences {
-		firstAction, _, _ := strings.Cut(sequence, ";")
-		if firstAction != "" {
-			firstActionCounts[firstAction] += count
+		parts := strings.Split(sequence, ";")
+		if depth < len(parts) && parts[depth] != "" {
+			firstActionCounts[parts[depth]] += count
 		}
 	}
 
@@ -91,21 +135,14 @@ func (la *learningAiStateless) printStatelessResults() {
 		}
 	}
 	slices.Sort(mostFrequentActions)
-	vprintln("Most frequent first action(s):")
-	if len(mostFrequentActions) == 0 {
-		vprintln("none")
-		return
-	}
-	for _, action := range mostFrequentActions {
-		vprintf("%s - %d occurrences", action, mostFrequentCount)
-	}
+	return mostFrequentActions, mostFrequentCount
 }
 
 func (la *learningAiStateless) beginEpisode() {
 	la.sequence = la.sequence[:0]
-	la.replay = nil
+	la.replay = la.bestSequence
 	la.replayIndex = 0
-	la.replaying = false
+	la.replaying = len(la.replay) > 0
 	la.pendingSwitch = false
 }
 
