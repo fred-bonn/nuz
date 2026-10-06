@@ -20,12 +20,12 @@ Losing Pokemon in a Nuzlocke playthrough can quickly compound and lead to a rese
 Install nuz using the Go toolchain.
 
 ```bash
-go install github.com/fred-bonn/nuz
+go install github.com/fred-bonn/nuz@latest
 
 ```
 
 ```bash
-nuz showdown_demo_files/player.text showdown_demo_files/opponent.txt -v
+nuz showdown_demo_files/player.txt showdown_demo_files/opponent.txt -v
 ```
 
 ### Input party format
@@ -76,29 +76,30 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 | ---- | --- |
 | `-v` | Verbose logging |
 | `-a <0..2>` | AI override for the player: `0=rnb`, `1=guided`, `2=random`; default `0` | 
-| `-l` | Enables learning and saving a policy; `data/policy.json`|
-| `-f <path>` | Load a saved policy JSON and use it as a static policy for the player |
-| `-i <n>` | Number of battle iterations; default `1` |
+| `-l` | Train with Monte Carlo learning and save a policy to `data/policy.json` |
+| `-sl` | Run stateless learning; does not save a policy |
+| `-f <path>` | Load a saved policy JSON; its embedded player and opponent parties are used |
+| `-i <n>` | Number of battle iterations; defaults to `1`, or `100000` in either learning mode |
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
 
 Examples:
 
-Train and save a policy:
+Train and save a policy to `data/policy.json`:
 
 ```bash
-nuz -a 1 showdown_demo_files/player.text showdown_demo_files/opponent.txt
+nuz -l -i 250 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
 ```
 
 Load a saved policy and use it statically:
 
 ```bash
-nuz -f policies/player__vs__opponent.json
+nuz -f data/policy.json
 ```
 
-Simulate the battle as REPL, prompting the player's action each turn:
+Run a battle with the random AI controlling the player:
 
 ```bash
-nuz -a 2 showdown_demo_files/player.text showdown_demo_files/opponent.txt
+nuz -a 2 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
 ```
 
 ## Contributing
