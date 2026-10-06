@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"errors"
 	"math/rand"
 	"slices"
 	"strings"
@@ -22,6 +23,8 @@ type learningAiStateless struct {
 }
 
 type sMap map[string]int
+
+var errStatelessReplayFailed = errors.New("stateless replay action unavailable")
 
 func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{client: pokeapi.NewClient()}
@@ -64,6 +67,9 @@ func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterati
 			started = true
 			la.beginEpisode()
 			if err := bs.execute(); err != nil {
+				if errors.Is(err, errStatelessReplayFailed) {
+					continue
+				}
 				elogf("error: failed executing battle state: %s", err)
 				return
 			}
@@ -136,7 +142,7 @@ func (la *learningAiStateless) endEpisode(reward float64) {
 	la.sequences[key] = 1
 }
 
-func (la *learningAiStateless) choose(candidates []actionCandidate) actionCandidate {
+func (la *learningAiStateless) choose(bs battleState, candidates []actionCandidate) (actionCandidate, bool) {
 	if la.replaying {
 		if la.replayIndex < len(la.replay) {
 			expected := la.replay[la.replayIndex]
@@ -144,20 +150,18 @@ func (la *learningAiStateless) choose(candidates []actionCandidate) actionCandid
 				if candidate.key == expected {
 					la.replayIndex++
 					la.sequence = append(la.sequence, candidate.key)
-					return candidate
+					return candidate, true
 				}
 			}
-			available := make([]string, 0, len(candidates))
-			for _, candidate := range candidates {
-				available = append(available, candidate.key)
-			}
+			bs.setError(errStatelessReplayFailed)
+			return actionCandidate{}, false
 		}
 		la.replaying = false
 	}
 
 	chosen := candidates[rand.Intn(len(candidates))]
 	la.sequence = append(la.sequence, chosen.key)
-	return chosen
+	return chosen, true
 }
 
 func (la *learningAiStateless) replayCandidate(slot *slot, actions []*moveAction) (actionCandidate, bool) {
@@ -199,7 +203,11 @@ func (la *learningAiStateless) replayCandidate(slot *slot, actions []*moveAction
 func (la *learningAiStateless) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	chosen, replayed := la.replayCandidate(slot, actions)
 	if !replayed {
-		chosen = la.choose(buildCandidates(bs, slot, actions))
+		var ok bool
+		chosen, ok = la.choose(bs, buildCandidates(bs, slot, actions))
+		if !ok {
+			return actions[0], 0
+		}
 	}
 	la.pending = chosen
 	la.pendingSwitch = chosen.target != nil
@@ -220,13 +228,15 @@ func (la *learningAiStateless) evaluteSwitchIns(bs battleState, mons []*pokemon,
 	if la.pendingSwitch {
 		la.sequence = la.sequence[:len(la.sequence)-1]
 		la.pendingSwitch = false
-		la.replaying = false
 	} else {
 		for i := range candidates {
 			candidates[i].key = strings.Replace(candidates[i].key, "switch:", "replace:", 1)
 		}
 	}
-	chosen := la.choose(candidates)
+	chosen, ok := la.choose(bs, candidates)
+	if !ok {
+		return mons[0]
+	}
 	return chosen.target
 }
 

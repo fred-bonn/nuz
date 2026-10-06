@@ -23,6 +23,10 @@ func (sbs *singleBattleState) execute() error {
 		vprintf("%s %d/%d - %s %d/%d", sbs.activePlayerSlot.mon.base.Name, sbs.activePlayerSlot.mon.hp, sbs.activePlayerSlot.mon.MaxHP(), sbs.activeOpponentSlot.mon.base.Name, sbs.activeOpponentSlot.mon.hp, sbs.activeOpponentSlot.mon.MaxHP())
 
 		sbs.gatherActions()
+		if sbs.err != nil {
+			sbs.actions.queue = sbs.actions.queue[:0]
+			return sbs.err
+		}
 		sbs.actions.sort(sbs)
 		for len(sbs.actions.queue) > 0 {
 			action, _ := sbs.actions.queue.pop()
