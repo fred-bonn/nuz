@@ -12,7 +12,6 @@ import (
 type learningAiStateless struct {
 	sequences     sMap
 	bestValue     float64
-	bestSequence  []string
 	pending       actionCandidate
 	pendingSwitch bool
 	sequence      []string
@@ -56,53 +55,33 @@ func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterati
 		weatherState(weatherInt),
 	)
 
-	started := false
-	for {
-		la.bestValue = -1e9
-		la.sequences = make(sMap)
-		for range iterations {
-			if started {
-				bs.reset()
+	for episode := range iterations {
+		if episode > 0 {
+			bs.reset()
+		}
+		la.beginEpisode()
+		if err := bs.execute(); err != nil {
+			if errors.Is(err, errStatelessReplayFailed) {
+				continue
 			}
-			started = true
-			la.beginEpisode()
-			if err := bs.execute(); err != nil {
-				if errors.Is(err, errStatelessReplayFailed) {
-					continue
-				}
-				elogf("error: failed executing battle state: %s", err)
-				return
-			}
-			la.endEpisode(monteCarloReward(bs))
+			elogf("error: failed executing battle state: %s", err)
+			return
 		}
-
-		depth := len(la.bestSequence)
-		actions, count := la.mostFrequentActionsAt(depth)
-		if len(actions) == 0 {
-			break
-		}
-		la.bestSequence = append(la.bestSequence, actions[0])
-		if la.verbose {
-			Verbose = true
-			vprintf("best action %d: %s - %d occurrences", depth, actions[0], count)
-			vprintf("score: %f\n", la.bestValue)
-			Verbose = false
-		}
+		la.endEpisode(monteCarloReward(bs))
 	}
 
 	if la.verbose {
 		Verbose = true
-		vprintln("Best sequence:")
-		vprintln(strings.Join(la.bestSequence, ";"))
+		la.printStatelessResults()
 	}
 }
 
-func (la *learningAiStateless) mostFrequentActionsAt(depth int) ([]string, int) {
+func (la *learningAiStateless) printStatelessResults() {
 	firstActionCounts := make(map[string]int)
 	for sequence, count := range la.sequences {
-		parts := strings.Split(sequence, ";")
-		if depth < len(parts) && parts[depth] != "" {
-			firstActionCounts[parts[depth]] += count
+		firstAction, _, _ := strings.Cut(sequence, ";")
+		if firstAction != "" {
+			firstActionCounts[firstAction] += count
 		}
 	}
 
@@ -118,14 +97,21 @@ func (la *learningAiStateless) mostFrequentActionsAt(depth int) ([]string, int) 
 		}
 	}
 	slices.Sort(mostFrequentActions)
-	return mostFrequentActions, mostFrequentCount
+	vprintln("Most frequent first action(s):")
+	if len(mostFrequentActions) == 0 {
+		vprintln("none")
+		return
+	}
+	for _, action := range mostFrequentActions {
+		vprintf("%s - %d occurrences", action, mostFrequentCount)
+	}
 }
 
 func (la *learningAiStateless) beginEpisode() {
 	la.sequence = la.sequence[:0]
-	la.replay = la.bestSequence
+	la.replay = nil
 	la.replayIndex = 0
-	la.replaying = len(la.replay) > 0
+	la.replaying = false
 	la.pendingSwitch = false
 }
 
