@@ -38,6 +38,7 @@ func run(args []string) int {
 	learning := fs.BoolP("learning", "l", false, "enable learning mode for the input AI")
 	statelessLearning := fs.Bool("stateless-learning", false, "enable stateless learning mode for the input AI")
 	policyFile := fs.StringP("policy-file", "f", "", "path to a saved policy JSON file to load and use for the player trainer; the player and opponent parties embedded in the policy are used")
+	doubleBattle := fs.BoolP("double", "d", false, "initialise a double battle instead of the default single battle")
 	iterations := fs.IntP("iterations", "i", 0, "number of times to run the same battle scenario for statistics or training")
 	if err := fs.Parse(args); err != nil {
 		if errors.Is(err, pflag.ErrHelp) {
@@ -105,7 +106,12 @@ func run(args []string) int {
 		return 0
 	}
 
-	battleState, err := nuzengine.InitBattleState(0, playerParty, opponentParty, *inputAi, *weather, *policyFile)
+	battleStateType := 0
+	if *doubleBattle {
+		battleStateType = 1
+	}
+
+	battleState, err := nuzengine.InitBattleState(battleStateType, playerParty, opponentParty, *inputAi, *weather, *policyFile)
 	if err != nil {
 		log.Printf("error: failed initializing battle state: %s", err)
 		return 1

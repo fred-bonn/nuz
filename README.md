@@ -81,6 +81,7 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 | `-f <path>` | Load a saved policy JSON; its embedded player and opponent parties are used |
 | `-i <n>` | Number of battle iterations; defaults to `1`, or `100000` in either learning mode |
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
+| `-d` | Initialise a double battle instead of the default single battle (currently a stub that exits immediately) |
 
 Examples:
 

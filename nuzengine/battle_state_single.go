@@ -134,7 +134,7 @@ func (sbs *singleBattleState) reset() {
 	resolveOnEntry(sbs)
 }
 
-func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) *singleBattleState {
+func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) battleState {
 	player.pokemonParty = playerParty
 	opponent.pokemonParty = opponentParty
 

@@ -56,11 +56,15 @@ func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int
 }
 
 func testSwitchBattleState(current, replacement, opponent *pokemon) *singleBattleState {
-	return initSingleBattleState(
+	bs, ok := initSingleBattleState(
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
 		[]*pokemon{current, replacement},
 		[]*pokemon{opponent},
 		0,
-	)
+	).(*singleBattleState)
+	if !ok {
+		panic("expected singleBattleState")
+	}
+	return bs
 }

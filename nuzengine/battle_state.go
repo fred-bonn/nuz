@@ -72,25 +72,28 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 		return nil, fmt.Errorf("failed validating opponent party: %s", err)
 	}
 
-	var battleState battleState
-
+	var battleStateInitFunc func(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) battleState
 	switch battleStateInt {
 	case 0:
-		battleState = initSingleBattleState(
-			trainer{
-				ai:           playerAi,
-				player:       true,
-				fieldEffects: make(map[fieldEffect]int),
-			},
-			trainer{
-				ai:           rnbAi{},
-				fieldEffects: make(map[fieldEffect]int),
-			},
-			playerParty,
-			opponentParty,
-			weather,
-		)
+		battleStateInitFunc = initSingleBattleState
+	case 1:
+		battleStateInitFunc = initDoubleBattleState
 	}
+
+	battleState := battleStateInitFunc(
+		trainer{
+			ai:           playerAi,
+			player:       true,
+			fieldEffects: make(map[fieldEffect]int),
+		},
+		trainer{
+			ai:           rnbAi{},
+			fieldEffects: make(map[fieldEffect]int),
+		},
+		playerParty,
+		opponentParty,
+		weather,
+	)
 
 	return battleState, nil
 }
