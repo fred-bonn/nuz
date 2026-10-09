@@ -18,8 +18,6 @@ func TestRunReturnsTheExpectedExitCodeForCLIArguments(t *testing.T) {
 		"rejects misconfigured policy file":             {args: []string{"--policy-file", "missing.json", "--iterations", "1"}, want: 1},
 		"rejects policy file combined with party files": {args: []string{"--policy-file", "missing.json", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 1},
 		"accepts valid CLI and returns zero":            {args: []string{"--iterations", "1", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 0},
-		"accepts stateless learning flag":               {args: []string{"--stateless-learning", "--iterations", "1", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 0},
-		"accepts stateless learning shorthand":          {args: []string{"-sl", "--iterations", "1", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 0},
 		"accepts a help request and returns zero":       {args: []string{"-h"}, want: 0},
 	}
 

@@ -45,7 +45,7 @@ const (
 
 	faintedMonPenalty = 10
 
-	policyFilePath = "data/policy.json"
+	policyFilePath = "data/policy.json.gz"
 )
 
 func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
@@ -83,7 +83,6 @@ func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterat
 	}
 }
 
-// runWorker plays episodes, using a local q for its own policy, and hands each finished episode to emit.
 func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {
@@ -164,7 +163,6 @@ func (q qMap) valueFor(state, action string) float64 {
 	return entry.Value
 }
 
-// recordEpisode applies first-visit updates for each distinct step in the trajectory.
 func (q qMap) recordEpisode(trajectory []trajectoryStep, reward float64) {
 	visited := make(map[trajectoryStep]bool, len(trajectory))
 	for _, step := range trajectory {

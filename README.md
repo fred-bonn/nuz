@@ -76,16 +76,15 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 | ---- | --- |
 | `-v` | Verbose logging |
 | `-a <0..2>` | AI override for the player: `0=rnb`, `1=guided`, `2=random`; default `0` | 
-| `-l` | Train with Monte Carlo learning and save a policy to `data/policy.json` |
-| `-sl` | Run stateless learning; does not save a policy |
+| `-l` | Train with Monte Carlo learning and save a policy to `data/policy.json.gz` |
 | `-f <path>` | Load a saved policy JSON; its embedded player and opponent parties are used |
-| `-i <n>` | Number of battle iterations; defaults to `1`, or `100000` in either learning mode |
+| `-i <n>` | Number of battle iterations; defaults to `1`, or `100000` in learning mode |
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
 | `-d` | Initialise a double battle instead of the default single battle (currently a stub that exits immediately) |
 
 Examples:
 
-Train and save a policy to `data/policy.json`:
+Train and save a policy to `data/policy.json.gz`:
 
 ```bash
 nuz -l -i 250 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
@@ -94,7 +93,7 @@ nuz -l -i 250 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
 Load a saved policy and use it statically:
 
 ```bash
-nuz -f data/policy.json
+nuz -f data/policy.json.gz
 ```
 
 Run a battle with the random AI controlling the player:
