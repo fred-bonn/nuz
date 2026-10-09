@@ -34,6 +34,11 @@ type trajectoryStep struct {
 	action string
 }
 
+type episode struct {
+	trajectory []trajectoryStep
+	reward     float64
+}
+
 const (
 	monteCarloWorkers = 10
 	monteCarloEpsilon = 0.1
@@ -51,39 +56,44 @@ func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterat
 
 	episodesPerWorker := iterations / monteCarloWorkers
 
-	results := make(chan qMap, monteCarloWorkers)
+	episodes := make(chan episode, monteCarloWorkers)
+	merged := newQMap()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for ep := range episodes {
+			merged.recordEpisode(ep.trajectory, ep.reward)
+		}
+	}()
+
 	var wg sync.WaitGroup
 	for range monteCarloWorkers {
 		wg.Go(func() {
-			q := runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker)
-			if q != nil {
-				results <- q
-			}
+			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+				episodes <- ep
+			})
 		})
 	}
 	wg.Wait()
-	close(results)
+	close(episodes)
+	<-done
 
-	var workerMaps []qMap
-	for q := range results {
-		workerMaps = append(workerMaps, q)
-	}
-
-	if err := savePolicy(mergeQMaps(workerMaps), playerPartyStr, opponentPartyStr, weatherInt); err != nil {
+	if err := savePolicy(merged, playerPartyStr, opponentPartyStr, weatherInt); err != nil {
 		elogf("error: failed saving policy: %s", err)
 	}
 }
 
-func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int) qMap {
+// runWorker plays episodes, using a local q for its own policy, and hands each finished episode to emit.
+func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {
 		elogf("error: failed validating player party: %s", err)
-		return nil
+		return
 	}
 	opponentParty, err := cfg.validateInput(opponentPartyStr)
 	if err != nil {
 		elogf("error: failed validating opponent party: %s", err)
-		return nil
+		return
 	}
 	la := newLearningAIMonteCarlo()
 
@@ -95,20 +105,20 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 		weatherState(weatherInt),
 	)
 
-	for episode := range episodeCount {
-		if episode > 0 {
+	for i := range episodeCount {
+		if i > 0 {
 			bs.reset()
 		}
 
 		la.beginEpisode()
 		if err := bs.execute(); err != nil {
 			elogf("error: failed executing battle state: %s", err)
-			return la.q
+			return
 		}
-		la.endEpisode(monteCarloReward(bs))
+		reward := monteCarloReward(bs)
+		la.endEpisode(reward)
+		emit(episode{trajectory: slices.Clone(la.trajectory), reward: reward})
 	}
-
-	return la.q
 }
 
 func monteCarloReward(bs battleState) float64 {
@@ -154,28 +164,17 @@ func (q qMap) valueFor(state, action string) float64 {
 	return entry.Value
 }
 
-func mergeQMaps(maps []qMap) qMap {
-	merged := newQMap()
-	for _, m := range maps {
-		for state, actions := range m {
-			dst, ok := merged[state]
-			if !ok {
-				dst = make(map[string]*qEntry)
-				merged[state] = dst
-			}
-			for action, entry := range actions {
-				existing, ok := dst[action]
-				if !ok {
-					dst[action] = &qEntry{Value: entry.Value, Count: entry.Count}
-					continue
-				}
-				totalCount := existing.Count + entry.Count
-				existing.Value = (existing.Value*float64(existing.Count) + entry.Value*float64(entry.Count)) / float64(totalCount)
-				existing.Count = totalCount
-			}
+// recordEpisode applies first-visit updates for each distinct step in the trajectory.
+func (q qMap) recordEpisode(trajectory []trajectoryStep, reward float64) {
+	visited := make(map[trajectoryStep]bool, len(trajectory))
+	for _, step := range trajectory {
+		if visited[step] {
+			continue
 		}
+		visited[step] = true
+
+		q.update(step.state, step.action, reward)
 	}
-	return merged
 }
 
 func newLearningAIMonteCarlo() *learningAiMonteCarlo {
@@ -190,15 +189,7 @@ func (la *learningAiMonteCarlo) beginEpisode() {
 }
 
 func (la *learningAiMonteCarlo) endEpisode(reward float64) {
-	visited := make(map[trajectoryStep]bool, len(la.trajectory))
-	for _, step := range la.trajectory {
-		if visited[step] {
-			continue
-		}
-		visited[step] = true
-
-		la.q.update(step.state, step.action, reward)
-	}
+	la.q.recordEpisode(la.trajectory, reward)
 }
 
 func buildCandidates(bs battleState, slot *slot, actions []*moveAction) []actionCandidate {

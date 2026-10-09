@@ -10,10 +10,42 @@ import (
 
 func LearnSingle(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{}
-	runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, iterations)
+	runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, iterations, func(episode) {})
 }
 
-func LearnParallel(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+func LearnParallelAggregator(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+	Verbose = false
+	cfg := &config{
+		client: pokeapi.NewClient(),
+	}
+
+	episodesPerWorker := iterations / monteCarloWorkers
+
+	episodes := make(chan episode, monteCarloWorkers)
+	merged := newQMap()
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		for ep := range episodes {
+			merged.recordEpisode(ep.trajectory, ep.reward)
+		}
+	}()
+
+	var wg sync.WaitGroup
+	for range monteCarloWorkers {
+		wg.Go(func() {
+			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+				episodes <- ep
+			})
+		})
+	}
+	wg.Wait()
+	close(episodes)
+	<-done
+}
+
+// LearnParallelMerge is the previous design: each worker builds its own qMap, merged after all finish.
+func LearnParallelMerge(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),
@@ -25,10 +57,11 @@ func LearnParallel(playerPartyStr, opponentPartyStr string, weatherInt, iteratio
 	var wg sync.WaitGroup
 	for range monteCarloWorkers {
 		wg.Go(func() {
-			q := runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker)
-			if q != nil {
-				results <- q
-			}
+			q := newQMap()
+			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+				q.recordEpisode(ep.trajectory, ep.reward)
+			})
+			results <- q
 		})
 	}
 	wg.Wait()
@@ -38,10 +71,39 @@ func LearnParallel(playerPartyStr, opponentPartyStr string, weatherInt, iteratio
 	for q := range results {
 		workerMaps = append(workerMaps, q)
 	}
+	mergeQMaps(workerMaps)
 }
 
-func BenchmarkLearnParallel(b *testing.B) {
-	benchmarkLearn(b, LearnParallel)
+func mergeQMaps(maps []qMap) qMap {
+	merged := newQMap()
+	for _, m := range maps {
+		for state, actions := range m {
+			dst, ok := merged[state]
+			if !ok {
+				dst = make(map[string]*qEntry)
+				merged[state] = dst
+			}
+			for action, entry := range actions {
+				existing, ok := dst[action]
+				if !ok {
+					dst[action] = &qEntry{Value: entry.Value, Count: entry.Count}
+					continue
+				}
+				totalCount := existing.Count + entry.Count
+				existing.Value = (existing.Value*float64(existing.Count) + entry.Value*float64(entry.Count)) / float64(totalCount)
+				existing.Count = totalCount
+			}
+		}
+	}
+	return merged
+}
+
+func BenchmarkLearnParallelAggregator(b *testing.B) {
+	benchmarkLearn(b, LearnParallelAggregator)
+}
+
+func BenchmarkLearnParallelMerge(b *testing.B) {
+	benchmarkLearn(b, LearnParallelMerge)
 }
 
 func BenchmarkLearnSingle(b *testing.B) {
