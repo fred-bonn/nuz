@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"fmt"
 	"os"
 	"sync"
 	"testing"
@@ -104,6 +105,16 @@ func BenchmarkLearnParallelAggregator(b *testing.B) {
 
 func BenchmarkLearnParallelMerge(b *testing.B) {
 	benchmarkLearn(b, LearnParallelMerge)
+}
+
+func BenchmarkLearnMonteCarloWorkers(b *testing.B) {
+	for workers := 2; workers <= 10; workers++ {
+		b.Run(fmt.Sprintf("workers=%d", workers), func(b *testing.B) {
+			benchmarkLearn(b, func(player, opponent string, weather, iterations int) {
+				learnMonteCarlo(workers, player, opponent, weather, iterations)
+			})
+		})
+	}
 }
 
 func BenchmarkLearnSingle(b *testing.B) {

@@ -49,14 +49,21 @@ const (
 )
 
 func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+	merged := learnMonteCarlo(monteCarloWorkers, playerPartyStr, opponentPartyStr, weatherInt, iterations)
+	if err := savePolicy(merged, playerPartyStr, opponentPartyStr, weatherInt); err != nil {
+		elogf("error: failed saving policy: %s", err)
+	}
+}
+
+func learnMonteCarlo(workers int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) qMap {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),
 	}
 
-	episodesPerWorker := iterations / monteCarloWorkers
+	episodesPerWorker := iterations / workers
 
-	episodes := make(chan episode, monteCarloWorkers)
+	episodes := make(chan episode, workers)
 	merged := newQMap()
 	done := make(chan struct{})
 	go func() {
@@ -67,7 +74,7 @@ func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterat
 	}()
 
 	var wg sync.WaitGroup
-	for range monteCarloWorkers {
+	for range workers {
 		wg.Go(func() {
 			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				episodes <- ep
@@ -78,9 +85,7 @@ func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterat
 	close(episodes)
 	<-done
 
-	if err := savePolicy(merged, playerPartyStr, opponentPartyStr, weatherInt); err != nil {
-		elogf("error: failed saving policy: %s", err)
-	}
+	return merged
 }
 
 func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
