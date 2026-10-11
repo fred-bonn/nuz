@@ -18,7 +18,7 @@ type config struct {
 func (cfg *config) validateInput(trainerContent string) ([]*pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(trainerContent)
 	if err != nil {
-		return nil, fmt.Errorf("failed parsing showdown content: %w", err)
+		return nil, err
 	}
 
 	return cfg.validateParty(trainerPokemon)

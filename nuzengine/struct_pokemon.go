@@ -89,7 +89,7 @@ func initPokemon(baseMon BasePokemon, moves []*Move, parsedMon parser.ParsedPoke
 
 	res.ability = stringToAbility(strings.ToLower(parsedMon.Ability))
 	if res.ability == noneAbility {
-		return nil, fmt.Errorf("none is not a valid ability")
+		return nil, fmt.Errorf("%s for %s is not a valid ability", parsedMon.Ability, parsedMon.Name)
 	}
 
 	return &res, nil
@@ -99,7 +99,7 @@ func setIVs(Pokemon *pokemon, ivs map[string]int) error {
 	for key, val := range ivs {
 		stat := stringToStat(key)
 		if stat == noStat {
-			return fmt.Errorf("no stat is not a valid stat")
+			return fmt.Errorf("%s is not a valid stat", key)
 		}
 		Pokemon.ivs[stat] = max(0, min(31, val))
 	}

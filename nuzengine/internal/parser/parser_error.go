@@ -8,5 +8,5 @@ type parseError struct {
 }
 
 func (e parseError) Error() string {
-	return fmt.Sprintf("error: parser failed: did not expect token %s after %s", e.current, e.previous)
+	return fmt.Sprintf("did not expect token %s after %s", e.current, e.previous)
 }

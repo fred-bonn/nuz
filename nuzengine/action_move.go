@@ -341,6 +341,9 @@ func (ma *moveAction) resolveDamage(bs battleState) bool {
 		}
 	} else if target.ability == waterCompactionAbility && ma.move.Type == waterType {
 		target.changeStatStageBy(defense, 2, false)
+	} else if target.ability == rattledAbility && target.hp > 0 &&
+		(ma.move.Type == bugType || ma.move.Type == darkType || ma.move.Type == ghostType) {
+		target.changeStatStageBy(speed, 1, false)
 	}
 	if f, ok := contactOffensiveAbilities[user.ability]; ok && ma.move.IsContact {
 		f(ma.userSlot, ma.targetSlot)

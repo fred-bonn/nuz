@@ -93,6 +93,7 @@ const (
 	galvanizeAbility
 	refrigerateAbility
 	normalizeAbility
+	rattledAbility
 )
 
 func (a abilityState) String() string {
@@ -267,6 +268,8 @@ func (a abilityState) String() string {
 		return "refrigerate"
 	case normalizeAbility:
 		return "normalize"
+	case rattledAbility:
+		return "rattled"
 	default:
 		elogf("warning: ability.String(): ability %d does not have a string version", a)
 		return ""
@@ -333,6 +336,8 @@ func stringToAbility(s string) abilityState {
 		return ironBarbsAbility
 	case "cute charm":
 		return cuteCharmAbility
+	case "rattled":
+		return rattledAbility
 	case "flame body":
 		return flameBodyAbility
 	case "poison point":

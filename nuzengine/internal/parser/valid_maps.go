@@ -37,11 +37,11 @@ var validAilments = map[string]struct{}{
 	"Sleep":     {},
 }
 
-var validStat = map[string]struct{}{
-	"HP":  {},
-	"Atk": {},
-	"Def": {},
-	"SpA": {},
-	"SpD": {},
-	"Spe": {},
+var validStat = map[string]string{
+	"HP":  "hp",
+	"Atk": "attack",
+	"Def": "defense",
+	"SpA": "special-attack",
+	"SpD": "special-defense",
+	"Spe": "speed",
 }

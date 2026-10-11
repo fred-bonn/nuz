@@ -39,7 +39,7 @@ func ParseShowdown(input string) ([]ParsedPokemon, error) {
 	for p.current.Type != t_EOF {
 		pokemon, err := p.parsePokemon()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("parser failed: %w", err)
 		}
 
 		res = append(res, pokemon)

@@ -132,7 +132,10 @@ func (p *parser) parseLevelLine(pokemon *ParsedPokemon) error {
 
 	val, err := strconv.Atoi(p.current.Literal)
 	if err != nil {
-		return fmt.Errorf("error: %s could not be converted to a number", p.current.Literal)
+		if p.current.Literal == "" {
+			return fmt.Errorf("level is missing for %s", pokemon.Name)
+		}
+		return fmt.Errorf("%s could not be converted to a number for %s", p.current.Literal, pokemon.Name)
 	}
 
 	pokemon.Level = val
@@ -152,13 +155,13 @@ func (p *parser) parseNatureLine(pokemon *ParsedPokemon) error {
 	parts := strings.Fields(p.current.Literal)
 
 	if len(parts) < 2 {
-		return fmt.Errorf("error: nature line not enough fields: '%s'", p.current.Literal)
+		return fmt.Errorf("nature line not enough fields: '%s'", p.current.Literal)
 	}
 	if parts[1] != "Nature" {
-		return fmt.Errorf("error: incorrect nature line format: '%s'", p.current.Literal)
+		return fmt.Errorf("incorrect nature line format: '%s'", p.current.Literal)
 	}
 	if _, ok := validNature[parts[0]]; !ok {
-		return fmt.Errorf("error: unrecognized nature: '%s'", p.current.Literal)
+		return fmt.Errorf("unrecognized nature: '%s'", p.current.Literal)
 	}
 
 	pokemon.Nature = strings.ToLower(parts[0])
@@ -197,7 +200,7 @@ func (p *parser) parseStatusLine(pokemon *ParsedPokemon) error {
 		return p.generateError()
 	}
 	if _, ok := validAilments[p.current.Literal]; !ok {
-		return fmt.Errorf("error: unrecognized status: '%s'", p.current.Literal)
+		return fmt.Errorf("unrecognized status: '%s'", p.current.Literal)
 	}
 
 	pokemon.Status = strings.ToLower(p.current.Literal)
@@ -218,7 +221,10 @@ func (p *parser) parsePredamageLine(pokemon *ParsedPokemon) error {
 
 	val, err := strconv.Atoi(p.current.Literal)
 	if err != nil {
-		return fmt.Errorf("error: %s could not be converted to a number", p.current.Literal)
+		if p.current.Literal == "" {
+			return fmt.Errorf("predamage is missing for %s", pokemon.Name)
+		}
+		return fmt.Errorf("%s could not be converted to a number for %s", p.current.Literal, pokemon.Name)
 	}
 
 	pokemon.HP = val
@@ -240,20 +246,24 @@ func (p *parser) parseIVsLine(pokemon *ParsedPokemon) error {
 		parts := strings.Fields(p.current.Literal)
 
 		if len(parts) < 2 {
-			return fmt.Errorf("error: iv not enough fields: '%s'", p.current.Literal)
+			return fmt.Errorf("iv not enough fields: '%s'", p.current.Literal)
 		}
 		iv := parts[1]
 
-		if _, ok := validStat[iv]; !ok {
-			return fmt.Errorf("error: unrecognized iv: '%s'", iv)
+		statName, ok := validStat[iv]
+		if !ok {
+			return fmt.Errorf("unrecognized iv: '%s'", iv)
 		}
 
 		val, err := strconv.Atoi(parts[0])
 		if err != nil {
-			return fmt.Errorf("error: %s could not be converted to a number", parts[0])
+			if p.current.Literal == "" {
+				return fmt.Errorf("%s is missing for %s", iv, pokemon.Name)
+			}
+			return fmt.Errorf("%s could not be converted to a number for %s", parts[0], pokemon.Name)
 		}
 
-		pokemon.IVs[strings.ToLower(iv)] = val
+		pokemon.IVs[statName] = val
 
 		p.nextToken()
 	}
