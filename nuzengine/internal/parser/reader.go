@@ -21,11 +21,7 @@ func ParseShowdown(input string) ([]ParsedPokemon, error) {
 
 	for tok := l.nextToken(); tok.Type != t_EOF; tok = l.nextToken() {
 		if tok.Type == t_ILLEGAL {
-			return nil, lexError{
-				line:   l.line,
-				column: l.column,
-				char:   l.ch,
-			}
+			return nil, l.newLexerError()
 		}
 		tokens = append(tokens, tok)
 	}

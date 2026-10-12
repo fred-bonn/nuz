@@ -7,24 +7,31 @@ import (
 )
 
 type parser struct {
-	tokens  []token
-	current token
-	peek    token
-	pos     int
+	tokens     []token
+	current    token
+	peek       token
+	pos        int
+	lineNumber int
 }
 
-func (p *parser) generateError() parseError {
+func (p *parser) newParserError(line pokemonLine, message string) parseError {
+	errorMessage := "line " + strconv.Itoa(p.lineNumber)
+	if message != "" {
+		errorMessage += ", " + message
+	}
+
 	return parseError{
-		previous: p.tokens[p.pos-2],
-		current:  p.current,
+		message: errorMessage,
+		line:    line,
 	}
 }
 
 func newParser(tokens []token) *parser {
 	p := &parser{
-		tokens:  tokens,
-		peek:    tokens[0],
-		current: token{Type: t_START},
+		tokens:     tokens,
+		peek:       tokens[0],
+		current:    token{Type: t_START},
+		lineNumber: 1,
 	}
 
 	return p
@@ -101,7 +108,7 @@ func (p *parser) parsePokemon() (ParsedPokemon, error) {
 
 func (p *parser) parseNameLine(pokemon *ParsedPokemon) error {
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLineName, "")
 	}
 
 	pokemon.Name = p.current.Literal
@@ -121,21 +128,21 @@ func (p *parser) parseNameLine(pokemon *ParsedPokemon) error {
 
 func (p *parser) parseLevelLine(pokemon *ParsedPokemon) error {
 	if !p.expectedToken(t_LEVEL) {
-		return p.generateError()
+		return p.newParserError(pokemonLineLevel, "")
 	}
 
 	p.nextToken()
 
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLineLevel, "")
 	}
 
 	val, err := strconv.Atoi(p.current.Literal)
 	if err != nil {
 		if p.current.Literal == "" {
-			return fmt.Errorf("level is missing for %s", pokemon.Name)
+			return p.newParserError(pokemonLineLevel, fmt.Sprintf("level is missing for %s", pokemon.Name))
 		}
-		return fmt.Errorf("%s could not be converted to a number for %s", p.current.Literal, pokemon.Name)
+		return p.newParserError(pokemonLineLevel, fmt.Sprintf("%s could not be converted to a number for %s", p.current.Literal, pokemon.Name))
 	}
 
 	pokemon.Level = val
@@ -149,19 +156,19 @@ func (p *parser) parseLevelLine(pokemon *ParsedPokemon) error {
 
 func (p *parser) parseNatureLine(pokemon *ParsedPokemon) error {
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLineNature, "")
 	}
 
 	parts := strings.Fields(p.current.Literal)
 
 	if len(parts) < 2 {
-		return fmt.Errorf("nature line not enough fields: '%s'", p.current.Literal)
+		return p.newParserError(pokemonLineNature, fmt.Sprintf("nature line not enough fields for %s: '%s'", pokemon.Name, p.current.Literal))
 	}
 	if parts[1] != "Nature" {
-		return fmt.Errorf("incorrect nature line format: '%s'", p.current.Literal)
+		return p.newParserError(pokemonLineNature, fmt.Sprintf("incorrect nature line format for %s: '%s'", pokemon.Name, p.current.Literal))
 	}
 	if _, ok := validNature[parts[0]]; !ok {
-		return fmt.Errorf("unrecognized nature: '%s'", p.current.Literal)
+		return p.newParserError(pokemonLineNature, fmt.Sprintf("unrecognized nature for %s: '%s'", pokemon.Name, p.current.Literal))
 	}
 
 	pokemon.Nature = strings.ToLower(parts[0])
@@ -175,13 +182,13 @@ func (p *parser) parseNatureLine(pokemon *ParsedPokemon) error {
 
 func (p *parser) parseAbilityLine(pokemon *ParsedPokemon) error {
 	if !p.expectedToken(t_ABILITY) {
-		return p.generateError()
+		return p.newParserError(pokemonLineAbility, "")
 	}
 
 	p.nextToken()
 
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLineAbility, "")
 	}
 
 	pokemon.Ability = p.current.Literal
@@ -197,10 +204,10 @@ func (p *parser) parseStatusLine(pokemon *ParsedPokemon) error {
 	p.nextToken()
 
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLineStatus, "")
 	}
 	if _, ok := validAilments[p.current.Literal]; !ok {
-		return fmt.Errorf("unrecognized status: '%s'", p.current.Literal)
+		return p.newParserError(pokemonLineStatus, fmt.Sprintf("unrecognized status for %s: '%s'", pokemon.Name, p.current.Literal))
 	}
 
 	pokemon.Status = strings.ToLower(p.current.Literal)
@@ -216,15 +223,15 @@ func (p *parser) parsePredamageLine(pokemon *ParsedPokemon) error {
 	p.nextToken()
 
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLinePredamage, "")
 	}
 
 	val, err := strconv.Atoi(p.current.Literal)
 	if err != nil {
 		if p.current.Literal == "" {
-			return fmt.Errorf("predamage is missing for %s", pokemon.Name)
+			return p.newParserError(pokemonLinePredamage, fmt.Sprintf("predamage is missing for %s", pokemon.Name))
 		}
-		return fmt.Errorf("%s could not be converted to a number for %s", p.current.Literal, pokemon.Name)
+		return p.newParserError(pokemonLinePredamage, fmt.Sprintf("%s could not be converted to a number for %s", p.current.Literal, pokemon.Name))
 	}
 
 	pokemon.HP = val
@@ -241,26 +248,26 @@ func (p *parser) parseIVsLine(pokemon *ParsedPokemon) error {
 
 	for !p.expectedToken(t_NEWLINE) {
 		if !p.expectedToken(t_IDENT) {
-			return p.generateError()
+			return p.newParserError(pokemonLineIVs, "")
 		}
 		parts := strings.Fields(p.current.Literal)
 
 		if len(parts) < 2 {
-			return fmt.Errorf("iv not enough fields: '%s'", p.current.Literal)
+			return p.newParserError(pokemonLineIVs, fmt.Sprintf("iv not enough fields for %s: '%s'", pokemon.Name, p.current.Literal))
 		}
 		iv := parts[1]
 
 		statName, ok := validStat[iv]
 		if !ok {
-			return fmt.Errorf("unrecognized iv: '%s'", iv)
+			return p.newParserError(pokemonLineIVs, fmt.Sprintf("unrecognized iv for %s: '%s'", pokemon.Name, iv))
 		}
 
 		val, err := strconv.Atoi(parts[0])
 		if err != nil {
 			if p.current.Literal == "" {
-				return fmt.Errorf("%s is missing for %s", iv, pokemon.Name)
+				return p.newParserError(pokemonLineIVs, fmt.Sprintf("%s is missing for %s", iv, pokemon.Name))
 			}
-			return fmt.Errorf("%s could not be converted to a number for %s", parts[0], pokemon.Name)
+			return p.newParserError(pokemonLineIVs, fmt.Sprintf("%s could not be converted to a number for %s", parts[0], pokemon.Name))
 		}
 
 		pokemon.IVs[statName] = val
@@ -276,7 +283,7 @@ func (p *parser) parseMoveLine(pokemon *ParsedPokemon) error {
 	p.nextToken()
 
 	if !p.expectedToken(t_IDENT) {
-		return p.generateError()
+		return p.newParserError(pokemonLineMove, "")
 	}
 
 	pokemon.Moves = append(pokemon.Moves, p.current.Literal)
@@ -291,6 +298,7 @@ func (p *parser) parseMoveLine(pokemon *ParsedPokemon) error {
 func (p *parser) consumeNewlines() {
 	for p.current.Type == t_NEWLINE {
 		p.nextToken()
+		p.lineNumber++
 	}
 }
 

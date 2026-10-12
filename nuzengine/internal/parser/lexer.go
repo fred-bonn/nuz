@@ -21,6 +21,14 @@ func newLexer(input string) *lexer {
 	return l
 }
 
+func (l *lexer) newLexerError() error {
+	return lexError{
+		line:   l.line,
+		column: l.column,
+		char:   l.ch,
+	}
+}
+
 func (l *lexer) readChar() {
 	if l.readPosition >= len(l.input) {
 		l.ch = 0
@@ -39,7 +47,6 @@ func (l *lexer) readChar() {
 }
 
 func (l *lexer) skipWhitespace() {
-	// IMPORTANT: we do NOT skip '\n'
 	for l.ch == ' ' || l.ch == '\t' || l.ch == '\r' {
 		l.readChar()
 	}

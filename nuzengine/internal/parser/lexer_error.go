@@ -9,5 +9,5 @@ type lexError struct {
 }
 
 func (e lexError) Error() string {
-	return fmt.Sprintf("error: lexer failed at %d:%d (illegal character: %q)", e.line, e.column, e.char)
+	return fmt.Sprintf("lexer failed at %d:%d (illegal character: %q)", e.line, e.column, e.char)
 }
