@@ -14,90 +14,113 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 	return f(req)
 }
 
-func TestClientFetchPokemonHappyPath(t *testing.T) {
-	client := Client{
-		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.String() != "https://pokeapi.co/api/v2/pokemon/charizard" {
-				t.Fatalf("unexpected URL: %s", req.URL.String())
+func TestClientFetchHandlesAPIResponses(t *testing.T) {
+	const baseURL = "https://pokeapi.co/api/v2"
+	tests := map[string]struct {
+		resource        string
+		name            string
+		statusCode      int
+		status          string
+		body            string
+		transportErr    error
+		wantError       bool
+		wantPokemonName string
+		wantPokemonType string
+		wantMoveName    string
+		wantMovePower   int
+	}{
+		"fetches pokemon data": {
+			resource:        "pokemon",
+			name:            "charizard",
+			statusCode:      http.StatusOK,
+			status:          "200 OK",
+			body:            `{"id":6,"name":"charizard","types":[{"type":{"name":"fire"}}],"stats":[{"base_stat":84,"stat":{"name":"hp"}}]}`,
+			wantPokemonName: "charizard",
+			wantPokemonType: "fire",
+		},
+		"fetches move data": {
+			resource:      "move",
+			name:          "flamethrower",
+			statusCode:    http.StatusOK,
+			status:        "200 OK",
+			body:          `{"name":"flamethrower","power":90,"pp":15,"accuracy":100,"type":{"name":"fire"},"damage_class":{"name":"special"},"meta":{"crit_rate":0,"category":{"name":"damage"}}}`,
+			wantMoveName:  "flamethrower",
+			wantMovePower: 90,
+		},
+		"reports transport errors": {
+			resource:     "pokemon",
+			name:         "missingno",
+			transportErr: fmt.Errorf("boom"),
+			wantError:    true,
+		},
+		"reports HTTP failures": {
+			resource:   "move",
+			name:       "missing-move",
+			statusCode: http.StatusNotFound,
+			status:     "404 Not Found",
+			body:       `{"detail":"Not found"}`,
+			wantError:  true,
+		},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			client := Client{
+				httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+					wantURL := baseURL + "/" + tc.resource + "/" + tc.name
+					if req.URL.String() != wantURL {
+						t.Errorf("request URL = %q, want %q", req.URL.String(), wantURL)
+					}
+					if tc.transportErr != nil {
+						return nil, tc.transportErr
+					}
+					return &http.Response{
+						StatusCode: tc.statusCode,
+						Status:     tc.status,
+						Body:       io.NopCloser(strings.NewReader(tc.body)),
+						Header:     make(http.Header),
+					}, nil
+				})},
+				baseURL: baseURL,
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Status:     "200 OK",
-				Body:       io.NopCloser(strings.NewReader(`{"id":6,"name":"charizard","types":[{"type":{"name":"fire"}}],"stats":[{"base_stat":84,"stat":{"name":"hp"}}]}`)),
-				Header:     make(http.Header),
-			}, nil
-		})},
-		baseURL: "https://pokeapi.co/api/v2",
-	}
 
-	pokemon, err := client.FetchPokemon("charizard")
-	if err != nil {
-		t.Fatalf("FetchPokemon returned unexpected error: %v", err)
-	}
-	if pokemon.Name != "charizard" {
-		t.Fatalf("unexpected pokemon name: %s", pokemon.Name)
-	}
-	if pokemon.Types[0].Type.Name != "fire" {
-		t.Fatalf("unexpected primary type: %s", pokemon.Types[0].Type.Name)
-	}
-}
-
-func TestClientFetchMoveHappyPath(t *testing.T) {
-	client := Client{
-		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			if req.URL.String() != "https://pokeapi.co/api/v2/move/flamethrower" {
-				t.Fatalf("unexpected URL: %s", req.URL.String())
+			if tc.resource == "pokemon" {
+				pokemon, err := client.FetchPokemon(tc.name)
+				if tc.wantError {
+					if err == nil {
+						t.Fatal("FetchPokemon returned no error")
+					}
+					return
+				}
+				if err != nil {
+					t.Fatalf("FetchPokemon returned unexpected error: %v", err)
+				}
+				if pokemon.Name != tc.wantPokemonName {
+					t.Errorf("pokemon name = %q, want %q", pokemon.Name, tc.wantPokemonName)
+				}
+				if got := pokemon.Types[0].Type.Name; got != tc.wantPokemonType {
+					t.Errorf("primary type = %q, want %q", got, tc.wantPokemonType)
+				}
+				return
 			}
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Status:     "200 OK",
-				Body:       io.NopCloser(strings.NewReader(`{"name":"flamethrower","power":90,"pp":15,"accuracy":100,"type":{"name":"fire"},"damage_class":{"name":"special"},"meta":{"crit_rate":0,"category":{"name":"damage"}}}`)),
-				Header:     make(http.Header),
-			}, nil
-		})},
-		baseURL: "https://pokeapi.co/api/v2",
-	}
 
-	move, err := client.FetchMove("flamethrower")
-	if err != nil {
-		t.Fatalf("FetchMove returned unexpected error: %v", err)
-	}
-	if move.Name != "flamethrower" {
-		t.Fatalf("unexpected move name: %s", move.Name)
-	}
-	if move.Power != 90 {
-		t.Fatalf("unexpected move power: %d", move.Power)
-	}
-}
-
-func TestClientFetchPokemonHandlesTransportErrors(t *testing.T) {
-	client := Client{
-		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			return nil, fmt.Errorf("boom")
-		})},
-		baseURL: "https://pokeapi.co/api/v2",
-	}
-
-	if _, err := client.FetchPokemon("missingno"); err == nil {
-		t.Fatal("expected transport error")
-	}
-}
-
-func TestClientFetchMoveHandlesHTTPFailureStatus(t *testing.T) {
-	client := Client{
-		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusNotFound,
-				Status:     "404 Not Found",
-				Body:       io.NopCloser(strings.NewReader(`{"detail":"Not found"}`)),
-				Header:     make(http.Header),
-			}, nil
-		})},
-		baseURL: "https://pokeapi.co/api/v2",
-	}
-
-	if _, err := client.FetchMove("missing-move"); err == nil {
-		t.Fatal("expected HTTP 404 error")
+			move, err := client.FetchMove(tc.name)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("FetchMove returned no error")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("FetchMove returned unexpected error: %v", err)
+			}
+			if move.Name != tc.wantMoveName {
+				t.Errorf("move name = %q, want %q", move.Name, tc.wantMoveName)
+			}
+			if move.Power != tc.wantMovePower {
+				t.Errorf("move power = %d, want %d", move.Power, tc.wantMovePower)
+			}
+		})
 	}
 }
 

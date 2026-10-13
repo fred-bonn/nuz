@@ -47,13 +47,17 @@ func LearnStateless(playerPartyStr, opponentPartyStr string, weatherInt, iterati
 	}
 	Verbose = false
 
-	bs := initSingleBattleState(
+	bs, err := initSingleBattleState(
 		trainer{ai: la, player: true, fieldEffects: make(map[fieldEffect]int)},
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
 		playerParty,
 		opponentParty,
 		weatherState(weatherInt),
 	)
+	if err != nil {
+		elogf("error: failed initializing battle state: %s", err)
+		return
+	}
 
 	for episode := range iterations {
 		if episode > 0 {

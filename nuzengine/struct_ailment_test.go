@@ -11,49 +11,60 @@ import (
 )
 
 func TestMoveParsingAllowsMovesWithNoAilment(t *testing.T) {
-	move, err := toMove(pokeapi.MoveJSON{
-		Name:     "low-sweep",
-		Power:    65,
-		PP:       20,
-		Accuracy: 100,
-		Priority: 0,
-		Type: struct {
-			Name string `json:"name"`
-		}{Name: "fighting"},
-		DamageClass: struct {
-			Name string `json:"name"`
-		}{Name: "physical"},
-		Meta: struct {
-			Ailment struct {
-				Name string `json:"name"`
-			} `json:"ailment"`
-			AilmentChance int `json:"ailment_chance"`
-			Category      struct {
-				Name string `json:"name"`
-			} `json:"category"`
-			CritRate     int `json:"crit_rate"`
-			Drain        int `json:"drain"`
-			FlinchChance int `json:"flinch_chance"`
-			Heal         int `json:"healing"`
-			MaxHits      int `json:"max_hits"`
-			MaxTurns     int `json:"max_turns"`
-			MinHits      int `json:"min_hits"`
-			MinTurns     int `json:"min_turns"`
-			StatChance   int `json:"stat_chance"`
-		}{
-			Ailment: struct {
-				Name string `json:"name"`
-			}{Name: "none"},
-		},
-	})
-	if err != nil {
-		t.Fatalf("toMove should accept a move with no ailment: %v", err)
+	tests := map[string]struct {
+		name        string
+		ailmentName string
+	}{
+		"accepts an explicit none ailment":   {name: "low-sweep", ailmentName: "none"},
+		"defaults a missing ailment to none": {name: "tackle"},
 	}
-	if move.Move != "low-sweep" {
-		t.Fatalf("unexpected move parsed: %s", move.Move)
-	}
-	if move.Ailment != noneAilment {
-		t.Fatalf("move ailment = %v, want %v", move.Ailment, noneAilment)
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			move, err := toMove(pokeapi.MoveJSON{
+				Name:     tc.name,
+				Power:    65,
+				PP:       20,
+				Accuracy: 100,
+				Type: struct {
+					Name string `json:"name"`
+				}{Name: "fighting"},
+				DamageClass: struct {
+					Name string `json:"name"`
+				}{Name: "physical"},
+				Meta: struct {
+					Ailment struct {
+						Name string `json:"name"`
+					} `json:"ailment"`
+					AilmentChance int `json:"ailment_chance"`
+					Category      struct {
+						Name string `json:"name"`
+					} `json:"category"`
+					CritRate     int `json:"crit_rate"`
+					Drain        int `json:"drain"`
+					FlinchChance int `json:"flinch_chance"`
+					Heal         int `json:"healing"`
+					MaxHits      int `json:"max_hits"`
+					MaxTurns     int `json:"max_turns"`
+					MinHits      int `json:"min_hits"`
+					MinTurns     int `json:"min_turns"`
+					StatChance   int `json:"stat_chance"`
+				}{
+					Ailment: struct {
+						Name string `json:"name"`
+					}{Name: tc.ailmentName},
+				},
+			})
+			if err != nil {
+				t.Fatalf("toMove returned an unexpected error: %v", err)
+			}
+			if move.Move != tc.name {
+				t.Fatalf("move name = %s, want %s", move.Move, tc.name)
+			}
+			if move.Ailment != noneAilment {
+				t.Fatalf("move ailment = %v, want %v", move.Ailment, noneAilment)
+			}
+		})
 	}
 }
 

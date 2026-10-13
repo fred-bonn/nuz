@@ -158,72 +158,54 @@ func TestReadIdentifierReadsPokemonNamesCorrectly(t *testing.T) {
 	}
 }
 
-func TestReadShowdownFileRejectsMalformedNatureLine(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "bad_nature.txt")
-	content := "Pikachu\nLevel: 25\nJolly\nAbility: Static\n- Thunderbolt\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("write temp showdown file: %v", err)
-	}
-
-	_, err := ReadShowdownFile(path)
-	if err == nil {
-		t.Fatal("ReadShowdownFile() = nil error, want malformed nature error")
-	}
-	if !strings.Contains(err.Error(), "nature line not enough fields") {
-		t.Fatalf("ReadShowdownFile() error = %v, want nature format error", err)
-	}
-}
-
-func TestReadShowdownFileRejectsUnknownStatus(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "bad_status.txt")
-	content := "Pikachu\nLevel: 25\nJolly Nature\nAbility: Static\nStatus: Confused\n- Thunderbolt\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("write temp showdown file: %v", err)
-	}
-
-	_, err := ReadShowdownFile(path)
-	if err == nil {
-		t.Fatal("ReadShowdownFile() = nil error, want invalid status error")
-	}
-	if !strings.Contains(err.Error(), "unrecognized status") {
-		t.Fatalf("ReadShowdownFile() error = %v, want status validation error", err)
-	}
-}
-
-func TestReadShowdownFileAllowsMinimalPokemonWithoutStatusOrHP(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "minimal.txt")
-	content := "Pikachu\nLevel: 25\nJolly Nature\nAbility: Static\n- Thunderbolt\n- Quick Attack\n- Tail Whip\n- Slam\n"
-	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
-		t.Fatalf("write temp showdown file: %v", err)
-	}
-
-	pokemon, err := ReadShowdownFile(path)
-	if err != nil {
-		t.Fatalf("ReadShowdownFile() returned error for minimal valid team entry: %v", err)
-	}
-	if len(pokemon) != 1 {
-		t.Fatalf("ReadShowdownFile() = %d entries, want 1", len(pokemon))
-	}
-	if pokemon[0].HP != -1 {
-		t.Fatalf("pokemon[0].HP = %d, want -1 when no HP line is present", pokemon[0].HP)
-	}
-	if pokemon[0].Status != "" {
-		t.Fatalf("pokemon[0].Status = %q, want empty string when no status line is present", pokemon[0].Status)
-	}
-	if len(pokemon[0].Moves) != 4 {
-		t.Fatalf("len(pokemon[0].Moves) = %d, want 4", len(pokemon[0].Moves))
-	}
-}
-
-func TestParserEdgeCases(t *testing.T) {
+func TestReadShowdownFileCases(t *testing.T) {
 	tests := map[string]struct {
-		input string
-		want  bool
+		input             string
+		wantError         bool
+		wantErrorContains string
+		wantName          string
+		wantHP            int
+		checkHP           bool
+		wantStatus        string
+		checkStatus       bool
+		wantMoves         int
 	}{
-		"missing level line":     {input: "Horsea\nModest Nature\nAbility: Swift Swim\n- Bubble Beam\n", want: false},
-		"invalid nature":         {input: "Horsea\nLevel: 17\nBad Nature\nAbility: Swift Swim\n- Bubble Beam\n", want: false},
-		"invalid status":         {input: "Horsea\nLevel: 17\nModest Nature\nAbility: Swift Swim\nStatus> bad\n- Bubble Beam\n", want: false},
-		"valid multi-move party": {input: "Horsea\nLevel: 17\nModest Nature\nAbility: Swift Swim\n- Bubble Beam\n- Twister\n", want: true},
+		"rejects malformed nature line": {
+			input:             "Pikachu\nLevel: 25\nJolly\nAbility: Static\n- Thunderbolt\n",
+			wantError:         true,
+			wantErrorContains: "nature line not enough fields",
+		},
+		"rejects unknown status": {
+			input:             "Pikachu\nLevel: 25\nJolly Nature\nAbility: Static\nStatus: Confused\n- Thunderbolt\n",
+			wantError:         true,
+			wantErrorContains: "unrecognized status",
+		},
+		"allows minimal pokemon without status or hp": {
+			input:       "Pikachu\nLevel: 25\nJolly Nature\nAbility: Static\n- Thunderbolt\n- Quick Attack\n- Tail Whip\n- Slam\n",
+			wantName:    "Pikachu",
+			wantHP:      -1,
+			checkHP:     true,
+			wantStatus:  "",
+			checkStatus: true,
+			wantMoves:   4,
+		},
+		"rejects missing level line": {
+			input:     "Horsea\nModest Nature\nAbility: Swift Swim\n- Bubble Beam\n",
+			wantError: true,
+		},
+		"rejects invalid nature": {
+			input:     "Horsea\nLevel: 17\nBad Nature\nAbility: Swift Swim\n- Bubble Beam\n",
+			wantError: true,
+		},
+		"rejects invalid status": {
+			input:     "Horsea\nLevel: 17\nModest Nature\nAbility: Swift Swim\nStatus> bad\n- Bubble Beam\n",
+			wantError: true,
+		},
+		"accepts valid multi-move party": {
+			input:     "Horsea\nLevel: 17\nModest Nature\nAbility: Swift Swim\n- Bubble Beam\n- Twister\n",
+			wantName:  "Horsea",
+			wantMoves: 2,
+		},
 	}
 
 	for name, tc := range tests {
@@ -235,20 +217,36 @@ func TestParserEdgeCases(t *testing.T) {
 			}
 
 			parsed, err := ReadShowdownFile(path)
-			if tc.want {
-				if err != nil {
-					t.Fatalf("expected valid parser result, got error: %v", err)
+			if tc.wantError {
+				if err == nil {
+					t.Fatal("ReadShowdownFile() returned nil error")
 				}
-				if len(parsed) == 0 {
-					t.Fatal("expected at least one parsed pokemon")
-				}
-				if parsed[0].Name != "Horsea" {
-					t.Fatalf("unexpected parsed name: %q", parsed[0].Name)
+				if tc.wantErrorContains != "" && !strings.Contains(err.Error(), tc.wantErrorContains) {
+					t.Fatalf("ReadShowdownFile() error = %v, want it to contain %q", err, tc.wantErrorContains)
 				}
 				return
 			}
 			if err == nil {
-				t.Fatal("expected parse error for malformed input")
+				if len(parsed) == 0 {
+					t.Fatal("expected at least one parsed pokemon")
+				}
+			} else {
+				t.Fatalf("ReadShowdownFile() returned unexpected error: %v", err)
+			}
+			if len(parsed) != 1 {
+				t.Fatalf("ReadShowdownFile() returned %d entries, want 1", len(parsed))
+			}
+			if parsed[0].Name != tc.wantName {
+				t.Errorf("pokemon name = %q, want %q", parsed[0].Name, tc.wantName)
+			}
+			if tc.checkHP && parsed[0].HP != tc.wantHP {
+				t.Errorf("pokemon HP = %d, want %d", parsed[0].HP, tc.wantHP)
+			}
+			if tc.checkStatus && parsed[0].Status != tc.wantStatus {
+				t.Errorf("pokemon status = %q, want %q", parsed[0].Status, tc.wantStatus)
+			}
+			if len(parsed[0].Moves) != tc.wantMoves {
+				t.Errorf("pokemon has %d moves, want %d", len(parsed[0].Moves), tc.wantMoves)
 			}
 		})
 	}

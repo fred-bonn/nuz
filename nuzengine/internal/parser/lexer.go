@@ -23,7 +23,7 @@ func newLexer(input string) *lexer {
 
 func (l *lexer) newLexerError() error {
 	return lexError{
-		line:   l.line,
+		line:   l.line + 1,
 		column: l.column,
 		char:   l.ch,
 	}

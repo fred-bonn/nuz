@@ -136,20 +136,32 @@ func TestLeppaBerryRestoresPP(t *testing.T) {
 }
 
 func TestLeftoversHealsAtEndOfTurn(t *testing.T) {
-	mon := &pokemon{
-		stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
-		hp:    100,
-		item:  &item{State: leftovers},
+	tests := map[string]struct {
+		initialHP int
+		maxHP     int
+		wantHP    int
+	}{
+		"heals by one sixteenth of max hp": {initialHP: 100, maxHP: 200, wantHP: 112},
+		"caps healing at max hp":           {initialHP: 199, maxHP: 200, wantHP: 200},
+		"does not heal at max hp":          {initialHP: 200, maxHP: 200, wantHP: 200},
 	}
-	mon.stats[hitPoints] = 200
 
-	slotVar := &slot{mon: mon}
-	bs := &dummyBattleState{slots: []*slot{slotVar}}
-	resolveEndOfTurn(bs)
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mon := &pokemon{
+				stats: []int{0, 0, 0, 0, 0, 0, 0, 0, 0},
+				hp:    tc.initialHP,
+				item:  &item{State: leftovers},
+			}
+			mon.stats[hitPoints] = tc.maxHP
 
-	wantHP := 112
-	if got := mon.hp; got != wantHP {
-		t.Fatalf("mon.hp = %d, want %d", got, wantHP)
+			bs := &dummyBattleState{slots: []*slot{{mon: mon}}}
+			resolveEndOfTurn(bs)
+
+			if got := mon.hp; got != tc.wantHP {
+				t.Fatalf("mon.hp = %d, want %d", got, tc.wantHP)
+			}
+		})
 	}
 }
 

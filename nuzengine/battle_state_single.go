@@ -1,5 +1,7 @@
 package nuzengine
 
+import "fmt"
+
 type singleBattleState struct {
 	activePlayerSlot   *slot
 	activeOpponentSlot *slot
@@ -134,7 +136,14 @@ func (sbs *singleBattleState) reset() {
 	resolveOnEntry(sbs)
 }
 
-func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) battleState {
+func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) (battleState, error) {
+	if len(playerParty) < 1 {
+		return nil, fmt.Errorf("player party must contain at least 1 Pokemon")
+	}
+	if len(opponentParty) < 1 {
+		return nil, fmt.Errorf("opponent party must contain at least 1 Pokemon")
+	}
+
 	player.pokemonParty = playerParty
 	opponent.pokemonParty = opponentParty
 
@@ -163,5 +172,5 @@ func initSingleBattleState(player, opponent trainer, playerParty, opponentParty 
 
 	resolveOnEntry(&res)
 
-	return &res
+	return &res, nil
 }

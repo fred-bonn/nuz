@@ -101,13 +101,17 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 	}
 	la := newLearningAIMonteCarlo()
 
-	bs := initSingleBattleState(
+	bs, err := initSingleBattleState(
 		trainer{ai: la, player: true, fieldEffects: make(map[fieldEffect]int)},
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
 		playerParty,
 		opponentParty,
 		weatherState(weatherInt),
 	)
+	if err != nil {
+		elogf("error: failed initializing battle state: %s", err)
+		return
+	}
 
 	for i := range episodeCount {
 		if i > 0 {

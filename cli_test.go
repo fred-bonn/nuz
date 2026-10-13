@@ -18,6 +18,9 @@ func TestRunReturnsTheExpectedExitCodeForCLIArguments(t *testing.T) {
 		"rejects misconfigured policy file":             {args: []string{"--policy-file", "missing.json", "--iterations", "1"}, want: 1},
 		"rejects policy file combined with party files": {args: []string{"--policy-file", "missing.json", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 1},
 		"accepts valid CLI and returns zero":            {args: []string{"--iterations", "1", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 0},
+		"accepts double battle and returns zero":        {args: []string{"-d", "--iterations", "1", "showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt"}, want: 0},
+		"accepts double flag after party files":         {args: []string{"showdown_demo_files/player.txt", "showdown_demo_files/opponent.txt", "-d"}, want: 0},
+		"accepts requested data double battle":          {args: []string{"data/player.txt", "data/opponent.txt", "-d"}, want: 0},
 		"accepts a help request and returns zero":       {args: []string{"-h"}, want: 0},
 	}
 
