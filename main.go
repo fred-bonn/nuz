@@ -22,7 +22,7 @@ func run(args []string) int {
 	fs := pflag.NewFlagSet("nuz", pflag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	fs.Usage = func() {
-		fmt.Fprintf(fs.Output(), "Usage: %s [flags] <player_showdown> <opponent_showdown>\n\nExamples:\n  %s -p -i 250 player.txt opponent.txt\n  %s -f policies/player__vs__opponent.json -i 1\n\n", os.Args[0], os.Args[0], os.Args[0])
+		fmt.Fprintf(fs.Output(), "Usage: %s [flags] <player_showdown> <opponent_showdown>\n\nExamples:\n  %s -p -i 250 player.txt opponent.txt\n  %s -f policies/player__vs__opponent.json.gz -i 1\n\n", os.Args[0], os.Args[0], os.Args[0])
 		fs.PrintDefaults()
 	}
 

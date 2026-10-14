@@ -15,8 +15,8 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 		return 0
 	}
 
-	numerator := 1
-	denominator := 1
+	typeNum, typeDen := 1, 1
+	weatherNum, weatherDen := 1, 1
 	moveType := move.Type
 	power := move.Power
 	var offensiveStat, defensiveStat int
@@ -34,10 +34,10 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 	if f, ok := typeConvertingAbilities[user.ability]; ok {
 		f(&moveType, &power)
 	}
-	numerator, denominator = target.applyMoveType(numerator, denominator, moveType)
+	typeNum, typeDen = target.applyMoveType(typeNum, typeDen, moveType)
 	if weather != noneWeather {
 		if f, ok := weatherFuncs[weather]; ok {
-			f(&numerator, &denominator, moveType)
+			f(&weatherNum, &weatherDen, moveType)
 		}
 		switch weather {
 		case sunWeather:
@@ -50,7 +50,7 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 			}
 		}
 	}
-	if numerator == 0 {
+	if typeNum == 0 {
 		return 0
 	}
 
@@ -103,7 +103,7 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 		}
 	} else if move.Move == "pursuit" && pursuit {
 		power *= 2
-	} else if move.Move == "knock off" && !target.item.Consumed {
+	} else if move.Move == "knock off" && target.item.State != noneItem && !target.item.Consumed {
 		power *= 2
 	}
 
@@ -127,26 +127,8 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 		*crit = false
 	}
 
-	if user.hasType(moveType) {
-		numerator *= 3
-		denominator *= 2
-	}
-
 	if target.ability == drySkinAbility && moveType == fireType {
 		power = power * 5 / 4
-	}
-
-	if *crit {
-		if user.ability == sniperAbility {
-			numerator *= 3
-			denominator *= 2
-		}
-		numerator *= 3
-		denominator *= 2
-	}
-
-	if move.Class == physicalClass && user.hasAilment(burnAilment) != nil {
-		denominator *= 2
 	}
 
 	user.checkItemTrigger(false, makeGemEvent(moveType, &power))
@@ -155,17 +137,32 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 
 	user.checkItemTrigger(false, makeMoveBoostingEvent(moveType, &power))
 
-	switch roll {
-	case rollRandom:
-		numerator *= rand.Intn(16) + 85
-		denominator *= 100
-	case rollMin:
-		numerator *= 85
-		denominator *= 100
+	damage := ((((2*user.level)/5)+2)*power*offensiveStat)/defensiveStat/50 + 2
+	damage = damage * weatherNum / weatherDen
+
+	if *crit {
+		if user.ability == sniperAbility {
+			damage = damage * 3 / 2
+		}
+		damage = damage * 3 / 2
 	}
 
-	damage := ((((2*user.level)/5)+2)*power*offensiveStat)/defensiveStat/50 + 2
-	damage = damage * numerator / denominator
+	switch roll {
+	case rollRandom:
+		damage = damage * (rand.Intn(16) + 85) / 100
+	case rollMin:
+		damage = damage * 85 / 100
+	}
+
+	if user.hasType(moveType) {
+		damage = damage * 3 / 2
+	}
+
+	damage = damage * typeNum / typeDen
+
+	if move.Class == physicalClass && user.hasAilment(burnAilment) != nil {
+		damage /= 2
+	}
 
 	target.checkItemTrigger(false, makeResistBerryEvent(moveType, &damage))
 
