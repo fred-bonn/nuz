@@ -121,6 +121,22 @@ func (ma *moveAction) invoke(bs battleState) {
 		ma.userSlot.invulnerableAction = nil
 	}
 
+	if ma.targetSlot.mon.fainted && ma.targetSlot.Trainer != ma.userSlot.Trainer {
+		var retarget *slot
+		for _, s := range bs.getOtherSlots(ma.userSlot) {
+			if s.Trainer != ma.userSlot.Trainer && !s.mon.fainted {
+				retarget = s
+				break
+			}
+		}
+		if retarget == nil {
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.base.Name, ma.move.Move)
+			vprintln("but it failed")
+			return
+		}
+		ma.targetSlot = retarget
+	}
+
 	if ma.userSlot.suckerPunch {
 		targetMove := bs.getActions().getMoveActionBy(ma.targetSlot.mon)
 		if targetMove == nil || targetMove.move.Class == statusClass {

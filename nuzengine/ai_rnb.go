@@ -41,6 +41,13 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			continue
 		}
 
+		// TODO: add exceptions for moves that are useful against allies
+		if a.targetSlot != slot && a.targetSlot.Trainer == slot.Trainer {
+			damage[i] = -1
+			scores[i] = -64
+			continue
+		}
+
 		if a.move.Class == statusClass {
 			damage[i] = -1
 			scores[i], _ = a.scoreActionMove(bs)

@@ -21,11 +21,34 @@ type doubleBattleState struct {
 func (dbs *doubleBattleState) execute() error {
 	vprintln("\nStarting battle...")
 
-	for turn := 0; turn < 10; turn++ {
+	for turn := 0; !dbs.player.lost && !dbs.opponent.lost; turn++ {
 		vprintln("=====")
 		vprintf("Turn %d:", turn+1)
 		vprintf("%s %d/%d - %s %d/%d", dbs.activePlayerSlotOne.mon.base.Name, dbs.activePlayerSlotOne.mon.hp, dbs.activePlayerSlotOne.mon.MaxHP(), dbs.activeOpponentSlotOne.mon.base.Name, dbs.activeOpponentSlotOne.mon.hp, dbs.activeOpponentSlotOne.mon.MaxHP())
 		vprintf("%s %d/%d - %s %d/%d", dbs.activePlayerSlotTwo.mon.base.Name, dbs.activePlayerSlotTwo.mon.hp, dbs.activePlayerSlotTwo.mon.MaxHP(), dbs.activeOpponentSlotTwo.mon.base.Name, dbs.activeOpponentSlotTwo.mon.hp, dbs.activeOpponentSlotTwo.mon.MaxHP())
+
+		dbs.gatherActions()
+		if dbs.err != nil {
+			dbs.actions.queue = dbs.actions.queue[:0]
+			return dbs.err
+		}
+		dbs.actions.sort(dbs)
+		for len(dbs.actions.queue) > 0 {
+			action, _ := dbs.actions.queue.pop()
+			action.invoke(dbs)
+			if dbs.err != nil {
+				return dbs.err
+			}
+		}
+		resolveEndOfTurn(dbs)
+		// if the end of turn causes mons to faint, empty the queue for replace actions
+		for len(dbs.actions.queue) > 0 {
+			action, _ := dbs.actions.queue.pop()
+			action.invoke(dbs)
+			if dbs.err != nil {
+				return dbs.err
+			}
+		}
 	}
 	vprintln("=====")
 	vprintln("Ending battle...")
@@ -66,7 +89,19 @@ func (dbs *doubleBattleState) setError(err error) {
 	dbs.err = err
 }
 
-func (dbs *doubleBattleState) gatherActions() {}
+func (dbs *doubleBattleState) gatherActions() {
+	// slot one is chosen first so slot two can exclude mons slot one is switching to
+	choose := func(s *slot, t *trainer) {
+		if s.mon.fainted {
+			return
+		}
+		dbs.actions.queue.push(chooseNextAction(dbs, s, t.pokemonParty, t.ai))
+	}
+	choose(dbs.activePlayerSlotOne, dbs.player)
+	choose(dbs.activePlayerSlotTwo, dbs.player)
+	choose(dbs.activeOpponentSlotOne, dbs.opponent)
+	choose(dbs.activeOpponentSlotTwo, dbs.opponent)
+}
 
 func (dbs *doubleBattleState) getAllSlots() []*slot {
 	return []*slot{

@@ -135,6 +135,9 @@ func injectReplaceAction(bs battleState, slot *slot, midTurn bool) {
 
 func resolveEndOfTurn(bs battleState) {
 	for _, slot := range bs.getAllSlots() {
+		if slot.mon.fainted {
+			continue
+		}
 		// resolve end of return effects from ailments and statuses
 		for _, ailment := range slot.mon.ailments {
 			switch ailment.State {

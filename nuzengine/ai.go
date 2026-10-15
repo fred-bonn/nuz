@@ -29,6 +29,9 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 
 	possibleActions := make([]*moveAction, 0)
 	for _, opponentSlot := range bs.getOtherSlots(slot) {
+		if opponentSlot.mon.fainted {
+			continue
+		}
 		if slot.mon.lockedMove != nil && slot.mon.lockedMove.PP > 0 {
 			possibleActions = append(possibleActions, &moveAction{userSlot: slot, targetSlot: opponentSlot, move: slot.mon.lockedMove})
 			continue
@@ -59,7 +62,7 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 
 	var possibleMons []*pokemon
 	for _, mon := range party {
-		if mon != slot.mon && !mon.fainted && !bs.getActions().containstSwitchTo(mon) {
+		if mon != slot.mon && !mon.fainted && bs.getPokemonSlot(mon) == nil && !bs.getActions().containstSwitchTo(mon) {
 			possibleMons = append(possibleMons, mon)
 		}
 	}
@@ -73,7 +76,7 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 func chooseSwitchIn(bs battleState, slot *slot, party []*pokemon, decisionAI ai) *pokemon {
 	var possibleMons []*pokemon
 	for _, mon := range party {
-		if mon != slot.mon && !mon.fainted {
+		if mon != slot.mon && !mon.fainted && bs.getPokemonSlot(mon) == nil {
 			possibleMons = append(possibleMons, mon)
 		}
 	}
