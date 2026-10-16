@@ -146,7 +146,7 @@ func (ma *moveAction) invoke(bs battleState) {
 	}
 
 	target := ma.targetSlot.mon
-	if ma.move.Accuracy > 0 && !ma.pursuit && !accuracyRoll(bs, ma.userSlot.mon, target, ma.move) {
+	if !ma.move.isSpreadMove() && ma.move.Accuracy > 0 && !ma.pursuit && !accuracyRoll(bs, ma.userSlot.mon, target, ma.move) {
 		vprintMove(ma.prio(bs), ma.speed(bs), "%s's move %s missed", ma.userSlot.mon.base.Name, ma.move.Move)
 		return
 	}
@@ -157,30 +157,44 @@ func (ma *moveAction) invoke(bs battleState) {
 		ma.userSlot.mon.ChangeHpBy(-(ma.userSlot.mon.MaxHP() / 4))
 	}
 
-	if ma.targetSlot.protected {
-		vprintln("but it failed")
-		return
-	}
-
-	if ma.targetSlot.invulnerableAction != nil && ma.userSlot.mon.ability != noGuardAbility && ma.targetSlot.mon.ability != noGuardAbility {
-		// special cases for surf against dive, thunder against fly, etc
-		vprintln("but it failed")
-		return
-	}
-
-	if isPowderMove(ma.move.Move) && ma.targetSlot.mon.isImmuneToPowderMoves() {
-		vprintln("but it failed")
-		return
-	}
-
-	if ma.move.Class == statusClass {
-		if strings.HasPrefix(ma.move.Target, "user") {
-			ma.applyStatusMove(bs, ma.userSlot.mon, false)
-		} else {
-			ma.applyStatusMove(bs, target, true)
+	targets := ma.targets(bs)
+	spread := ma.move.isSpreadMove() && len(targets) > 1
+	for _, targetSlot := range targets {
+		ma.targetSlot = targetSlot
+		target = targetSlot.mon
+		if ma.move.isSpreadMove() && ma.move.Accuracy > 0 && !ma.pursuit && !accuracyRoll(bs, ma.userSlot.mon, target, ma.move) {
+			vprintf("%s's move %s missed", ma.userSlot.mon.base.Name, ma.move.Move)
+			continue
 		}
-	} else {
-		ma.applyDamageMove(bs)
+
+		if targetSlot.protected {
+			vprintln("but it failed")
+			continue
+		}
+
+		if targetSlot.invulnerableAction != nil && ma.userSlot.mon.ability != noGuardAbility && target.ability != noGuardAbility {
+			vprintln("but it failed")
+			continue
+		}
+
+		if isPowderMove(ma.move.Move) && target.isImmuneToPowderMoves() {
+			vprintln("but it failed")
+			continue
+		}
+
+		if ma.move.Class == statusClass {
+			if strings.HasPrefix(ma.move.Target, "user") {
+				ma.applyStatusMove(bs, ma.userSlot.mon, false)
+			} else {
+				ma.applyStatusMove(bs, target, true)
+			}
+		} else {
+			ma.applyDamageMove(bs, spread)
+		}
+
+		if ma.move.Type == fireType {
+			delete(target.ailments, freezeAilment)
+		}
 	}
 
 	if ma.userSlot.mon.hp <= 0 {
@@ -190,9 +204,31 @@ func (ma *moveAction) invoke(bs battleState) {
 
 	ma.userSlot.mon.checkItemTrigger(true, makeLeppaBerryEvent(ma.move))
 
-	if ma.move.Type == fireType {
-		delete(ma.targetSlot.mon.ailments, freezeAilment)
+}
+
+func applySpreadDamageModifier(damage int, spread bool) int {
+	if spread && damage > 0 {
+		return max(1, damage*3/4)
 	}
+	return damage
+}
+
+func (ma *moveAction) targets(bs battleState) []*slot {
+	if !ma.move.isSpreadMove() {
+		return []*slot{ma.targetSlot}
+	}
+
+	targets := make([]*slot, 0, len(bs.getAllSlots()))
+	for _, slot := range bs.getAllSlots() {
+		if slot.mon.fainted || slot == ma.userSlot {
+			continue
+		}
+		if ma.move.Target == "all-opponents" && slot.Trainer == ma.userSlot.Trainer {
+			continue
+		}
+		targets = append(targets, slot)
+	}
+	return targets
 }
 
 func (ma *moveAction) applyStatusMove(bs battleState, target *pokemon, offensive bool) {
@@ -252,7 +288,7 @@ func (ma *moveAction) applyStatusMove(bs battleState, target *pokemon, offensive
 	}
 }
 
-func (ma *moveAction) applyDamageMove(bs battleState) {
+func (ma *moveAction) applyDamageMove(bs battleState, spread bool) {
 	target := ma.targetSlot.mon
 	if target.fainted {
 		return
@@ -263,24 +299,25 @@ func (ma *moveAction) applyDamageMove(bs battleState) {
 		hits = determineHits(ma.move)
 	}
 
-	if ok := ma.resolveDamage(bs); !ok {
+	if ok := ma.resolveDamage(bs, spread); !ok {
 		return
 	}
 
 	for i := 1; i < hits; i++ {
-		if ok := ma.resolveDamage(bs); !ok {
+		if ok := ma.resolveDamage(bs, spread); !ok {
 			return
 		}
 	}
 }
 
-func (ma *moveAction) resolveDamage(bs battleState) bool {
+func (ma *moveAction) resolveDamage(bs battleState, spread bool) bool {
 	user := ma.userSlot.mon
 	target := ma.targetSlot.mon
 
 	crit := determineCrit(user, ma.move)
 
 	damage := calculateDamage(user, target, ma.move, crit, bs.getWeather(), rollRandom, false, ma.pursuit)
+	damage = applySpreadDamageModifier(damage, spread)
 	if damage == 0 {
 		vprintf("it does not affect %s", target.base.Name)
 		return false

@@ -58,6 +58,10 @@ type Move struct {
 	Category      string
 }
 
+func (m *Move) isSpreadMove() bool {
+	return m.Target == "all-opponents" || m.Target == "all-other-pokemon"
+}
+
 var contactMoves map[string]any
 
 func toMove(mj pokeapi.MoveJSON) (Move, error) {

@@ -55,3 +55,76 @@ func TestCalculateDamageMatchesGameRollRange(t *testing.T) {
 		})
 	}
 }
+
+func TestSpreadMoveTargets(t *testing.T) {
+	playerTrainer := &trainer{}
+	opponentTrainer := &trainer{}
+	user := &slot{Trainer: playerTrainer, mon: &pokemon{}}
+	ally := &slot{Trainer: playerTrainer, mon: &pokemon{}}
+	opponentOne := &slot{Trainer: opponentTrainer, mon: &pokemon{}}
+	opponentTwo := &slot{Trainer: opponentTrainer, mon: &pokemon{}}
+	state := &doubleBattleState{
+		activePlayerSlotOne:   user,
+		activePlayerSlotTwo:   ally,
+		activeOpponentSlotOne: opponentOne,
+		activeOpponentSlotTwo: opponentTwo,
+	}
+
+	tests := []struct {
+		name      string
+		target    string
+		wantSlots []*slot
+	}{
+		{name: "all opponents", target: "all-opponents", wantSlots: []*slot{opponentOne, opponentTwo}},
+		{name: "all other pokemon", target: "all-other-pokemon", wantSlots: []*slot{ally, opponentOne, opponentTwo}},
+		{name: "single target", target: "selected-pokemon", wantSlots: []*slot{opponentTwo}},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			move := &Move{Target: test.target}
+			action := &moveAction{userSlot: user, targetSlot: opponentTwo, move: move}
+			got := action.targets(state)
+			if len(got) != len(test.wantSlots) {
+				t.Fatalf("got %d targets, want %d", len(got), len(test.wantSlots))
+			}
+			for i, slot := range test.wantSlots {
+				if got[i] != slot {
+					t.Errorf("target %d = %p, want %p", i, got[i], slot)
+				}
+			}
+		})
+	}
+
+	opponentTwo.mon.fainted = true
+	got := (&moveAction{
+		userSlot:   user,
+		targetSlot: opponentOne,
+		move:       &Move{Target: "all-opponents"},
+	}).targets(state)
+	if len(got) != 1 || got[0] != opponentOne {
+		t.Errorf("all-opponents with a fainted slot = %v, want only opponent one", got)
+	}
+}
+
+func TestApplySpreadDamageModifier(t *testing.T) {
+	tests := []struct {
+		name   string
+		damage int
+		spread bool
+		want   int
+	}{
+		{name: "spread damage reduced", damage: 20, spread: true, want: 15},
+		{name: "minimum positive damage", damage: 1, spread: true, want: 1},
+		{name: "immunity remains zero", damage: 0, spread: true, want: 0},
+		{name: "single target unchanged", damage: 20, spread: false, want: 20},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := applySpreadDamageModifier(test.damage, test.spread); got != test.want {
+				t.Errorf("applySpreadDamageModifier(%d, %t) = %d, want %d", test.damage, test.spread, got, test.want)
+			}
+		})
+	}
+}
