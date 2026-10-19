@@ -116,8 +116,13 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 		} else if a.move.Move == "acid spray" {
 			scores[i] = 6
 		} else if a.move.Move == "future sight" {
-			// needs 8 score instead if faster and dead to target
 			scores[i] = 6
+			if a.userSlot.mon.isFasterThan(bs, a.targetSlot.mon) && calculateMaxDamageAmongMoves(bs, a.targetSlot.mon, a.userSlot.mon, calculateMaxDamageFlags{
+				isFirstTurn: a.targetSlot.firstTurn,
+				rollType:    rollMax,
+			}) >= a.userSlot.mon.hp {
+				scores[i] = 8
+			}
 		} else if a.move.Move == "pursuit" {
 			if kills[i] {
 				scores[i] = 10
