@@ -14,10 +14,10 @@ func (ma *moveAction) scoreActionMove(bs battleState) (int, bool) {
 		rolls = ma.move.MaxHits
 	}
 	for i := 0; i < rolls; i++ {
-		damageRoll += calculateDamage(ma.userSlot.mon, ma.targetSlot.mon, ma.move, new(critRate >= 3), bs.getWeather(), rollRandom, true, false)
+		damageRoll += calculateDamage(bs, ma.userSlot.mon, ma.targetSlot.mon, ma.move, new(critRate >= 3), bs.getWeather(), rollRandom, true, false)
 	}
 
-	ma.targetSlot.mon.checkItemTrigger(false, makeFocusSashEvent(&damageRoll))
+	ma.targetSlot.mon.checkItemTrigger(bs, false, makeFocusSashEvent(&damageRoll))
 	if ma.targetSlot.mon.ability == sturdyAbility && ma.targetSlot.mon.hp == ma.targetSlot.mon.MaxHP() {
 		damageRoll = min(damageRoll, ma.targetSlot.mon.hp-1)
 	}

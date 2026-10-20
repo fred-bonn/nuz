@@ -161,7 +161,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, userSlot *slot, actions []*move
 					rolls = move.MaxHits
 				}
 				for i := 0; i < rolls; i++ {
-					dmg += calculateDamage(a.targetSlot.mon, a.userSlot.mon, move, new(critRate >= 3), bs.getWeather(), rollRandom, true, false)
+					dmg += calculateDamage(bs, a.targetSlot.mon, a.userSlot.mon, move, new(critRate >= 3), bs.getWeather(), rollRandom, true, false)
 				}
 				if a.userSlot.mon.hp <= dmg {
 					scores[i] += 11
@@ -323,10 +323,10 @@ func calculateMaxDamageAmongMoves(bs battleState, user, target *pokemon, flags c
 			rolls = move.MaxHits
 		}
 		for i := 0; i < rolls; i++ {
-			dmg += calculateDamage(user, target, move, &flags.isCrit, bs.getWeather(), flags.rollType, true, false)
+			dmg += calculateDamage(bs, user, target, move, &flags.isCrit, bs.getWeather(), flags.rollType, true, false)
 		}
 
-		target.checkItemTrigger(false, makeFocusSashEvent(&dmg))
+		target.checkItemTrigger(bs, false, makeFocusSashEvent(&dmg))
 		if target.ability == sturdyAbility && target.hp == target.MaxHP() {
 			dmg = min(dmg, target.hp-1)
 		}

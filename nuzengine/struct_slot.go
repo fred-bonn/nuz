@@ -33,9 +33,11 @@ func (s *slot) setMon(bs battleState, new *pokemon) {
 		case spikesEffect:
 			takeResidualDamage(bs, s, "spikes", 1, 8)
 		case toxicSpikesEffect:
-			s.mon.applyAilment(poisonAilment, nil, nil)
+			s.mon.applyAilment(bs, poisonAilment, nil, nil)
 		case stickyWebEffect:
-			s.mon.changeStatStageBy(speed, -1, true)
+			if s.mon.changeStatStageBy(speed, -1, true) {
+				bs.getActions().makeDirty()
+			}
 		}
 	}
 }

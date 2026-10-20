@@ -156,6 +156,7 @@ func (dbs *doubleBattleState) getWeather() weatherState {
 
 func (dbs *doubleBattleState) setWeather(weather weatherState) {
 	dbs.weather = weather
+	dbs.actions.makeDirty()
 	weather.onset()
 }
 

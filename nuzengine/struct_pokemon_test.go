@@ -56,8 +56,8 @@ func TestEffectiveStatAppliesStagesAndCritRules(t *testing.T) {
 			mon.stats[tc.stat] = tc.base
 			mon.stages[tc.stat] = tc.stage
 
-			if got := mon.effectiveStat(tc.stat, tc.crit); got != tc.want {
-				t.Errorf("mon.effectiveStat(%s, %t) = %d, want %d", tc.stat, tc.crit, got, tc.want)
+			if got := mon.effectiveStat(initBenchBattleState(noneWeather), tc.stat, tc.crit); got != tc.want {
+				t.Errorf("mon.effectiveStat(initBenchBattleState(noneWeather), %s, %t) = %d, want %d", tc.stat, tc.crit, got, tc.want)
 			}
 		})
 	}
@@ -107,7 +107,7 @@ func TestEffectiveSpeedAppliesSpeedModifiersCorrectly(t *testing.T) {
 			mon.item = item
 			bbs := initBenchBattleState(tc.weather)
 			if tc.paralyzed {
-				mon.applyAilment(paralysisAilment, nil, nil)
+				mon.applyAilment(initBenchBattleState(noneWeather), paralysisAilment, nil, nil)
 			}
 
 			if got := mon.effectiveSpeed(bbs); got != tc.want {
@@ -336,15 +336,15 @@ func TestApplyAilmentAppliesAilmentsWhenAllowed(t *testing.T) {
 			item, _ := registerItem(noneItem, &mon)
 			mon.item = item
 
-			got := mon.applyAilment(tc.ailment, nil, nil)
+			got := mon.applyAilment(initBenchBattleState(noneWeather), tc.ailment, nil, nil)
 			if got != tc.want {
-				t.Fatalf("mon.applyAilment(%s, nil, nil) = %t, want %t", tc.ailment.String(), got, tc.want)
+				t.Fatalf("mon.applyAilment(initBenchBattleState(noneWeather), %s, nil, nil) = %t, want %t", tc.ailment.String(), got, tc.want)
 			}
 			if tc.want && mon.hasAilment(tc.ailment) == nil {
-				t.Fatalf("mon.applyAilment(%s, nil, nil) did not leave %s applied", tc.ailment.String(), tc.ailment.String())
+				t.Fatalf("mon.applyAilment(initBenchBattleState(noneWeather), %s, nil, nil) did not leave %s applied", tc.ailment.String(), tc.ailment.String())
 			}
 			if !tc.want && mon.hasAilment(tc.ailment) != nil {
-				t.Fatalf("mon.applyAilment(%s, nil, nil) applied %s despite a blocking condition", tc.ailment.String(), tc.ailment.String())
+				t.Fatalf("mon.applyAilment(initBenchBattleState(noneWeather), %s, nil, nil) applied %s despite a blocking condition", tc.ailment.String(), tc.ailment.String())
 			}
 		})
 	}
@@ -369,7 +369,7 @@ func TestChangeHpByCapsHealingAndDamageAtMaxHP(t *testing.T) {
 			}
 			mon.stats[hitPoints] = tc.maxHP
 
-			mon.ChangeHpBy(tc.change)
+			mon.ChangeHpBy(initBenchBattleState(noneWeather), tc.change)
 
 			if got := mon.hp; got != tc.want {
 				t.Fatalf("mon.changeHpBy(%d) hp = %d, want %d", tc.change, got, tc.want)
@@ -397,12 +397,12 @@ func TestToxicConversionTurnsPoisonIntoToxicWhenAppropriate(t *testing.T) {
 				Move: tc.move,
 			}
 
-			mon.applyAilment(poisonAilment, &move, nil)
+			mon.applyAilment(initBenchBattleState(noneWeather), poisonAilment, &move, nil)
 			if tc.want && mon.hasAilment(toxicAilment) == nil {
-				t.Fatalf("mon.applyAilment(poison, %s, nil) did not convert the poison to toxic", tc.move)
+				t.Fatalf("mon.applyAilment(initBenchBattleState(noneWeather), poison, %s, nil) did not convert the poison to toxic", tc.move)
 			}
 			if !tc.want && mon.hasAilment(toxicAilment) != nil {
-				t.Fatalf("mon.applyAilment(poison, %s, nil) did converted the poison to toxic", tc.move)
+				t.Fatalf("mon.applyAilment(initBenchBattleState(noneWeather), poison, %s, nil) did converted the poison to toxic", tc.move)
 			}
 		})
 	}

@@ -38,8 +38,8 @@ func TestBerryItemsCureAilments(t *testing.T) {
 			item, _ := registerItem(tc.item, &mon)
 			mon.item = item
 
-			if got := mon.applyAilment(tc.ailment, nil, nil); got != true {
-				t.Fatalf("mon.applyAilment(%s, nil, nil) = %t, want true", tc.ailment.String(), got)
+			if got := mon.applyAilment(initBenchBattleState(noneWeather), tc.ailment, nil, nil); got != true {
+				t.Fatalf("mon.applyAilment(initBenchBattleState(noneWeather), %s, nil, nil) = %t, want true", tc.ailment.String(), got)
 			}
 			if got := mon.hasAilment(tc.ailment) == nil; got != tc.wantHp {
 				t.Fatalf("mon.hasAilment(%s) = %t, want %t", tc.ailment.String(), got, tc.wantHp)
@@ -81,7 +81,7 @@ func TestBerryItemsHeal(t *testing.T) {
 			mon.stats[hitPoints] = tc.maxHp
 			item, _ := registerItem(tc.item, &mon)
 			mon.item = item
-			mon.checkItemTrigger(true, nil)
+			mon.checkItemTrigger(initBenchBattleState(noneWeather), true, nil)
 
 			if got := mon.hp; got != tc.wantHp {
 				t.Errorf("mon.hp = %d, want %d", got, tc.wantHp)
@@ -118,7 +118,7 @@ func TestLeppaBerryRestoresPP(t *testing.T) {
 			mon.item = item
 
 			move := Move{PP: tc.initialPP, MaxPP: tc.maxPP}
-			mon.checkItemTrigger(true, makeLeppaBerryEvent(&move))
+			mon.checkItemTrigger(initBenchBattleState(noneWeather), true, makeLeppaBerryEvent(&move))
 
 			if got := move.PP; got != tc.wantPP {
 				t.Errorf("move.PP = %d, want %d", got, tc.wantPP)
@@ -259,7 +259,7 @@ func TestPinchHealBerries(t *testing.T) {
 				mon.ability = gluttonyAbility
 			}
 
-			mon.checkItemTrigger(true, nil)
+			mon.checkItemTrigger(initBenchBattleState(noneWeather), true, nil)
 			if got := mon.hp; got != tc.wantHp {
 				t.Errorf("mon.hp = %d, want %d", got, tc.wantHp)
 			}
@@ -320,7 +320,7 @@ func TestStatBoostBerries(t *testing.T) {
 			item, _ := registerItem(tc.item, &mon)
 			mon.item = item
 
-			mon.checkItemTrigger(true, nil)
+			mon.checkItemTrigger(initBenchBattleState(noneWeather), true, nil)
 			if got := mon.stages[tc.stat]; got != tc.wantStage {
 				t.Errorf("mon.stages[%s] = %d, want %d", tc.stat, got, tc.wantStage)
 			}
@@ -364,9 +364,9 @@ func TestResistBerries(t *testing.T) {
 
 			damage := tc.initialDamage
 			if tc.event {
-				mon.checkItemTrigger(true, makeResistBerryEvent(tc.Pokemon, &damage))
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), true, makeResistBerryEvent(tc.Pokemon, &damage))
 			} else {
-				mon.checkItemTrigger(true, nil)
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), true, nil)
 			}
 
 			if got := damage; got != tc.wantDamage {
@@ -406,9 +406,9 @@ func TestTypeGems(t *testing.T) {
 
 			power := tc.initialPower
 			if tc.event {
-				mon.checkItemTrigger(true, makeGemEvent(tc.move, &power))
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), true, makeGemEvent(tc.move, &power))
 			} else {
-				mon.checkItemTrigger(true, nil)
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), true, nil)
 			}
 
 			if got := power; got != tc.wantPower {
@@ -480,7 +480,7 @@ func TestAssaultVest(t *testing.T) {
 			item, _ := registerItem(assaultVest, &mon)
 			mon.item = item
 
-			if got := mon.effectiveStat(specialDefense, tc.crit); got != tc.want {
+			if got := mon.effectiveStat(initBenchBattleState(noneWeather), specialDefense, tc.crit); got != tc.want {
 				t.Errorf("mon.effectiveSpeed(bs) = %d, want %d", got, tc.want)
 			}
 
@@ -519,16 +519,16 @@ func TestChoiceBand(t *testing.T) {
 
 			newAttack := tc.initialAttack
 			if tc.event {
-				mon.checkItemTrigger(false, makeChoiceItemEvent(&move, noStat, &newAttack))
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), false, makeChoiceItemEvent(&move, noStat, &newAttack))
 			} else {
-				mon.checkItemTrigger(false, nil)
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), false, nil)
 			}
 
 			if got := newAttack; got != tc.want {
 				t.Errorf("attack = %d, want %d", got, tc.want)
 			}
 
-			if newAttack == mon.effectiveStat(attack, false) {
+			if newAttack == mon.effectiveStat(initBenchBattleState(noneWeather), attack, false) {
 				t.Errorf("choice specs should not modify the base stats directly")
 			}
 		})
@@ -563,16 +563,16 @@ func TestChoiceSpecs(t *testing.T) {
 
 			newSpecialAttack := tc.initialSpecialAttack
 			if tc.event {
-				mon.checkItemTrigger(false, makeChoiceItemEvent(&move, noStat, &newSpecialAttack))
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), false, makeChoiceItemEvent(&move, noStat, &newSpecialAttack))
 			} else {
-				mon.checkItemTrigger(false, nil)
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), false, nil)
 			}
 
 			if got := newSpecialAttack; got != tc.want {
 				t.Errorf("attack = %d, want %d", got, tc.want)
 			}
 
-			if newSpecialAttack == mon.effectiveStat(specialAttack, false) {
+			if newSpecialAttack == mon.effectiveStat(initBenchBattleState(noneWeather), specialAttack, false) {
 				t.Errorf("choice specs should not modify the base stats directly")
 			}
 		})
@@ -606,9 +606,9 @@ func TestFocusSash(t *testing.T) {
 
 			damage := tc.initialDamage
 			if tc.event {
-				mon.checkItemTrigger(true, makeFocusSashEvent(&damage))
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), true, makeFocusSashEvent(&damage))
 			} else {
-				mon.checkItemTrigger(true, nil)
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), true, nil)
 			}
 
 			if got := damage; got != tc.want {
@@ -650,9 +650,9 @@ func TestTypeBoostingItem(t *testing.T) {
 
 			power := tc.initialPower
 			if tc.event {
-				mon.checkItemTrigger(false, makeMoveBoostingEvent(tc.move, &power))
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), false, makeMoveBoostingEvent(tc.move, &power))
 			} else {
-				mon.checkItemTrigger(false, nil)
+				mon.checkItemTrigger(initBenchBattleState(noneWeather), false, nil)
 			}
 
 			if got := power; got != tc.want {

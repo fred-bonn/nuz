@@ -34,5 +34,6 @@ func (bs *dummyBattleState) key() string                          { return "" }
 func initBenchBattleState(w weatherState) *dummyBattleState {
 	return &dummyBattleState{
 		weather: w,
+		actions: &actionQueue{},
 	}
 }

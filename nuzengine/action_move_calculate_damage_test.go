@@ -46,10 +46,10 @@ func TestCalculateDamageMatchesGameRollRange(t *testing.T) {
 				user, target = target, user
 			}
 
-			if got := calculateDamage(user, target, &tc.move, new(false), noneWeather, rollMin, false, false); got != tc.wantMin {
+			if got := calculateDamage(initBenchBattleState(noneWeather), user, target, &tc.move, new(false), noneWeather, rollMin, false, false); got != tc.wantMin {
 				t.Errorf("min roll = %d, want %d", got, tc.wantMin)
 			}
-			if got := calculateDamage(user, target, &tc.move, new(false), noneWeather, rollMax, false, false); got != tc.wantMax {
+			if got := calculateDamage(initBenchBattleState(noneWeather), user, target, &tc.move, new(false), noneWeather, rollMax, false, false); got != tc.wantMax {
 				t.Errorf("max roll = %d, want %d", got, tc.wantMax)
 			}
 		})

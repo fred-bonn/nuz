@@ -374,7 +374,7 @@ func (is itemState) isChoice() bool {
 type item struct {
 	State    itemState
 	trigger  func(any) bool
-	activate func()
+	activate func(battleState)
 	Consumed bool
 }
 
@@ -382,7 +382,7 @@ func (i item) String() string {
 	return i.State.String()
 }
 
-func (p *pokemon) checkItemTrigger(consume bool, event any) {
+func (p *pokemon) checkItemTrigger(bs battleState, consume bool, event any) {
 	if p.item == nil {
 		if p.base.Name != "" {
 			elogf("warning: p.checkItemTrigger: item is nil for %s", p.base.Name)
@@ -398,7 +398,7 @@ func (p *pokemon) checkItemTrigger(consume bool, event any) {
 			p.item.Consumed = true
 			p.unburden = true
 		}
-		p.item.activate()
+		p.item.activate(bs)
 	}
 }
 
@@ -537,7 +537,7 @@ func makeTypeBoostingItemMiddleware(is itemState, pokemonType pokemonType) func(
 				p = event.power
 				return true
 			},
-			activate: func() {
+			activate: func(bs battleState) {
 				*p = *p * 6 / 5
 			},
 		}
@@ -550,10 +550,10 @@ func makeBerryJuice(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return mon.hp > 0 && mon.hp*2 <= mon.MaxHP()
 		},
-		activate: func() {
-			mon.ChangeHpBy(20)
+		activate: func(bs battleState) {
+			mon.ChangeHpBy(bs, 20)
 			vprintItem("%s drank its berry juice and restored 20 hp", mon.base.Name)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -564,10 +564,10 @@ func makeOranBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return mon.hp > 0 && !mon.unnerved && mon.hp*2 <= mon.MaxHP()
 		},
-		activate: func() {
-			mon.ChangeHpBy(10)
+		activate: func(bs battleState) {
+			mon.ChangeHpBy(bs, 10)
 			vprintItem("%s ate its oran berry and restored 10 hp", mon.base.Name)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -578,11 +578,11 @@ func makeSitrusBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return mon.hp > 0 && !mon.unnerved && mon.hp*2 <= mon.MaxHP()
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			restore := mon.MaxHP() / 4
-			mon.ChangeHpBy(restore)
+			mon.ChangeHpBy(bs, restore)
 			vprintItem("%s ate its sitrus berry and restored %d hp", mon.base.Name, restore)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -593,10 +593,10 @@ func makeCheriBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(paralysisAilment) != nil
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its cheri berry", mon.base.Name)
 			delete(mon.ailments, paralysisAilment)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -607,10 +607,10 @@ func makeChestoBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(sleepAilment) != nil
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its chesto berry", mon.base.Name)
 			delete(mon.ailments, sleepAilment)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -621,11 +621,11 @@ func makePechaBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && (mon.hasAilment(poisonAilment) != nil || mon.hasAilment(toxicAilment) != nil)
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its pecha berry", mon.base.Name)
 			delete(mon.ailments, poisonAilment)
 			delete(mon.ailments, toxicAilment)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -636,10 +636,10 @@ func makeRawstBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(burnAilment) != nil
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its rawst berry", mon.base.Name)
 			delete(mon.ailments, burnAilment)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -650,10 +650,10 @@ func makeAspearBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(freezeAilment) != nil
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its aspear berry", mon.base.Name)
 			delete(mon.ailments, freezeAilment)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -664,10 +664,10 @@ func makePersimBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && mon.hasAilment(confusionAilment) != nil
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its persim berry", mon.base.Name)
 			delete(mon.ailments, confusionAilment)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -678,7 +678,7 @@ func makeLumBerry(mon *pokemon) *item {
 		trigger: func(any) bool {
 			return !mon.unnerved && (mon.hasNonVolatileAilment() || mon.hasAilment(confusionAilment) != nil)
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			vprintItem("%s ate its lum berry", mon.base.Name)
 			for ailment := range nonVolatileStatuses {
 				if mon.hasAilment(ailment) != nil {
@@ -690,7 +690,7 @@ func makeLumBerry(mon *pokemon) *item {
 			if mon.hasAilment(confusionAilment) != nil {
 				delete(mon.ailments, confusionAilment)
 				vprintItem("%s had its confusion removed", mon.base.Name)
-				cheekPouch(mon)
+				cheekPouch(bs, mon)
 			}
 		},
 	}
@@ -707,9 +707,9 @@ func makeLeppaBerry(mon *pokemon) *item {
 			m = event.move
 			return event.move.PP <= 0
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			m.PP += min(10, m.MaxPP)
-			cheekPouch(mon)
+			cheekPouch(bs, mon)
 		},
 	}
 }
@@ -718,8 +718,8 @@ func makeStatBoostBerryMiddleware(is itemState, stat statState) func(mon *pokemo
 	return func(mon *pokemon) *item {
 		return &item{
 			State: is,
-			trigger: func(any) bool {
-				if mon.unnerved {
+			trigger: func(event any) bool {
+				if event != nil || mon.unnerved {
 					return false
 				}
 				if mon.hp <= 0 {
@@ -730,10 +730,12 @@ func makeStatBoostBerryMiddleware(is itemState, stat statState) func(mon *pokemo
 				}
 				return mon.hp*4 <= mon.MaxHP()
 			},
-			activate: func() {
+			activate: func(bs battleState) {
 				vprintItem("%s ate its %s", mon.base.Name, is)
-				mon.changeStatStageBy(stat, 1, false)
-				cheekPouch(mon)
+				if mon.changeStatStageBy(stat, 1, false) && stat == speed {
+					bs.getActions().makeDirty()
+				}
+				cheekPouch(bs, mon)
 			},
 		}
 	}
@@ -755,13 +757,13 @@ func makePinchHealingBerryMiddleware(is itemState, stat statState) func(mon *pok
 				}
 				return mon.hp*4 <= mon.MaxHP()
 			},
-			activate: func() {
+			activate: func(bs battleState) {
 				restore := mon.MaxHP() / 2
-				mon.ChangeHpBy(restore)
+				mon.ChangeHpBy(bs, restore)
 				vprintItem("%s ate its %s and restored %d hp", mon.base.Name, is.String(), restore)
-				cheekPouch(mon)
+				cheekPouch(bs, mon)
 				if mon.nat.negative == stat {
-					mon.applyAilment(confusionAilment, nil, nil)
+					mon.applyAilment(bs, confusionAilment, nil, nil)
 				}
 			},
 		}
@@ -781,10 +783,10 @@ func makeResistBerryMiddleware(is itemState, pokemonType pokemonType) func(mon *
 				d = event.damage
 				return event.pokemonType == pokemonType
 			},
-			activate: func() {
+			activate: func(bs battleState) {
 				if d == nil {
 					vprintItem("%s ate its %s and reduced the damage", mon.base.Name, is)
-					cheekPouch(mon)
+					cheekPouch(bs, mon)
 				} else {
 					*d /= 2
 				}
@@ -806,7 +808,7 @@ func makeGemMiddleware(is itemState, pokemonType pokemonType) func(mon *pokemon)
 				p = event.power
 				return event.pokemonType == pokemonType
 			},
-			activate: func() {
+			activate: func(bs battleState) {
 				if p == nil {
 					vprintItem("%s consumed its %s gem and boosted the damage", mon.base.Name, pokemonType.String())
 				} else {
@@ -832,7 +834,7 @@ func makeAssaultVest(mon *pokemon) *item {
 			s = event.stat
 			return true
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			*s = *s * 3 / 2
 		},
 	}
@@ -853,7 +855,7 @@ func makeChoiceScarf(mon *pokemon) *item {
 			s = event.stat
 			return true
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			*s = *s * 3 / 2
 		},
 	}
@@ -874,7 +876,7 @@ func makeChoiceBand(mon *pokemon) *item {
 			s = event.stat
 			return true
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			*s = *s * 3 / 2
 		},
 	}
@@ -895,7 +897,7 @@ func makeChoiceSpecs(mon *pokemon) *item {
 			s = event.stat
 			return true
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			*s = *s * 3 / 2
 		},
 	}
@@ -912,7 +914,7 @@ func makeFocusSash(mon *pokemon) *item {
 			dmg = event.damage
 			return mon.hp == mon.MaxHP() && *event.damage >= mon.hp
 		},
-		activate: func() {
+		activate: func(bs battleState) {
 			*dmg = mon.hp - 1
 		},
 	}

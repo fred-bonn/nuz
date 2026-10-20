@@ -49,12 +49,13 @@ func TestExecuteActionsRefreshesOrderWhenRequired(t *testing.T) {
 			slower := testSwitchPokemon("slower", 100, 30, 100, 100, nil)
 
 			invoked := make([]string, 0, 3)
-			bs := &singleBattleState{
+			var bs *singleBattleState
+			bs = &singleBattleState{
 				actions: actionQueue{
 					queue: priorityQueue[action]{
 						&testAction{name: "fast", slot: &slot{mon: fast}, invoked: &invoked, invokeFn: func() {
 							if tc.boosted {
-								boosted.checkItemTrigger(true, nil)
+								boosted.checkItemTrigger(bs, true, nil)
 							}
 						}},
 						&testAction{name: "boosted", slot: &slot{mon: boosted}, invoked: &invoked},

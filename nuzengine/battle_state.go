@@ -27,20 +27,14 @@ type battleState interface {
 
 func executeActions(bs battleState) error {
 	actions := bs.getActions()
-	if actions.orderDirty {
-		// vprintln("[QUEUE] re-sorting dirty action queue")
-		actions.sort(bs)
-	}
 	for len(actions.queue) > 0 {
 		action, _ := actions.queue.pop()
-		previousSpeeds := actions.speeds(bs)
 		action.invoke(bs)
 		if err := bs.getError(); err != nil {
 			return err
 		}
-		actions.markOrderDirtyIfSpeedsChanged(bs, previousSpeeds)
 		if actions.orderDirty {
-			// vprintln("[QUEUE] re-sorting dirty action queue")
+			vprintln("[QUEUE] re-sorting dirty action queue")
 			actions.sort(bs)
 		}
 	}
@@ -181,11 +175,11 @@ func resolveEndOfTurn(bs battleState) {
 			case leechSeedAilment:
 				vprintf("%s leeched health from %s", ailment.afflictedBy.mon.base.Name, slot.mon.base.Name)
 				dmg := takeResidualDamage(bs, slot, ailment.State.String(), 1, 8)
-				ailment.afflictedBy.mon.ChangeHpBy(dmg)
+				ailment.afflictedBy.mon.ChangeHpBy(bs, dmg)
 			case yawnAilment:
 				ailment.Turns--
 				if ailment.Turns == 0 {
-					slot.mon.applyAilment(sleepAilment, nil, ailment.afflictedBy)
+					slot.mon.applyAilment(bs, sleepAilment, nil, ailment.afflictedBy)
 					delete(slot.mon.ailments, ailment.State)
 				}
 			}
@@ -209,15 +203,17 @@ func resolveEndOfTurn(bs battleState) {
 		if slot.mon.ability == harvestAbility && roll(1, 2) && slot.mon.item.State.isBerry() {
 			vprintf("%s harvested its %s", slot.mon.base.Name, slot.mon.item.String())
 			slot.mon.item.Consumed = false
-			slot.mon.checkItemTrigger(true, nil)
+			slot.mon.checkItemTrigger(bs, true, nil)
 		} else if slot.mon.ability == speedBoostAbility && !slot.firstTurn {
-			slot.mon.changeStatStageBy(speed, 1, false)
+			if slot.mon.changeStatStageBy(speed, 1, false) {
+				bs.getActions().makeDirty()
+			}
 		}
 
 		if slot.mon.item.State == leftovers {
 			change := slot.mon.MaxHP() / 16
 			vprintItem("%s restored %d health from leftovers", slot.mon.base.Name, change)
-			slot.mon.ChangeHpBy(change)
+			slot.mon.ChangeHpBy(bs, change)
 		}
 
 		slot.mon.laserFocus = false
@@ -231,7 +227,7 @@ func takeResidualDamage(bs battleState, slot *slot, effect string, num, den int)
 
 	change := slot.mon.MaxHP() * num / den
 	vprintf("%s took %d damage from %s", slot.mon.base.Name, change, effect)
-	slot.mon.ChangeHpBy(-change)
+	slot.mon.ChangeHpBy(bs, -change)
 	if slot.mon.hp <= 0 {
 		slot.mon.fainted = true
 		injectReplaceAction(bs, slot, false)

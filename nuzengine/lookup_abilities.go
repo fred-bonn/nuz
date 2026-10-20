@@ -497,7 +497,7 @@ func unnerve(s *slot, bs battleState, switchIn bool) {
 	for _, otherSlot := range bs.getOtherSlots(s) {
 		if s.Trainer != otherSlot.Trainer {
 			otherSlot.mon.unnerved = switchIn
-			otherSlot.mon.checkItemTrigger(true, nil)
+			otherSlot.mon.checkItemTrigger(bs, true, nil)
 		}
 	}
 }
@@ -523,7 +523,7 @@ func regenerator(s *slot, bs battleState, switchIn bool) {
 		return
 	}
 
-	s.mon.ChangeHpBy(s.mon.MaxHP() / 3)
+	s.mon.ChangeHpBy(bs, s.mon.MaxHP()/3)
 }
 
 func naturalCure(s *slot, bs battleState, switchIn bool) {
@@ -592,7 +592,7 @@ func typeConvertingAbilitiesMiddleware(t1 pokemonType) func(t *pokemonType, p *i
 	}
 }
 
-var typeImmunityAbilities = map[abilityState]func(u *pokemon, t pokemonType, s bool) bool{
+var typeImmunityAbilities = map[abilityState]func(bs battleState, u *pokemon, t pokemonType, s bool) bool{
 	flashFireAbility:    flashFire,
 	drySkinAbility:      drySkin,
 	waterAbsorbAbility:  drySkin,
@@ -604,7 +604,7 @@ var typeImmunityAbilities = map[abilityState]func(u *pokemon, t pokemonType, s b
 	levitateAbility:     levitate,
 }
 
-func flashFire(p *pokemon, t pokemonType, s bool) bool {
+func flashFire(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != fireType {
 		return false
 	}
@@ -613,7 +613,7 @@ func flashFire(p *pokemon, t pokemonType, s bool) bool {
 }
 
 // still need to implement sunlight penalty
-func drySkin(p *pokemon, t pokemonType, s bool) bool {
+func drySkin(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != waterType {
 		return false
 	}
@@ -621,11 +621,11 @@ func drySkin(p *pokemon, t pokemonType, s bool) bool {
 		return true
 	}
 	vprintf("%s restored health with %s", p.base.Name, p.ability)
-	p.ChangeHpBy(p.MaxHP() / 4)
+	p.ChangeHpBy(bs, p.MaxHP()/4)
 	return true
 }
 
-func stormDrain(p *pokemon, t pokemonType, s bool) bool {
+func stormDrain(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != waterType {
 		return false
 	}
@@ -636,7 +636,7 @@ func stormDrain(p *pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func voltAbsorb(p *pokemon, t pokemonType, s bool) bool {
+func voltAbsorb(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != electricType {
 		return false
 	}
@@ -644,11 +644,11 @@ func voltAbsorb(p *pokemon, t pokemonType, s bool) bool {
 		return true
 	}
 	vprintf("%s restored health with %s", p.base.Name, p.ability)
-	p.ChangeHpBy(p.MaxHP() / 4)
+	p.ChangeHpBy(bs, p.MaxHP()/4)
 	return true
 }
 
-func lightningRod(p *pokemon, t pokemonType, s bool) bool {
+func lightningRod(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != electricType {
 		return false
 	}
@@ -659,18 +659,20 @@ func lightningRod(p *pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func motorDrive(p *pokemon, t pokemonType, s bool) bool {
+func motorDrive(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != electricType {
 		return false
 	}
 	if s {
 		return true
 	}
-	p.changeStatStageBy(speed, 1, false)
+	if p.changeStatStageBy(speed, 1, false) {
+		bs.getActions().makeDirty()
+	}
 	return true
 }
 
-func sapSipper(p *pokemon, t pokemonType, s bool) bool {
+func sapSipper(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	if t != grassType {
 		return false
 	}
@@ -681,7 +683,7 @@ func sapSipper(p *pokemon, t pokemonType, s bool) bool {
 	return true
 }
 
-func levitate(p *pokemon, t pokemonType, s bool) bool {
+func levitate(bs battleState, p *pokemon, t pokemonType, s bool) bool {
 	return t == groundType
 }
 
@@ -692,7 +694,7 @@ var pinchAbilities = map[abilityState]pokemonType{
 	swarmAbility:    bugType,
 }
 
-var contactDefensiveAbilities = map[abilityState]func(u, t *slot){
+var contactDefensiveAbilities = map[abilityState]func(bs battleState, u, t *slot){
 	roughSkinAbility:   roughSkin,
 	ironBarbsAbility:   roughSkin,
 	cuteCharmAbility:   cuteCharm,
@@ -701,60 +703,60 @@ var contactDefensiveAbilities = map[abilityState]func(u, t *slot){
 	effectSporeAbility: effectSpore,
 }
 
-func roughSkin(u, t *slot) {
+func roughSkin(bs battleState, u, t *slot) {
 	change := u.mon.MaxHP() * 1 / 8
-	u.mon.ChangeHpBy(-change)
+	u.mon.ChangeHpBy(bs, -change)
 	vprintf("%s was hurt by %s", u.mon.base.Name, t.mon.ability)
 }
 
-func cuteCharm(u, t *slot) {
+func cuteCharm(bs battleState, u, t *slot) {
 	if roll(30, 100) {
-		u.mon.applyAilment(infatuationAilment, nil, t)
+		u.mon.applyAilment(bs, infatuationAilment, nil, t)
 	}
 }
 
-func flameBody(u, t *slot) {
+func flameBody(bs battleState, u, t *slot) {
 	if roll(30, 100) {
-		u.mon.applyAilment(burnAilment, nil, t)
+		u.mon.applyAilment(bs, burnAilment, nil, t)
 	}
 }
 
-func poisonPoint(u, t *slot) {
+func poisonPoint(bs battleState, u, t *slot) {
 	if roll(30, 100) {
-		u.mon.applyAilment(poisonAilment, nil, t)
+		u.mon.applyAilment(bs, poisonAilment, nil, t)
 	}
 }
 
-func effectSpore(u, t *slot) {
+func effectSpore(bs battleState, u, t *slot) {
 	if u.mon.hasType(grassType) || u.mon.ability == overcoatAbility || u.mon.item.State == safetyGoggles {
 		return
 	}
 	if roll(30, 100) {
 		ailmentRoll := rand.Intn(30)
 		if ailmentRoll <= 8 {
-			u.mon.applyAilment(poisonAilment, nil, t)
+			u.mon.applyAilment(bs, poisonAilment, nil, t)
 		} else if ailmentRoll <= 18 {
-			u.mon.applyAilment(paralysisAilment, nil, t)
+			u.mon.applyAilment(bs, paralysisAilment, nil, t)
 		} else {
-			u.mon.applyAilment(sleepAilment, nil, t)
+			u.mon.applyAilment(bs, sleepAilment, nil, t)
 		}
 	}
 }
 
-var contactOffensiveAbilities = map[abilityState]func(u, t *slot){
+var contactOffensiveAbilities = map[abilityState]func(bs battleState, u, t *slot){
 	poisonTouchAbility: poisonTouch,
 }
 
-func poisonTouch(u, t *slot) {
+func poisonTouch(bs battleState, u, t *slot) {
 	if roll(30, 100) {
-		t.mon.applyAilment(poisonAilment, nil, u)
+		t.mon.applyAilment(bs, poisonAilment, nil, u)
 	}
 }
 
-func cheekPouch(mon *pokemon) {
+func cheekPouch(bs battleState, mon *pokemon) {
 	if mon.ability == cheekPouchAbility {
 		restore := mon.MaxHP() / 3
-		mon.ChangeHpBy(restore)
+		mon.ChangeHpBy(bs, restore)
 		vprintf("%s ate its cheek pouch and restored %d hp", mon.base.Name, restore)
 	}
 }

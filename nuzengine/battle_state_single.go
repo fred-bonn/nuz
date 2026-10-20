@@ -103,6 +103,7 @@ func (sbs *singleBattleState) getWeather() weatherState {
 
 func (sbs *singleBattleState) setWeather(w weatherState) {
 	sbs.weather = w
+	sbs.actions.makeDirty()
 	w.onset()
 }
 

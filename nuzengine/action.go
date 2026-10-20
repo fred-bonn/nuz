@@ -86,26 +86,8 @@ func (a *actionQueue) sort(bs battleState) {
 	a.orderDirty = false
 }
 
-func (a *actionQueue) speeds(bs battleState) []int {
-	speeds := make([]int, len(a.queue))
-	for i, action := range a.queue {
-		speeds[i] = action.speed(bs)
-	}
-	return speeds
-}
-
-func (a *actionQueue) markOrderDirtyIfSpeedsChanged(bs battleState, previousSpeeds []int) {
-	if len(a.queue) != len(previousSpeeds) {
-		a.orderDirty = true
-		return
-	}
-
-	for i, action := range a.queue {
-		if action.speed(bs) != previousSpeeds[i] {
-			a.orderDirty = true
-			return
-		}
-	}
+func (a *actionQueue) makeDirty() {
+	a.orderDirty = true
 }
 
 func (a *actionQueue) containstSwitchTo(mon *pokemon) bool {

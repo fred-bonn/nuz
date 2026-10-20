@@ -57,17 +57,17 @@ func (ws weatherState) activateMonAbility(bs battleState, slot *slot) {
 	case hailWeather:
 		if mon.ability == iceBodyAbility {
 			vprintf("%s healed due to ice body", mon.base.Name)
-			mon.ChangeHpBy(mon.MaxHP() / 16)
+			mon.ChangeHpBy(bs, mon.MaxHP()/16)
 		}
 	case rainWeather:
 		switch mon.ability {
 		case raindDishAbility:
 			vprintf("%s healed due to rain dish", mon.base.Name)
-			mon.ChangeHpBy(mon.MaxHP() / 16)
+			mon.ChangeHpBy(bs, mon.MaxHP()/16)
 		case drySkinAbility:
 			takeResidualDamage(bs, slot, "dry skin", 1, 8)
 			vprintf("%s healed due to dry skin", mon.base.Name)
-			mon.ChangeHpBy(mon.MaxHP() / 8)
+			mon.ChangeHpBy(bs, mon.MaxHP()/8)
 		case hydrationAbility:
 			if mon.hasNonVolatileAilment() {
 				for ailment := range nonVolatileStatuses {

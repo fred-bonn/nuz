@@ -174,10 +174,10 @@ func (p *pokemon) switchReset() {
 	p.laserFocus = false
 }
 
-func (p *pokemon) effectiveStat(stat statState, crit bool) int {
+func (p *pokemon) effectiveStat(bs battleState, stat statState, crit bool) int {
 	stage := p.stages[stat]
 	base := p.stats[stat]
-	p.checkItemTrigger(false, makeChoiceItemEvent(nil, stat, &base))
+	p.checkItemTrigger(bs, false, makeChoiceItemEvent(nil, stat, &base))
 
 	if crit {
 		switch stat {
@@ -197,7 +197,7 @@ func (p *pokemon) effectiveStat(stat statState, crit bool) int {
 func (p *pokemon) effectiveSpeed(bs battleState) int {
 	stage := p.stages[speed]
 	base := p.stats[speed]
-	p.checkItemTrigger(false, makeChoiceItemEvent(nil, speed, &base))
+	p.checkItemTrigger(bs, false, makeChoiceItemEvent(nil, speed, &base))
 	numerator := 1
 	denominator := 1
 
@@ -268,7 +268,7 @@ func (p *pokemon) hasType(pokemonType pokemonType) bool {
 	return slices.Contains(p.base.Types, pokemonType)
 }
 
-func (p *pokemon) applyAilment(ailment ailmentState, move *Move, afflictedBy *slot) bool {
+func (p *pokemon) applyAilment(bs battleState, ailment ailmentState, move *Move, afflictedBy *slot) bool {
 	if ailment == noneAilment {
 		elogf("warning: %s applies an ailment but is none", ailment.String())
 		return false
@@ -323,9 +323,9 @@ func (p *pokemon) applyAilment(ailment ailmentState, move *Move, afflictedBy *sl
 	p.ailments[ailment] = generateAilment(ailment, afflictedBy)
 	vprintf("%s became afflicted with %s", p.base.Name, ailment.String())
 	if ailment.isNonVolatileStatus() && p.ability == synchronizeAbility {
-		afflictedBy.mon.applyAilment(ailment, nil, nil)
+		afflictedBy.mon.applyAilment(bs, ailment, nil, nil)
 	}
-	p.checkItemTrigger(true, nil)
+	p.checkItemTrigger(bs, true, nil)
 
 	return true
 }
@@ -356,26 +356,27 @@ func (p *pokemon) isGrounded() bool {
 	return true
 }
 
-func (p *pokemon) ChangeHpBy(change int) {
+func (p *pokemon) ChangeHpBy(bs battleState, change int) {
 	p.hp = min(p.hp+change, p.MaxHP())
-	p.checkItemTrigger(true, nil)
+	p.checkItemTrigger(bs, true, nil)
 }
 
 func (p *pokemon) hasMovePredicate(f func(*Move) bool) bool {
 	return slices.ContainsFunc(p.moves, f)
 }
 
-func (p *pokemon) changeStatStageBy(stat statState, change int, offensive bool) {
+func (p *pokemon) changeStatStageBy(stat statState, change int, offensive bool) bool {
 	if offensive && (p.ability == clearBodyAbility || p.ability == clearSmokeAbility) {
 		vprintf("blocked by clear body")
-		return
+		return false
 	}
 	if p.ability == keenEyeAbility && stat == accuracy && change < 0 {
-		return
+		return false
 	}
 
 	p.stages[stat] = max(-6, min(6, p.stages[stat]+change))
 	vprintf("%s's %s changed by %d stages (%d)", p.base.Name, stat, change, p.stages[stat])
+	return true
 }
 
 func (p *pokemon) MaxHP() int {

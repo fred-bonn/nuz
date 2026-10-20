@@ -10,8 +10,8 @@ const (
 	rollMax
 )
 
-func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weatherState, roll damageRollType, forScoring, pursuit bool) int {
-	if f, ok := typeImmunityAbilities[target.ability]; ok && user.ability != moldBreakerAbility && f(target, move.Type, forScoring) {
+func calculateDamage(bs battleState, user, target *pokemon, move *Move, crit *bool, weather weatherState, roll damageRollType, forScoring, pursuit bool) int {
+	if f, ok := typeImmunityAbilities[target.ability]; ok && user.ability != moldBreakerAbility && f(bs, target, move.Type, forScoring) {
 		return 0
 	}
 
@@ -21,11 +21,11 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 	power := move.Power
 	var offensiveStat, defensiveStat int
 	if move.Class == physicalClass {
-		offensiveStat = user.effectiveStat(attack, *crit)
-		defensiveStat = target.effectiveStat(defense, *crit)
+		offensiveStat = user.effectiveStat(bs, attack, *crit)
+		defensiveStat = target.effectiveStat(bs, defense, *crit)
 	} else {
-		offensiveStat = user.effectiveStat(specialAttack, *crit)
-		defensiveStat = target.effectiveStat(specialDefense, *crit)
+		offensiveStat = user.effectiveStat(bs, specialAttack, *crit)
+		defensiveStat = target.effectiveStat(bs, specialDefense, *crit)
 		if weather == sandstormWeather && target.hasType(rockType) {
 			defensiveStat = defensiveStat * 3 / 2
 		}
@@ -131,11 +131,11 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 		power = power * 5 / 4
 	}
 
-	user.checkItemTrigger(false, makeGemEvent(moveType, &power))
+	user.checkItemTrigger(bs, false, makeGemEvent(moveType, &power))
 
-	user.checkItemTrigger(false, makeChoiceItemEvent(move, noStat, &offensiveStat))
+	user.checkItemTrigger(bs, false, makeChoiceItemEvent(move, noStat, &offensiveStat))
 
-	user.checkItemTrigger(false, makeMoveBoostingEvent(moveType, &power))
+	user.checkItemTrigger(bs, false, makeMoveBoostingEvent(moveType, &power))
 
 	damage := ((((2*user.level)/5)+2)*power*offensiveStat)/defensiveStat/50 + 2
 	damage = damage * weatherNum / weatherDen
@@ -164,7 +164,7 @@ func calculateDamage(user, target *pokemon, move *Move, crit *bool, weather weat
 		damage /= 2
 	}
 
-	target.checkItemTrigger(false, makeResistBerryEvent(moveType, &damage))
+	target.checkItemTrigger(bs, false, makeResistBerryEvent(moveType, &damage))
 
 	damage = max(1, damage)
 
