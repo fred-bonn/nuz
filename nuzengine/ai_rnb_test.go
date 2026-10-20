@@ -78,6 +78,65 @@ func TestBattleStateInitializersRequireAtLeastTwoPokemon(t *testing.T) {
 	}
 }
 
+func TestRnbChoosesTargetsWithIndependentHighestDamageScores(t *testing.T) {
+	tests := map[string]struct {
+		trials        int
+		minSelections int
+	}{
+		"selects each target": {trials: 1000, minSelections: 400},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			player := &trainer{ai: rnbAi{}}
+			opponent := &trainer{ai: rnbAi{}}
+			staravia := testSwitchPokemon("staravia", 50, 45, 40, 40, &Move{
+				Move:  "aerial ace",
+				Type:  flyingType,
+				Power: 60,
+				PP:    20,
+				Class: physicalClass,
+			})
+			staravia.moves = append(staravia.moves,
+				&Move{Move: "endeavor", Type: normalType, Power: 1, PP: 5, Class: physicalClass},
+				&Move{Move: "quick attack", Type: normalType, Power: 40, PP: 30, Class: physicalClass, Priority: 1},
+			)
+			staravia.base.Types = []pokemonType{normalType, flyingType}
+			staravia.stats[attack] = 38
+			dwebble := testSwitchPokemon("dwebble", 40, 24, 35, 35, nil)
+			dwebble.base.Types = []pokemonType{bugType, rockType}
+			dwebble.stats[defense] = 31
+			sandygast := testSwitchPokemon("sandygast", 43, 11, 35, 35, nil)
+			sandygast.base.Types = []pokemonType{groundType, ghostType}
+			sandygast.stats[defense] = 27
+
+			staraviaSlot := &slot{mon: staravia, Trainer: player, firstTurn: true}
+			bs := &doubleBattleState{
+				activePlayerSlotOne:   staraviaSlot,
+				activePlayerSlotTwo:   &slot{mon: testSwitchPokemon("ally", 50, 20, 35, 35, nil), Trainer: player},
+				activeOpponentSlotOne: &slot{mon: dwebble, Trainer: opponent, firstTurn: true},
+				activeOpponentSlotTwo: &slot{mon: sandygast, Trainer: opponent, firstTurn: true},
+			}
+
+			targets := make(map[string]int)
+			for range tc.trials {
+				action := chooseNextAction(bs, staraviaSlot, []*pokemon{staravia}, rnbAi{})
+				move, ok := action.(*moveAction)
+				if !ok {
+					t.Fatalf("action = %T, want *moveAction", action)
+				}
+				targets[move.targetSlot.mon.base.Name]++
+			}
+
+			for _, target := range []string{"dwebble", "sandygast"} {
+				if targets[target] < tc.minSelections {
+					t.Errorf("%s selected %d times, want at least %d", target, targets[target], tc.minSelections)
+				}
+			}
+		})
+	}
+}
+
 func testSwitchPokemon(name string, hp, speed, specialAttack, specialDefense int, mv *Move) *pokemon {
 	moves := make([]*Move, 0)
 	if mv != nil {

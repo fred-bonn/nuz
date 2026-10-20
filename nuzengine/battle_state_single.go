@@ -30,21 +30,13 @@ func (sbs *singleBattleState) execute() error {
 			return sbs.err
 		}
 		sbs.actions.sort(sbs)
-		for len(sbs.actions.queue) > 0 {
-			action, _ := sbs.actions.queue.pop()
-			action.invoke(sbs)
-			if sbs.err != nil {
-				return sbs.err
-			}
+		if err := executeActions(sbs); err != nil {
+			return err
 		}
 		resolveEndOfTurn(sbs)
 		// if the end of turn causes mons to faint, empty the queue for replace actions
-		for len(sbs.actions.queue) > 0 {
-			action, _ := sbs.actions.queue.pop()
-			action.invoke(sbs)
-			if sbs.err != nil {
-				return sbs.err
-			}
+		if err := executeActions(sbs); err != nil {
+			return err
 		}
 	}
 	vprintln("=====")
@@ -55,6 +47,10 @@ func (sbs *singleBattleState) execute() error {
 
 func (sbs *singleBattleState) setError(err error) {
 	sbs.err = err
+}
+
+func (sbs *singleBattleState) getError() error {
+	return sbs.err
 }
 
 func (sbs *singleBattleState) gatherActions() {

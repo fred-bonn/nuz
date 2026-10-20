@@ -27,12 +27,12 @@ func (rnb rnbAi) shouldSwitch(bs battleState, slot *slot, score int, party []*po
 	return false
 }
 
-func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+func (rnb rnbAi) evaluateActions(bs battleState, userSlot *slot, actions []*moveAction) (*moveAction, int) {
 	scores := make([]int, len(actions))
 	damage := make([]int, len(actions))
 	kills := make([]bool, len(actions))
-	highestDamageIndex := -1
-	canHighestKill := false
+	highestDamageIndex := make(map[*slot]int)
+	canHighestKill := make(map[*slot]bool)
 
 	for i, a := range actions {
 		if a.move.PP <= 0 {
@@ -42,7 +42,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 		}
 
 		// TODO: add exceptions for moves that are useful against allies
-		if a.targetSlot != slot && a.targetSlot.Trainer == slot.Trainer {
+		if a.targetSlot != userSlot && a.targetSlot.Trainer == userSlot.Trainer {
 			damage[i] = -1
 			scores[i] = -64
 			continue
@@ -93,11 +93,14 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			damage[i] = -1
 			scores[i] = -64
 		}
-		// vlogln(a.move.Name, damage[i])
 
-		canHighestKill = canHighestKill || kills[i]
-		if !canHighestKill && (highestDamageIndex == -1 || damage[highestDamageIndex] < damage[i]) {
-			highestDamageIndex = i
+		if kills[i] {
+			canHighestKill[a.targetSlot] = true
+			continue
+		}
+		highestIndex, ok := highestDamageIndex[a.targetSlot]
+		if !ok || damage[highestIndex] < damage[i] {
+			highestDamageIndex[a.targetSlot] = i
 		}
 	}
 
@@ -167,8 +170,8 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			}
 		}
 
-		// if the highest damaging move kills then we only have to consider moves that can kill
-		if canHighestKill {
+		// If a move can kill this target, only consider moves that can kill it.
+		if canHighestKill[a.targetSlot] {
 			if !kills[i] {
 				continue
 			}
@@ -180,8 +183,8 @@ func (rnb rnbAi) evaluateActions(bs battleState, slot *slot, actions []*moveActi
 			continue
 		}
 
-		// if no moves kills then the highest damaging moves gets additional score
-		if highestDamageIndex == i {
+		// Award the top-damage bonus independently for each target slot.
+		if highestDamageIndex[a.targetSlot] == i {
 			scores[i] += 6 + 2*rollInt(1, 5)
 			continue
 		}

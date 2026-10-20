@@ -33,21 +33,13 @@ func (dbs *doubleBattleState) execute() error {
 			return dbs.err
 		}
 		dbs.actions.sort(dbs)
-		for len(dbs.actions.queue) > 0 {
-			action, _ := dbs.actions.queue.pop()
-			action.invoke(dbs)
-			if dbs.err != nil {
-				return dbs.err
-			}
+		if err := executeActions(dbs); err != nil {
+			return err
 		}
 		resolveEndOfTurn(dbs)
 		// if the end of turn causes mons to faint, empty the queue for replace actions
-		for len(dbs.actions.queue) > 0 {
-			action, _ := dbs.actions.queue.pop()
-			action.invoke(dbs)
-			if dbs.err != nil {
-				return dbs.err
-			}
+		if err := executeActions(dbs); err != nil {
+			return err
 		}
 	}
 	vprintln("=====")
@@ -87,6 +79,10 @@ func (dbs *doubleBattleState) reset() {
 
 func (dbs *doubleBattleState) setError(err error) {
 	dbs.err = err
+}
+
+func (dbs *doubleBattleState) getError() error {
+	return dbs.err
 }
 
 func (dbs *doubleBattleState) gatherActions() {

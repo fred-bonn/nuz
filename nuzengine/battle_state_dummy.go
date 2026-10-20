@@ -17,6 +17,7 @@ type dummyBattleState struct {
 
 func (bs *dummyBattleState) execute() error                       { return nil }
 func (bs *dummyBattleState) setError(error)                       {}
+func (bs *dummyBattleState) getError() error                      { return nil }
 func (bs *dummyBattleState) gatherActions()                       {}
 func (bs *dummyBattleState) getAllSlots() []*slot                 { return bs.slots }
 func (bs *dummyBattleState) getOtherSlots(s *slot) []*slot        { return nil }

@@ -61,7 +61,8 @@ func (q *priorityQueue[T]) fetchBy(f func(T) bool) (T, bool) {
 }
 
 type actionQueue struct {
-	queue priorityQueue[action]
+	queue      priorityQueue[action]
+	orderDirty bool
 }
 
 func (a *actionQueue) sort(bs battleState) {
@@ -82,6 +83,29 @@ func (a *actionQueue) sort(bs battleState) {
 	}
 
 	a.queue.sortBy(cmp)
+	a.orderDirty = false
+}
+
+func (a *actionQueue) speeds(bs battleState) []int {
+	speeds := make([]int, len(a.queue))
+	for i, action := range a.queue {
+		speeds[i] = action.speed(bs)
+	}
+	return speeds
+}
+
+func (a *actionQueue) markOrderDirtyIfSpeedsChanged(bs battleState, previousSpeeds []int) {
+	if len(a.queue) != len(previousSpeeds) {
+		a.orderDirty = true
+		return
+	}
+
+	for i, action := range a.queue {
+		if action.speed(bs) != previousSpeeds[i] {
+			a.orderDirty = true
+			return
+		}
+	}
 }
 
 func (a *actionQueue) containstSwitchTo(mon *pokemon) bool {

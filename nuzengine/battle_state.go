@@ -11,6 +11,7 @@ type battleState interface {
 	execute() error
 	reset()
 	setError(error)
+	getError() error
 	gatherActions()
 	getAllSlots() []*slot
 	getOtherSlots(*slot) []*slot
@@ -22,6 +23,28 @@ type battleState interface {
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
 	key() string
+}
+
+func executeActions(bs battleState) error {
+	actions := bs.getActions()
+	if actions.orderDirty {
+		// vprintln("[QUEUE] re-sorting dirty action queue")
+		actions.sort(bs)
+	}
+	for len(actions.queue) > 0 {
+		action, _ := actions.queue.pop()
+		previousSpeeds := actions.speeds(bs)
+		action.invoke(bs)
+		if err := bs.getError(); err != nil {
+			return err
+		}
+		actions.markOrderDirtyIfSpeedsChanged(bs, previousSpeeds)
+		if actions.orderDirty {
+			// vprintln("[QUEUE] re-sorting dirty action queue")
+			actions.sort(bs)
+		}
+	}
+	return nil
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
@@ -130,7 +153,7 @@ func injectReplaceAction(bs battleState, slot *slot, midTurn bool) {
 		Trainer: slot.Trainer,
 		midTurn: midTurn,
 	})
-	bs.getActions().sort(bs)
+	bs.getActions().orderDirty = true
 }
 
 func resolveEndOfTurn(bs battleState) {
