@@ -1,9 +1,11 @@
 OUT_PATH=./bin/nuz
+TEST_PKG ?= ./...
+TEST_ARGS ?=
 
 all: run
 
 test:
-	go test ./...
+	go test $(TEST_PKG) $(TEST_ARGS)
 
 build: test
 	go build -o $(OUT_PATH)

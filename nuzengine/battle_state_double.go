@@ -190,7 +190,7 @@ func initDoubleBattleState(player, opponent trainer, playerParty, opponentParty 
 	player.pokemonParty = playerParty
 	opponent.pokemonParty = opponentParty
 
-	return &doubleBattleState{
+	res := doubleBattleState{
 		activePlayerSlotOne: &slot{
 			mon:       playerParty[0],
 			Trainer:   &player,
@@ -227,5 +227,11 @@ func initDoubleBattleState(player, opponent trainer, playerParty, opponentParty 
 		actions: actionQueue{
 			queue: make(priorityQueue[action], 0, 3),
 		},
-	}, nil
+	}
+
+	res.setWeather(weather)
+
+	resolveOnEntry(&res)
+
+	return &res, nil
 }
