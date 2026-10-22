@@ -11,7 +11,7 @@ import (
 
 func LearnSingle(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{}
-	runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, iterations, func(episode) {})
+	runWorker(cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, iterations, func(episode) {})
 }
 
 func LearnParallelAggregator(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
@@ -35,7 +35,7 @@ func LearnParallelAggregator(playerPartyStr, opponentPartyStr string, weatherInt
 	var wg sync.WaitGroup
 	for range monteCarloWorkers {
 		wg.Go(func() {
-			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+			runWorker(cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				episodes <- ep
 			})
 		})
@@ -59,7 +59,7 @@ func LearnParallelMerge(playerPartyStr, opponentPartyStr string, weatherInt, ite
 	for range monteCarloWorkers {
 		wg.Go(func() {
 			q := newQMap()
-			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+			runWorker(cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				q.recordEpisode(ep.trajectory, ep.reward)
 			})
 			results <- q
@@ -111,7 +111,7 @@ func BenchmarkLearnMonteCarloWorkers(b *testing.B) {
 	for workers := 2; workers <= 10; workers++ {
 		b.Run(fmt.Sprintf("workers=%d", workers), func(b *testing.B) {
 			benchmarkLearn(b, func(player, opponent string, weather, iterations int) {
-				learnMonteCarlo(workers, player, opponent, weather, iterations)
+				learnMonteCarlo(0, workers, player, opponent, weather, iterations)
 			})
 		})
 	}

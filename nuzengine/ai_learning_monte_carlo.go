@@ -14,6 +14,7 @@ type learningAiMonteCarlo struct {
 	q          qMap
 	trajectory []trajectoryStep
 	pending    actionCandidate
+	planner    doublePlanner
 }
 
 type qMap map[string]map[string]*qEntry
@@ -48,14 +49,14 @@ const (
 	policyFilePath = "data/policy.json.gz"
 )
 
-func LearnMonteCarlo(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
-	merged := learnMonteCarlo(monteCarloWorkers, playerPartyStr, opponentPartyStr, weatherInt, iterations)
-	if err := savePolicy(merged, playerPartyStr, opponentPartyStr, weatherInt); err != nil {
+func LearnMonteCarlo(battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+	merged := learnMonteCarlo(battleStateInt, monteCarloWorkers, playerPartyStr, opponentPartyStr, weatherInt, iterations)
+	if err := savePolicy(merged, playerPartyStr, opponentPartyStr, weatherInt, battleStateInt == 1); err != nil {
 		elogf("error: failed saving policy: %s", err)
 	}
 }
 
-func learnMonteCarlo(workers int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) qMap {
+func learnMonteCarlo(battleStateInt, workers int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) qMap {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),
@@ -76,7 +77,7 @@ func learnMonteCarlo(workers int, playerPartyStr, opponentPartyStr string, weath
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			runWorker(cfg, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+			runWorker(cfg, battleStateInt, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				episodes <- ep
 			})
 		})
@@ -88,7 +89,7 @@ func learnMonteCarlo(workers int, playerPartyStr, opponentPartyStr string, weath
 	return merged
 }
 
-func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
+func runWorker(cfg *config, battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
 	playerParty, err := cfg.validateInput(playerPartyStr)
 	if err != nil {
 		elogf("error: failed validating player party: %s", err)
@@ -101,7 +102,11 @@ func runWorker(cfg *config, playerPartyStr, opponentPartyStr string, weatherInt,
 	}
 	la := newLearningAIMonteCarlo()
 
-	bs, err := initSingleBattleState(
+	initBattleState := initSingleBattleState
+	if battleStateInt == 1 {
+		initBattleState = initDoubleBattleState
+	}
+	bs, err := initBattleState(
 		trainer{ai: la, player: true, fieldEffects: make(map[fieldEffect]int)},
 		trainer{ai: rnbAi{}, fieldEffects: make(map[fieldEffect]int)},
 		playerParty,
@@ -202,12 +207,16 @@ func (la *learningAiMonteCarlo) endEpisode(reward float64) {
 func buildCandidates(bs battleState, slot *slot, actions []*moveAction) []actionCandidate {
 	candidates := make([]actionCandidate, 0, len(actions))
 	for _, a := range actions {
-		candidates = append(candidates, actionCandidate{key: "move:" + strings.ToLower(a.move.Move), move: a})
+		key := "move:" + strings.ToLower(a.move.Move)
+		if dbs, ok := bs.(*doubleBattleState); ok {
+			key += ">" + dbs.slotLabel(a.targetSlot)
+		}
+		candidates = append(candidates, actionCandidate{key: key, move: a})
 	}
 	if canReplace(slot.Trainer.pokemonParty) && !slot.isTrapped() {
 		var possibleMons []*pokemon
 		for _, mon := range slot.Trainer.pokemonParty {
-			if mon != slot.mon && !mon.fainted {
+			if mon != slot.mon && !mon.fainted && bs.getPokemonSlot(mon) == nil {
 				possibleMons = append(possibleMons, mon)
 			}
 		}
@@ -253,6 +262,15 @@ func (la *learningAiMonteCarlo) choose(state string, candidates []actionCandidat
 }
 
 func (la *learningAiMonteCarlo) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+	if dbs, ok := bs.(*doubleBattleState); ok {
+		mine, state, key, recorded := la.planner.plan(dbs, slot, actions, la.choose)
+		if recorded {
+			la.trajectory = append(la.trajectory, trajectoryStep{state: state, action: key})
+		}
+		la.pending = mine
+		return resolveCandidate(actions, mine)
+	}
+
 	state := bs.key()
 	chosen := la.choose(state, buildCandidates(bs, slot, actions))
 

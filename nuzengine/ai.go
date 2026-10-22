@@ -22,11 +22,7 @@ func (ra randomAi) shouldSwitch(bs battleState, slot *slot, score int, party []*
 	return roll(1, 10)
 }
 
-func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI ai) action {
-	if slot.invulnerableAction != nil {
-		return slot.invulnerableAction
-	}
-
+func possibleMoveActions(bs battleState, slot *slot) []*moveAction {
 	possibleActions := make([]*moveAction, 0)
 	for _, opponentSlot := range bs.getOtherSlots(slot) {
 		if opponentSlot.mon.fainted {
@@ -51,6 +47,15 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 			}
 		}
 	}
+	return possibleActions
+}
+
+func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI ai) action {
+	if slot.invulnerableAction != nil {
+		return slot.invulnerableAction
+	}
+
+	possibleActions := possibleMoveActions(bs, slot)
 
 	chosenAction, score := decisionAI.evaluateActions(bs, slot, possibleActions)
 	if slot.mon.item.State.isChoice() {

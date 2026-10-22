@@ -72,7 +72,7 @@ func calculateDamage(bs battleState, user, target *pokemon, move *Move, crit *bo
 		return 40
 	case "endeavor":
 		*crit = false
-		return target.hp - user.hp
+		return max(0, target.hp-user.hp)
 	case "super fang":
 		*crit = false
 		return max(1, target.hp/2)

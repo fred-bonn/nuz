@@ -164,14 +164,19 @@ func (dbs *doubleBattleState) getFieldEffects() map[fieldEffect]int {
 	return dbs.fieldEffects
 }
 
-func (dbs *doubleBattleState) key() string {
-	return fmt.Sprintf("%s|%s|%s|%s|%d",
-		dbs.activePlayerSlotOne.mon.base.Name,
-		dbs.activePlayerSlotTwo.mon.base.Name,
-		dbs.activeOpponentSlotOne.mon.base.Name,
-		dbs.activeOpponentSlotTwo.mon.base.Name,
-		dbs.weather,
-	)
+func (dbs *doubleBattleState) slotLabel(s *slot) string {
+	switch s {
+	case dbs.activePlayerSlotOne:
+		return "p1"
+	case dbs.activePlayerSlotTwo:
+		return "p2"
+	case dbs.activeOpponentSlotOne:
+		return "o1"
+	case dbs.activeOpponentSlotTwo:
+		return "o2"
+	default:
+		return ""
+	}
 }
 
 var _ battleState = (*doubleBattleState)(nil)

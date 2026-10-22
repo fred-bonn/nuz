@@ -90,14 +90,14 @@ func run(args []string) int {
 		opponentParty = string(opponentPartyData)
 	}
 
-	if *learning {
-		nuzengine.LearnMonteCarlo(playerParty, opponentParty, *weather, *iterations)
-		return 0
-	}
-
 	battleStateType := 0
 	if *doubleBattle {
 		battleStateType = 1
+	}
+
+	if *learning {
+		nuzengine.LearnMonteCarlo(battleStateType, playerParty, opponentParty, *weather, *iterations)
+		return 0
 	}
 
 	battleState, err := nuzengine.InitBattleState(battleStateType, playerParty, opponentParty, *inputAi, *weather, *policyFile)

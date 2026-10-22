@@ -11,12 +11,14 @@ import (
 type policyAi struct {
 	q       qMap
 	pending actionCandidate
+	planner doublePlanner
 }
 
 type policyData struct {
 	PlayerParty   string
 	OpponentParty string
 	Weather       int
+	IsDouble      bool
 	Policy        qMap
 }
 
@@ -25,6 +27,7 @@ type diskPolicy struct {
 	PlayerParty   string      `json:"player_party"`
 	OpponentParty string      `json:"opponent_party"`
 	Weather       int         `json:"weather"`
+	IsDouble      bool        `json:"is_double_battle"`
 	Actions       []string    `json:"actions"`
 	States        []diskState `json:"states"`
 }
@@ -45,6 +48,14 @@ func newPolicyAI(q qMap) *policyAi {
 }
 
 func (pa *policyAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
+	if dbs, ok := bs.(*doubleBattleState); ok {
+		mine, _, _, _ := pa.planner.plan(dbs, slot, actions, func(state string, candidates []actionCandidate) actionCandidate {
+			return argmaxCandidate(pa.q, state, candidates)
+		})
+		pa.pending = mine
+		return resolveCandidate(actions, mine)
+	}
+
 	chosen := argmaxCandidate(pa.q, bs.key(), buildCandidates(bs, slot, actions))
 	pa.pending = chosen
 
@@ -66,11 +77,12 @@ func (pa *policyAi) shouldSwitch(bs battleState, slot *slot, score int, party []
 	return pa.pending.move == nil
 }
 
-func savePolicy(q qMap, playerPartyStr, opponentPartyStr string, weatherInt int) error {
+func savePolicy(q qMap, playerPartyStr, opponentPartyStr string, weatherInt int, isDouble bool) error {
 	disk := diskPolicy{
 		PlayerParty:   playerPartyStr,
 		OpponentParty: opponentPartyStr,
 		Weather:       weatherInt,
+		IsDouble:      isDouble,
 		States:        make([]diskState, 0, len(q)),
 	}
 
@@ -142,6 +154,7 @@ func loadPolicy(path string) (policyData, error) {
 		PlayerParty:   disk.PlayerParty,
 		OpponentParty: disk.OpponentParty,
 		Weather:       disk.Weather,
+		IsDouble:      disk.IsDouble,
 		Policy:        q,
 	}, nil
 }

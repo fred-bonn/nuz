@@ -62,6 +62,10 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 		playerPartyStr = policy.PlayerParty
 		opponentPartyStr = policy.OpponentParty
 		weatherInt = policy.Weather
+		battleStateInt = 0
+		if policy.IsDouble {
+			battleStateInt = 1
+		}
 		playerAi = newPolicyAI(policy.Policy)
 	} else {
 		switch aiInt {
