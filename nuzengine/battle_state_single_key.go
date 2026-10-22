@@ -1,51 +1,79 @@
 package nuzengine
 
-import (
-	"encoding/json"
-	"strings"
-)
+import "strconv"
 
 type singleBattleStateKey struct {
-	PlayerMon              string          `json:"player_mon"`
-	PlayerMonHasKill       bool            `json:"player_mon_has_kill"`
-	PlayerMonHasFastKill   bool            `json:"player_mon_has_fast_kill"`
-	PlayerMonIsTrapped     bool            `json:"player_mon_is_trapped"`
-	AlivePlayerMons        []bool          `json:"alive_player_mons"`
-	PlayerAilment          ailmentState    `json:"player_ailment"`
-	OpponentMon            string          `json:"opponent_mon"`
-	OpponentMonHasKill     bool            `json:"opponent_mon_has_kill"`
-	OpponentMonHasFastKill bool            `json:"opponent_mon_has_fast_kill"`
-	AliveOpponentMons      []bool          `json:"alive_opponent_mons"`
-	OpponentAilment        ailmentState    `json:"opponent_ailment"`
-	MovesOutOfPP           map[string]bool `json:"moves_out_of_pp"`
-	ItemsConsumed          map[string]bool `json:"items_consumed"`
-	Weather                weatherState    `json:"weather"`
+	PlayerMon              string
+	PlayerMonHasKill       bool
+	PlayerMonHasFastKill   bool
+	PlayerMonIsTrapped     bool
+	PlayerItemUsed         bool
+	PlayerOutOfPP          uint64
+	PlayerAilment          ailmentState
+	AlivePlayerMons        uint64
+	OpponentMon            string
+	OpponentMonHasKill     bool
+	OpponentMonHasFastKill bool
+	OpponentItemUsed       bool
+	OpponentOutOfPP        uint64
+	OpponentAilment        ailmentState
+	AliveOpponentMons      uint64
+	Weather                weatherState
+}
+
+// String renders the key as "mon.flags.ailment" for the player and opponent
+// followed by the alive masks and weather, all numbers in base 36.
+func (stateKey singleBattleStateKey) String() string {
+	flags := func(bools ...bool) uint64 {
+		var bits uint64
+		for _, flag := range bools {
+			bits <<= 1
+			if flag {
+				bits |= 1
+			}
+		}
+		return bits
+	}
+	playerBits := flags(stateKey.PlayerMonHasKill, stateKey.PlayerMonHasFastKill, stateKey.PlayerMonIsTrapped, stateKey.PlayerItemUsed)<<8 | stateKey.PlayerOutOfPP&0xff
+	opponentBits := flags(stateKey.OpponentMonHasKill, stateKey.OpponentMonHasFastKill, stateKey.OpponentItemUsed)<<8 | stateKey.OpponentOutOfPP&0xff
+
+	buf := make([]byte, 0, 64)
+	buf = append(buf, stateKey.PlayerMon...)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, playerBits, 36)
+	buf = append(buf, '.')
+	buf = strconv.AppendInt(buf, int64(stateKey.PlayerAilment), 36)
+	buf = append(buf, '|')
+	buf = append(buf, stateKey.OpponentMon...)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, opponentBits, 36)
+	buf = append(buf, '.')
+	buf = strconv.AppendInt(buf, int64(stateKey.OpponentAilment), 36)
+	buf = append(buf, '|')
+	buf = strconv.AppendUint(buf, stateKey.AlivePlayerMons, 36)
+	buf = append(buf, '.')
+	buf = strconv.AppendUint(buf, stateKey.AliveOpponentMons, 36)
+	buf = append(buf, '.')
+	buf = strconv.AppendInt(buf, int64(stateKey.Weather), 36)
+	return string(buf)
 }
 
 func (sbs *singleBattleState) key() string {
-	stateKey := singleBattleStateKey{
-		Weather:           sbs.weather,
-		AlivePlayerMons:   make([]bool, len(sbs.player.pokemonParty)),
-		AliveOpponentMons: make([]bool, len(sbs.opponent.pokemonParty)),
-		MovesOutOfPP:      make(map[string]bool),
-		ItemsConsumed:     make(map[string]bool),
-	}
-
 	playerMon := sbs.activePlayerSlot.mon
 	opponentMon := sbs.activeOpponentSlot.mon
 
-	stateKey.PlayerMon = playerMon.base.Name
-	stateKey.OpponentMon = opponentMon.base.Name
-	stateKey.PlayerAilment = addNonVolatileAilmentState(playerMon)
-	stateKey.OpponentAilment = addNonVolatileAilmentState(opponentMon)
-	stateKey.addMoveAndItemState(playerMon)
-	stateKey.addMoveAndItemState(opponentMon)
-
-	for i, mon := range sbs.player.pokemonParty {
-		stateKey.AlivePlayerMons[i] = !mon.fainted
-	}
-	for i, mon := range sbs.opponent.pokemonParty {
-		stateKey.AliveOpponentMons[i] = !mon.fainted
+	stateKey := singleBattleStateKey{
+		Weather:           sbs.weather,
+		PlayerMon:         playerMon.base.Name,
+		OpponentMon:       opponentMon.base.Name,
+		PlayerAilment:     addNonVolatileAilmentState(playerMon),
+		OpponentAilment:   addNonVolatileAilmentState(opponentMon),
+		PlayerItemUsed:    isItemUsed(playerMon),
+		OpponentItemUsed:  isItemUsed(opponentMon),
+		PlayerOutOfPP:     outOfPPMask(playerMon),
+		OpponentOutOfPP:   outOfPPMask(opponentMon),
+		AlivePlayerMons:   aliveMask(sbs.player.pokemonParty),
+		AliveOpponentMons: aliveMask(sbs.opponent.pokemonParty),
 	}
 
 	playerMonMax := calculateMaxDamageAmongMoves(sbs, playerMon, opponentMon, calculateMaxDamageFlags{
@@ -79,25 +107,21 @@ func (sbs *singleBattleState) key() string {
 	stateKey.OpponentMonHasFastKill = opponentMonMaxPrio >= playerMon.hp || (stateKey.OpponentMonHasKill && opponentMon.isFasterThan(sbs, playerMon))
 	stateKey.PlayerMonIsTrapped = sbs.activePlayerSlot.isTrapped()
 
-	bytes, err := json.Marshal(stateKey)
-	if err != nil {
-		return ""
-	}
-	return string(bytes)
+	return stateKey.String()
 }
 
-func (stateKey *singleBattleStateKey) addMoveAndItemState(mon *pokemon) {
-	monName := strings.ToLower(mon.base.Name)
-	for _, move := range mon.moves {
-		stateKey.MovesOutOfPP[monName+": "+move.Move] = move.PP <= 0
+func isItemUsed(mon *pokemon) bool {
+	return mon.item == nil || mon.item.State == noneItem || mon.item.Consumed
+}
+
+func outOfPPMask(mon *pokemon) uint64 {
+	var mask uint64
+	for i, move := range mon.moves {
+		if i < 8 && move.PP <= 0 {
+			mask |= 1 << i
+		}
 	}
-	itemName := "#"
-	consumed := true
-	if mon.item != nil && mon.item.State != noneItem {
-		itemName = mon.item.State.String()
-		consumed = mon.item.Consumed
-	}
-	stateKey.ItemsConsumed[monName+": "+itemName] = consumed
+	return mask
 }
 
 func addNonVolatileAilmentState(mon *pokemon) ailmentState {
