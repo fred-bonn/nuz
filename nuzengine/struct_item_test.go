@@ -666,3 +666,64 @@ func TestTypeBoostingItem(t *testing.T) {
 
 	}
 }
+
+func TestEjectButton(t *testing.T) {
+	tests := map[string]struct {
+		hp           int
+		fainted      bool
+		event        bool
+		benchFainted bool
+		wantConsumed bool
+		wantReplace  bool
+	}{
+		"eject button forces a switch and whiffs the pending move": {hp: 50, event: true, wantConsumed: true, wantReplace: true},
+		"eject button wont activate when fainted":                  {hp: 0, fainted: true, event: true},
+		"eject button wont activate without a healthy bench":       {hp: 50, event: true, benchFainted: true},
+		"eject button wont activate without event":                 {hp: 50, event: false},
+	}
+
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			mon := &pokemon{stats: make([]int, 9), hp: tc.hp, fainted: tc.fainted}
+			bench := &pokemon{fainted: tc.benchFainted}
+			tr := &trainer{pokemonParty: []*pokemon{mon, bench}}
+			sl := &slot{mon: mon, Trainer: tr}
+			foe := &slot{mon: &pokemon{}}
+			bs := initBenchBattleState(noneWeather)
+			bs.slots = []*slot{sl, foe}
+
+			it, _ := registerItem(ejectButton, mon)
+			mon.item = it
+
+			ownMove := &moveAction{userSlot: sl, targetSlot: foe, move: &Move{}}
+			foeMove := &moveAction{userSlot: foe, targetSlot: sl, move: &Move{}}
+			bs.actions.queue.push(ownMove)
+			bs.actions.queue.push(foeMove)
+
+			if tc.event {
+				mon.checkItemTrigger(bs, true, makeEjectButtonEvent(bs, sl))
+			} else {
+				mon.checkItemTrigger(bs, true, nil)
+			}
+
+			if it.Consumed != tc.wantConsumed {
+				t.Errorf("consumed = %v, want %v", it.Consumed, tc.wantConsumed)
+			}
+			var gotReplace bool
+			for _, a := range bs.actions.queue {
+				if ra, ok := a.(*replaceAction); ok && ra.midTurn && ra.oldSlot == sl {
+					gotReplace = true
+				}
+			}
+			if gotReplace != tc.wantReplace {
+				t.Errorf("replace action queued = %v, want %v", gotReplace, tc.wantReplace)
+			}
+			if got := bs.actions.getMoveActionBy(mon) == nil; got != tc.wantReplace {
+				t.Errorf("own move removed = %v, want %v", got, tc.wantReplace)
+			}
+			if bs.actions.getMoveActionBy(foe.mon) == nil {
+				t.Errorf("opposing move should remain queued")
+			}
+		})
+	}
+}

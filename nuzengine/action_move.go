@@ -301,14 +301,16 @@ func (ma *moveAction) applyDamageMove(bs battleState, spread bool) {
 		hits = determineHits(ma.move)
 	}
 
-	if ok := ma.resolveDamage(bs, spread); !ok {
-		return
+	landed := false
+	for i := 0; i < hits; i++ {
+		if ok := ma.resolveDamage(bs, spread); !ok {
+			break
+		}
+		landed = true
 	}
 
-	for i := 1; i < hits; i++ {
-		if ok := ma.resolveDamage(bs, spread); !ok {
-			return
-		}
+	if landed && !ma.pursuit && !target.fainted {
+		target.checkItemTrigger(bs, true, makeEjectButtonEvent(bs, ma.targetSlot))
 	}
 }
 

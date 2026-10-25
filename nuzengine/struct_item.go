@@ -88,6 +88,7 @@ const (
 	choiceBand
 	choiceSpecs
 	focusSash
+	ejectButton
 )
 
 var itemStateMap = map[string]itemState{
@@ -175,6 +176,7 @@ var itemStateMap = map[string]itemState{
 	"choice band":    choiceBand,
 	"choice specs":   choiceSpecs,
 	"focus sash":     focusSash,
+	"eject button":   ejectButton,
 }
 
 func stringToItemState(s string) itemState {
@@ -357,6 +359,8 @@ func (i itemState) String() string {
 		return "choice specs"
 	case focusSash:
 		return "focus sash"
+	case ejectButton:
+		return "eject button"
 	default:
 		elogf("warning: itemState %d does not have a string version", i)
 		return ""
@@ -489,6 +493,7 @@ var itemBuilders = map[itemState]itemFactoryBuilder{
 	choiceBand:    makeChoiceBand,
 	choiceSpecs:   makeChoiceSpecs,
 	focusSash:     makeFocusSash,
+	ejectButton:   makeEjectButton,
 }
 
 func createItemFactory(builder itemFactoryBuilder, mon *pokemon) func() *item {
@@ -920,6 +925,33 @@ func makeFocusSash(mon *pokemon) *item {
 	}
 }
 
+func makeEjectButton(mon *pokemon) *item {
+	return &item{
+		trigger: func(e any) bool {
+			event, ok := e.(ejectButtonEvent)
+			if !ok {
+				return false
+			}
+			return mon.hp > 0 && !mon.fainted && event.canSwitch
+		},
+		activate: func(bs battleState) {
+			vprintf("%s's eject button was activated", mon.base.Name)
+			for _, s := range bs.getAllSlots() {
+				if s.mon != mon {
+					continue
+				}
+				// the ejected pokemon already left the field, so its pending move whiffs
+				bs.getActions().queue.fetchBy(func(a action) bool {
+					ma, ok := a.(*moveAction)
+					return ok && ma.userSlot.mon == mon
+				})
+				injectReplaceAction(bs, s, true)
+				return
+			}
+		},
+	}
+}
+
 type resistBerryEvent struct {
 	pokemonType pokemonType
 	damage      *int
@@ -979,6 +1011,22 @@ func makeFocusSashEvent(damage *int) focusSashEvent {
 	return focusSashEvent{
 		damage: damage,
 	}
+}
+
+type ejectButtonEvent struct {
+	canSwitch bool
+}
+
+func makeEjectButtonEvent(bs battleState, slot *slot) ejectButtonEvent {
+	if slot == nil || slot.Trainer == nil {
+		return ejectButtonEvent{}
+	}
+	for _, mon := range slot.Trainer.pokemonParty {
+		if mon != slot.mon && !mon.fainted && bs.getPokemonSlot(mon) == nil {
+			return ejectButtonEvent{canSwitch: true}
+		}
+	}
+	return ejectButtonEvent{}
 }
 
 type moveBoostingEvent struct {
