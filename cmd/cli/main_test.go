@@ -5,6 +5,8 @@ import (
 )
 
 func TestRunReturnsTheExpectedExitCodeForCLIArguments(t *testing.T) {
+	// the engine and fixtures resolve paths relative to the repo root
+	t.Chdir("../..")
 	tests := map[string]struct {
 		args []string
 		want int

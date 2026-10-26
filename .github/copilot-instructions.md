@@ -11,7 +11,7 @@
 
 ## Architecture
 
-- The repository is organized into the CLI entry point (`main.go`), the engine (`nuzengine`), and internal packages for parsing and API interactions.
+- The repository is organized into the CLI entry point (`cmd/cli/main.go`) and HTTP server (`cmd/server`), the engine (`nuzengine`), and internal packages for parsing and API interactions.
 - `nuzengine` contains the core battle logic, including state management, action resolution, and AI implementations.
 - Internal packages handle specific tasks such as parsing Showdown files (`internal/parser`) and interacting with the PokéAPI (`internal/pokeapi`).
 - The `data/` directory contains cached Pokémon and move metadata, as well as the learned policy for the AI.

@@ -17,12 +17,12 @@
 - `data/` is gitignored and absent from a fresh clone. It contains the PokeAPI cache (`pokemon/`, `moves/`), `policy.json.gz`, and local demo parties.
 - Cache misses are fetched from `https://pokeapi.co/api/v2` and written back, so first-time party loading needs network.
 - Normal `nuzengine` tests use in-memory/dummy battle state and stay offline. CLI tests that parse full parties may populate `data/` from the API.
-- `cli_test.go` reads `data/player.txt` and `data/opponent.txt`; on a fresh clone the `accepts requested data double battle` case fails until those local files exist. Do not commit the cache to fix it.
+- `cmd/cli/main_test.go` reads `data/player.txt` and `data/opponent.txt`; on a fresh clone the `accepts requested data double battle` case fails until those local files exist. Do not commit the cache to fix it.
 - `-f/--policy-file` overrides the CLI party arguments, weather, and battle type with values embedded in the policy. `-l` learns and writes `data/policy.json.gz` (default 100000 iterations).
 
 ## Architecture
 
-- `main.go`: pflag CLI that calls `nuzengine.InitBattleState` / `Execute`, or `LearnMonteCarlo`.
+- `cmd/cli/main.go`: pflag CLI that calls `nuzengine.InitBattleState` / `Execute`, or `LearnMonteCarlo`.
 - `nuzengine`: core engine. Single and double battles are separate implementations behind the `battleState` interface (`battle_state_single.go`, `battle_state_double.go`); feature work often needs both plus the AIs in `ai*.go`.
 - Learning state keys live in `battle_state_single_key.go` and `battle_state_double_key.go`. Update them when decision-relevant state changes, or learned policies will collide.
 - `internal/parser`: Showdown party lexer/parser. `internal/pokeapi`: HTTP client and API JSON mapping.

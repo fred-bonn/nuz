@@ -70,7 +70,7 @@ Ability: Swift Swim
 
 ## Usage
 
-The main entrypoint is in [main.go](main.go). Supported flags are:
+The main entrypoint is in [cmd/cli/main.go](cmd/cli/main.go). Supported flags are:
 
 | Flag | Meaning |
 | ---- | --- |
@@ -81,6 +81,18 @@ The main entrypoint is in [main.go](main.go). Supported flags are:
 | `-i <n>` | Number of battle iterations; defaults to `1`, or `100000` in learning mode |
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
 | `-d` | Initialise a double battle instead of the default single battle |
+
+### Server
+
+`make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). 
+`POST /battles` accepts JSON with Showdown party text and settings, initialises a battle (Run & Bun AI for the player) and keeps it in memory:
+
+```bash
+curl -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')"
+# {"id":"<id>","double":false,"weather":0}
+```
+
+Invalid input returns `400` with `{"error": "..."}`.
 
 Examples:
 

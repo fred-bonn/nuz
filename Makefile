@@ -1,6 +1,7 @@
 OUT_PATH=./bin/nuz
 TEST_PKG ?= ./...
 TEST_ARGS ?=
+SERVE_ARGS ?=
 
 all: run
 
@@ -8,7 +9,7 @@ test:
 	go test $(TEST_PKG) $(TEST_ARGS)
 
 build: test
-	go build -o $(OUT_PATH)
+	go build -o $(OUT_PATH) ./cmd/cli
 
 run: build
 	$(OUT_PATH) showdown_demo_files/player.txt showdown_demo_files/opponent.txt -v 
@@ -28,7 +29,10 @@ sandstorm: build
 hail: build
 	$(OUT_PATH) showdown_demo_files/player.txt showdown_demo_files/opponent.txt -v -w 4
 
-ITERATION_GOALS := $(filter-out all test build run brief rain sun sandstorm hail,$(MAKECMDGOALS))
+serve: test
+	go run ./cmd/server $(SERVE_ARGS)
+
+ITERATION_GOALS := $(filter-out all test build run serve brief rain sun sandstorm hail,$(MAKECMDGOALS))
 
 .PHONY: $(ITERATION_GOALS)
 $(ITERATION_GOALS): build
