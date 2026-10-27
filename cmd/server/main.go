@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fred-bonn/nuz/nuzengine"
 	"github.com/spf13/pflag"
@@ -19,7 +20,6 @@ import (
 const (
 	maxBodyBytes = 1 << 20
 	maxWeather   = 4
-	runAndBunAi  = 0
 )
 
 type createBattleRequest struct {
@@ -40,33 +40,37 @@ type errorResponse struct {
 }
 
 // initFunc builds a battle; it is a field so tests can avoid the PokeAPI.
-type initFunc func(battleStateType int, player, opponent string, ai, weather int, policyFile string) (any, error)
+type initFunc func(battleStateType int, player, opponent string, weather int) (battle, error)
 
 type server struct {
 	mu      sync.Mutex
-	battles map[string]any
+	battles map[string]*session
 	init    initFunc
+	timeout time.Duration
 }
 
 func newServer() *server {
 	return &server{
-		battles: make(map[string]any),
-		init: func(t int, p, o string, ai, w int, pf string) (any, error) {
-			return nuzengine.InitBattleState(t, p, o, ai, w, pf)
+		battles: make(map[string]*session),
+		timeout: inputTimeout,
+		init: func(t int, p, o string, w int) (battle, error) {
+			return nuzengine.InitInteractiveBattle(t, p, o, w)
 		},
 	}
 }
 
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/battles", s.handleBattles)
+	mux.HandleFunc("/battles", s.handleBattleInit)
+	mux.HandleFunc("/battles/start", s.handleBattleStart)
+	mux.HandleFunc("/battles/input", s.handleBattleInput)
 	return mux
 }
 
-func (s *server) handleBattles(w http.ResponseWriter, r *http.Request) {
+func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		writeJSON(w, http.StatusMethodNotAllowed, errorResponse{"method not allowed"})
+		respondWithJSON(w, http.StatusMethodNotAllowed, errorResponse{"method not allowed"})
 		return
 	}
 
@@ -74,15 +78,15 @@ func (s *server) handleBattles(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{"invalid JSON body: " + err.Error()})
+		respondWithJSON(w, http.StatusBadRequest, errorResponse{"invalid JSON body: " + err.Error()})
 		return
 	}
 	if strings.TrimSpace(req.Player) == "" || strings.TrimSpace(req.Opponent) == "" {
-		writeJSON(w, http.StatusBadRequest, errorResponse{"player and opponent are required"})
+		respondWithJSON(w, http.StatusBadRequest, errorResponse{"player and opponent are required"})
 		return
 	}
 	if req.Weather < 0 || req.Weather > maxWeather {
-		writeJSON(w, http.StatusBadRequest, errorResponse{fmt.Sprintf("weather must be between 0 and %d", maxWeather)})
+		respondWithJSON(w, http.StatusBadRequest, errorResponse{fmt.Sprintf("weather must be between 0 and %d", maxWeather)})
 		return
 	}
 
@@ -90,22 +94,24 @@ func (s *server) handleBattles(w http.ResponseWriter, r *http.Request) {
 	if req.Double {
 		battleStateType = 1
 	}
-	bs, err := s.init(battleStateType, req.Player, req.Opponent, runAndBunAi, req.Weather, "")
+	bs, err := s.init(battleStateType, req.Player, req.Opponent, req.Weather)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, errorResponse{err.Error()})
+		respondWithJSON(w, http.StatusBadRequest, errorResponse{err.Error()})
 		return
 	}
 
 	id, err := newID()
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, errorResponse{"failed generating id"})
+		respondWithJSON(w, http.StatusInternalServerError, errorResponse{"failed generating id"})
 		return
 	}
 	s.mu.Lock()
-	s.battles[id] = bs
+	s.battles[id] = newSession(bs)
 	s.mu.Unlock()
+	time.AfterFunc(s.timeout, func() { s.expireIfUnstarted(id) })
 
-	writeJSON(w, http.StatusCreated, createBattleResponse{ID: id, Double: req.Double, Weather: req.Weather})
+	w.Header().Set(battleIDHeader, id)
+	respondWithJSON(w, http.StatusCreated, createBattleResponse{ID: id, Double: req.Double, Weather: req.Weather})
 }
 
 func newID() (string, error) {
@@ -116,7 +122,7 @@ func newID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
+func respondWithJSON(w http.ResponseWriter, status int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)

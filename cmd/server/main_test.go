@@ -35,10 +35,10 @@ func TestCreateBattle(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newServer()
-			called, gotType, gotAi := false, -1, -1
-			s.init = func(bt int, p, o string, ai, w int, pf string) (any, error) {
-				called, gotType, gotAi = true, bt, ai
-				return struct{}{}, tt.initErr
+			called, gotType := false, -1
+			s.init = func(bt int, p, o string, w int) (battle, error) {
+				called, gotType = true, bt
+				return &fakeBattle{}, tt.initErr
 			}
 			rec := httptest.NewRecorder()
 			s.handler().ServeHTTP(rec, httptest.NewRequest(tt.method, "/battles", strings.NewReader(tt.body)))
@@ -49,8 +49,8 @@ func TestCreateBattle(t *testing.T) {
 			if called != tt.wantInit {
 				t.Fatalf("init called = %v, want %v", called, tt.wantInit)
 			}
-			if called && (gotType != tt.wantType || gotAi != runAndBunAi) {
-				t.Fatalf("init type/ai = %d/%d, want %d/%d", gotType, gotAi, tt.wantType, runAndBunAi)
+			if called && gotType != tt.wantType {
+				t.Fatalf("init type = %d, want %d", gotType, tt.wantType)
 			}
 			if tt.wantStatus != http.StatusCreated {
 				if len(s.battles) != 0 {
@@ -64,6 +64,9 @@ func TestCreateBattle(t *testing.T) {
 			}
 			if _, ok := s.battles[resp.ID]; !ok || resp.ID == "" {
 				t.Fatalf("battle %q not stored", resp.ID)
+			}
+			if got := rec.Header().Get(battleIDHeader); got != resp.ID {
+				t.Fatalf("%s header = %q, want %q", battleIDHeader, got, resp.ID)
 			}
 		})
 	}

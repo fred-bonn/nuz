@@ -42,6 +42,11 @@ func executeActions(bs battleState) error {
 }
 
 func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
+	return initBattleState(battleStateInt, playerPartyStr, opponentPartyStr, aiInt, weatherInt, policyFile, nil)
+}
+
+// initBattleState builds a battle; a non-nil customAi replaces the player AI chosen by aiInt.
+func initBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string, customAi ai) (battleState, error) {
 	cfg := &config{
 		client: pokeapi.NewClient(),
 	}
@@ -76,6 +81,10 @@ func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 		case 2:
 			playerAi = &randomAi{}
 		}
+	}
+
+	if customAi != nil {
+		playerAi = customAi
 	}
 
 	if weatherInt < 0 || weatherInt > 4 {

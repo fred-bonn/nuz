@@ -85,11 +85,16 @@ The main entrypoint is in [cmd/cli/main.go](cmd/cli/main.go). Supported flags ar
 ### Server
 
 `make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). 
-`POST /battles` accepts JSON with Showdown party text and settings, initialises a battle (Run & Bun AI for the player) and keeps it in memory:
+Battles are interactive: the player is driven by the guided AI over HTTP.
+
+1. `POST /battles` accepts JSON with Showdown party text and settings, initialises a battle and replies `201` with the id in the `X-Battle-ID` header (and body). Unstarted battles expire after 2 minutes.
+2. `POST /battles/start` (header `X-Battle-ID`) starts the battle. The `200` response stays open and streams newline-delimited JSON events: `{"type":"prompt","text":...}` whenever input is needed, then `{"type":"end","won":bool}` when the battle ends (`error`/`timeout` otherwise).
+3. `POST /battles/input` (header `X-Battle-ID`, body `{"choice":N}`) answers the pending prompt with `202`; the next prompt arrives on the stream. Invalid choices are re-prompted on the stream with an error message. If no input arrives for 2 minutes the battle is aborted with a `timeout` event.
 
 ```bash
-curl -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')"
-# {"id":"<id>","double":false,"weather":0}
+curl -si -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')" | grep -i x-battle-id
+curl -N -X POST localhost:8080/battles/start -H "X-Battle-ID: <id>"
+curl -X POST localhost:8080/battles/input -H "X-Battle-ID: <id>" -d '{"choice":1}'
 ```
 
 Invalid input returns `400` with `{"error": "..."}`.

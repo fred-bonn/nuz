@@ -14,6 +14,8 @@ type guidedAi struct {
 	input   *bufio.Reader
 	output  io.Writer
 	pending actionCandidate
+	// aborted is only set for interactive battles; when it reports true, an ended input aborts the battle.
+	aborted func() bool
 }
 
 func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
@@ -40,6 +42,10 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 		ga.print("> ")
 		line, err := ga.input.ReadString('\n')
 		if err != nil && len(line) == 0 {
+			if ga.aborted != nil && ga.aborted() {
+				bs.setError(fmt.Errorf("guided AI input ended before a valid choice was entered"))
+				return actions[0], 1
+			}
 			ga.print("error: guided AI input ended before a valid choice was entered\n")
 			continue
 		}
@@ -97,6 +103,9 @@ func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSl
 }
 
 func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {
+	if ga.aborted != nil && ga.aborted() {
+		return false
+	}
 	return ga.pending.move == nil
 }
 
