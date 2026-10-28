@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/fred-bonn/nuz/nuzengine"
 )
 
 // fakeBattle asks for `prompts` answers and then ends.
@@ -56,6 +58,12 @@ func (f *fakeBattle) Send(line string) error {
 
 func (f *fakeBattle) Close()          { f.closeOnce.Do(func() { close(f.closed) }) }
 func (f *fakeBattle) PlayerWon() bool { return true }
+func (f *fakeBattle) Snapshot() nuzengine.BattleSnapshot {
+	return nuzengine.BattleSnapshot{
+		Player:   nuzengine.SideSnapshot{Active: []nuzengine.PokemonSnapshot{{Name: "pika", HP: 20, MaxHP: 45}}},
+		Opponent: nuzengine.SideSnapshot{Active: []nuzengine.PokemonSnapshot{{Name: "rat", HP: 10, MaxHP: 10}}},
+	}
+}
 
 func newTestServer(t *testing.T, fb *fakeBattle, timeout time.Duration) (*server, *httptest.Server, string) {
 	t.Helper()

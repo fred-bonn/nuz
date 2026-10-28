@@ -35,9 +35,10 @@ type createBattleRequest struct {
 }
 
 type createBattleResponse struct {
-	ID      string `json:"id"`
-	Double  bool   `json:"double"`
-	Weather int    `json:"weather"`
+	ID      string                   `json:"id"`
+	Double  bool                     `json:"double"`
+	Weather int                      `json:"weather"`
+	State   nuzengine.BattleSnapshot `json:"state"`
 }
 
 type errorResponse struct {
@@ -192,7 +193,7 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	time.AfterFunc(s.timeout, func() { s.expireIfUnstarted(id) })
 
 	w.Header().Set(battleIDHeader, id)
-	respondWithJSON(w, http.StatusCreated, createBattleResponse{ID: id, Double: req.Double, Weather: req.Weather})
+	respondWithJSON(w, http.StatusCreated, createBattleResponse{ID: id, Double: req.Double, Weather: req.Weather, State: bs.Snapshot()})
 }
 
 func (s *server) full() bool {

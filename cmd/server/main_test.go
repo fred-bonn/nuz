@@ -68,6 +68,9 @@ func TestCreateBattle(t *testing.T) {
 			if got := rec.Header().Get(battleIDHeader); got != resp.ID {
 				t.Fatalf("%s header = %q, want %q", battleIDHeader, got, resp.ID)
 			}
+			if len(resp.State.Player.Active) != 1 || resp.State.Player.Active[0].Name != "pika" || resp.State.Player.Active[0].MaxHP != 45 {
+				t.Fatalf("unexpected state in response: %+v", resp.State)
+			}
 		})
 	}
 }

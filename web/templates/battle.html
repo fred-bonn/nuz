@@ -8,6 +8,71 @@
   <h1>Battle</h1>
   <p>Battle initialized successfully.</p>
   <p>Battle id: {{.ID}}</p>
+  <p id="state-error" style="color: #b00020;"></p>
+
+  <div style="display: flex; justify-content: space-between; gap: 48px; margin: 24px 0;">
+    <section id="player-side" style="flex: 1;">
+      <h2>Player</h2>
+      <h3>On field</h3>
+      <ul id="player-active"></ul>
+      <h3>Party</h3>
+      <ul id="player-bench"></ul>
+    </section>
+    <section id="opponent-side" style="flex: 1; text-align: right;">
+      <h2>Opponent</h2>
+      <h3>On field</h3>
+      <ul id="opponent-active" style="list-style-position: inside;"></ul>
+      <h3>Party</h3>
+      <ul id="opponent-bench" style="list-style-position: inside;"></ul>
+    </section>
+  </div>
+
+  <div style="margin: 24px 0;">
+    <button type="button" id="start">Start</button>
+  </div>
   <p><a href="/">Back</a></p>
+
+  <script>
+    const battleId = new URLSearchParams(window.location.search).get("id");
+
+    function describe(mon) {
+      let text = mon.name + " " + mon.hp + "/" + mon.maxHp;
+      if (mon.fainted) {
+        text += " (fainted)";
+      }
+      if (mon.ailments && mon.ailments.length > 0) {
+        text += " [" + mon.ailments.join(", ") + "]";
+      }
+      return text;
+    }
+
+    function fill(id, mons) {
+      const list = document.getElementById(id);
+      list.replaceChildren();
+      if (!mons || mons.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "(none)";
+        list.appendChild(li);
+        return;
+      }
+      for (const mon of mons) {
+        const li = document.createElement("li");
+        li.textContent = describe(mon);
+        list.appendChild(li);
+      }
+    }
+
+    const saved = sessionStorage.getItem("battle:" + battleId);
+    if (!saved) {
+      document.getElementById("state-error").textContent =
+        "Battle state is not available in this browser session.";
+    } else {
+      const state = JSON.parse(saved).state;
+      fill("player-active", state.player.active);
+      fill("player-bench", state.player.bench);
+      fill("opponent-active", state.opponent.active);
+      fill("opponent-bench", state.opponent.bench);
+    }
+  </script>
 </body>
 </html>

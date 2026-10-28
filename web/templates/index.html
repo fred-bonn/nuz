@@ -64,6 +64,7 @@
           errorBox.textContent = "Battle init failed: " + (data.error || resp.statusText || resp.status);
           return;
         }
+        sessionStorage.setItem("battle:" + data.id, JSON.stringify(data));
         window.location.href = "/battle?id=" + encodeURIComponent(data.id);
       } catch (err) {
         errorBox.textContent = "Battle init failed: " + err.message;

@@ -9,6 +9,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/fred-bonn/nuz/nuzengine"
 )
 
 const (
@@ -22,6 +24,7 @@ type battle interface {
 	Send(line string) error
 	Close()
 	PlayerWon() bool
+	Snapshot() nuzengine.BattleSnapshot
 }
 
 type session struct {

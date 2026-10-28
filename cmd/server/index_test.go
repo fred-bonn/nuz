@@ -17,7 +17,9 @@ func TestBattlePage(t *testing.T) {
 		wantNot    string
 	}{
 		{name: "with id", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: "initialized successfully"},
-		{name: "id is escaped", method: http.MethodGet, path: "/battle?id=%3Cscript%3E", wantStatus: http.StatusOK, wantBody: "&lt;script&gt;", wantNot: "<script>"},
+		{name: "has start button and sides", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `id="start"`},
+		{name: "has opponent side", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `id="opponent-active"`},
+		{name: "id is escaped", method: http.MethodGet, path: "/battle?id=%3Cb%3Ex", wantStatus: http.StatusOK, wantBody: "&lt;b&gt;x", wantNot: "<b>x"},
 		{name: "missing id", method: http.MethodGet, path: "/battle", wantStatus: http.StatusSeeOther},
 		{name: "wrong method", method: http.MethodPost, path: "/battle?id=abc", wantStatus: http.StatusMethodNotAllowed},
 	}
