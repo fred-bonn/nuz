@@ -203,8 +203,9 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			send(event{Type: "end", Won: &won, State: &state})
 			return
 		case <-timerC:
-			send(event{Type: "timeout", Error: "no input received in time"})
+			// Abort first so the battle is already gone when the client sees the timeout.
 			abort()
+			send(event{Type: "timeout", Error: "no input received in time"})
 			return
 		case <-r.Context().Done():
 			abort()
