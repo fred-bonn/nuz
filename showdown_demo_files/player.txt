@@ -2,8 +2,6 @@ Horsea @ Oran Berry
 Level: 17
 Modest Nature
 Ability: Swift Swim
-Status: Burn
-HP: 5
 - Bubble Beam
 - Twister
 

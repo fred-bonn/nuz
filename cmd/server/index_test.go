@@ -18,6 +18,9 @@ func TestBattlePage(t *testing.T) {
 	}{
 		{name: "with id", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: "initialized successfully"},
 		{name: "has start button and sides", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `id="start"`},
+		{name: "has choices container", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `id="choices"`},
+		{name: "uses start endpoint", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `/battles/start`},
+		{name: "uses input endpoint", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `/battles/input`},
 		{name: "has opponent side", method: http.MethodGet, path: "/battle?id=abc123", wantStatus: http.StatusOK, wantBody: `id="opponent-active"`},
 		{name: "id is escaped", method: http.MethodGet, path: "/battle?id=%3Cb%3Ex", wantStatus: http.StatusOK, wantBody: "&lt;b&gt;x", wantNot: "<b>x"},
 		{name: "missing id", method: http.MethodGet, path: "/battle", wantStatus: http.StatusSeeOther},

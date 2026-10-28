@@ -33,7 +33,7 @@ func newFakeBattle(prompts int) *fakeBattle {
 
 func (f *fakeBattle) Run(out io.Writer) error {
 	for i := 0; i < f.prompts; i++ {
-		fmt.Fprintf(out, "Choose an action:\n")
+		fmt.Fprintf(out, "Choose an action:\n1. tackle against rat\n2. switch to raichu (30/30 HP)\n")
 		fmt.Fprintf(out, "> ")
 		select {
 		case line := <-f.lines:
@@ -129,13 +129,19 @@ func TestBattleFlow(t *testing.T) {
 		if ev.Type != "prompt" || !strings.Contains(ev.Text, "Choose an action") || strings.HasSuffix(ev.Text, "> ") {
 			t.Fatalf("prompt %d = %+v", i, ev)
 		}
+		if len(ev.Options) != 2 || ev.Options[0] != "tackle against rat" || ev.Options[1] != "switch to raichu (30/30 HP)" {
+			t.Fatalf("prompt %d options = %v", i, ev.Options)
+		}
+		if ev.State == nil || len(ev.State.Player.Active) != 1 || ev.State.Player.Active[0].Name != "pika" {
+			t.Fatalf("prompt %d state = %+v", i, ev.State)
+		}
 		in := post(t, ts.URL+"/battles/input", id, fmt.Sprintf(`{"choice":%s}`, choice))
 		in.Body.Close()
 		if in.StatusCode != http.StatusAccepted {
 			t.Fatalf("input status = %d", in.StatusCode)
 		}
 	}
-	if ev := readEvent(t, sc); ev.Type != "end" || ev.Won == nil || !*ev.Won {
+	if ev := readEvent(t, sc); ev.Type != "end" || ev.Won == nil || !*ev.Won || ev.State == nil {
 		t.Fatalf("end event = %+v", ev)
 	}
 	if got := strings.Join(fb.answers, ","); got != "1,2" {
@@ -282,6 +288,34 @@ func TestInteractiveBattleWithDemoFiles(t *testing.T) {
 				}
 			}
 			t.Fatal("battle did not end")
+		})
+	}
+}
+
+func TestParsePromptOptions(t *testing.T) {
+	tests := []struct {
+		name string
+		text string
+		want []string
+	}{
+		{name: "action prompt", text: "Choose an action:\n1. tackle against rat\n2. switch to raichu (30/30 HP)\n", want: []string{"tackle against rat", "switch to raichu (30/30 HP)"}},
+		{name: "replacement prompt", text: "Choose a replacement:\n1. pikachu (10/20 HP)\n", want: []string{"pikachu (10/20 HP)"}},
+		{name: "double digit numbering", text: "Choose an action:\n9. a\n10. b\n", want: []string{"a", "b"}},
+		{name: "windows line endings", text: "Choose:\r\n1. a\r\n", want: []string{"a"}},
+		{name: "error re-prompt has no options", text: "error: invalid input, please enter a number between 1 and 3\n", want: nil},
+		{name: "empty", text: "", want: nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := parsePromptOptions(tt.text)
+			if len(got) != len(tt.want) {
+				t.Fatalf("got %v, want %v", got, tt.want)
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Fatalf("got %v, want %v", got, tt.want)
+				}
+			}
 		})
 	}
 }

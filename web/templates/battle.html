@@ -30,6 +30,10 @@
   <div style="margin: 24px 0;">
     <button type="button" id="start">Start</button>
   </div>
+
+  <p id="prompt" style="margin: 24px 0;"></p>
+  <div id="choices" style="display: flex; flex-wrap: wrap; gap: 16px; margin: 24px 0;"></div>
+  <p id="message" style="margin: 24px 0; font-weight: bold;"></p>
   <p><a href="/">Back</a></p>
 
   <script>
@@ -62,17 +66,139 @@
       }
     }
 
-    const saved = sessionStorage.getItem("battle:" + battleId);
-    if (!saved) {
-      document.getElementById("state-error").textContent =
-        "Battle state is not available in this browser session.";
-    } else {
-      const state = JSON.parse(saved).state;
+    function render(state) {
       fill("player-active", state.player.active);
       fill("player-bench", state.player.bench);
       fill("opponent-active", state.opponent.active);
       fill("opponent-bench", state.opponent.bench);
     }
+
+    const startButton = document.getElementById("start");
+    const promptBox = document.getElementById("prompt");
+    const choicesBox = document.getElementById("choices");
+    const messageBox = document.getElementById("message");
+    const errorBox = document.getElementById("state-error");
+
+    const saved = sessionStorage.getItem("battle:" + battleId);
+    if (!saved) {
+      errorBox.textContent = "Battle state is not available in this browser session.";
+    } else {
+      render(JSON.parse(saved).state);
+    }
+
+    function setChoicesDisabled(disabled) {
+      for (const button of choicesBox.querySelectorAll("button")) {
+        button.disabled = disabled;
+      }
+    }
+
+    async function choose(choice) {
+      errorBox.textContent = "";
+      setChoicesDisabled(true);
+      try {
+        const resp = await fetch("/battles/input", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "X-Battle-ID": battleId },
+          body: JSON.stringify({ choice }),
+        });
+        if (resp.status !== 202) {
+          const data = await resp.json().catch(() => ({}));
+          errorBox.textContent = "Sending choice failed: " + (data.error || resp.status);
+          setChoicesDisabled(false);
+        }
+      } catch (err) {
+        errorBox.textContent = "Sending choice failed: " + err.message;
+        setChoicesDisabled(false);
+      }
+    }
+
+    function showPrompt(ev) {
+      if (ev.state) {
+        render(ev.state);
+      }
+      const lines = (ev.text || "").split("\n").filter((line) => line !== "");
+      if (!ev.options || ev.options.length === 0) {
+        // Re-prompt after an invalid choice: keep the existing buttons.
+        errorBox.textContent = lines.join(" ");
+        setChoicesDisabled(false);
+        return;
+      }
+      promptBox.textContent = lines[0] || "";
+      choicesBox.replaceChildren();
+      ev.options.forEach((option, i) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = (i + 1) + ". " + option;
+        button.addEventListener("click", () => choose(i + 1));
+        choicesBox.appendChild(button);
+      });
+    }
+
+    function finish(message) {
+      promptBox.textContent = "";
+      choicesBox.replaceChildren();
+      messageBox.textContent = message;
+    }
+
+    function handleEvent(ev) {
+      switch (ev.type) {
+        case "prompt":
+          showPrompt(ev);
+          return false;
+        case "end":
+          if (ev.state) {
+            render(ev.state);
+          }
+          finish(ev.won ? "The battle is over. You won!" : "The battle is over. You lost.");
+          return true;
+        default:
+          finish("Battle aborted: " + (ev.error || ev.type));
+          return true;
+      }
+    }
+
+    async function startBattle() {
+      errorBox.textContent = "";
+      startButton.disabled = true;
+      let ended = false;
+      try {
+        const resp = await fetch("/battles/start", {
+          method: "POST",
+          headers: { "X-Battle-ID": battleId },
+        });
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          errorBox.textContent = "Starting battle failed: " + (data.error || resp.status);
+          startButton.disabled = false;
+          return;
+        }
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) {
+            break;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          let newline;
+          while ((newline = buffer.indexOf("\n")) >= 0) {
+            const line = buffer.slice(0, newline).trim();
+            buffer = buffer.slice(newline + 1);
+            if (line !== "") {
+              ended = handleEvent(JSON.parse(line)) || ended;
+            }
+          }
+        }
+        if (!ended) {
+          finish("Connection to the battle was lost.");
+        }
+      } catch (err) {
+        finish("Battle failed: " + err.message);
+      }
+    }
+
+    startButton.addEventListener("click", startBattle);
   </script>
 </body>
 </html>

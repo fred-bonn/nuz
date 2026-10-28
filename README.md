@@ -88,7 +88,7 @@ The main entrypoint is in [cmd/cli/main.go](cmd/cli/main.go). Supported flags ar
 Battles are interactive: the player is driven by the guided AI over HTTP.
 
 1. `POST /battles` accepts JSON with Showdown party text and settings, initialises a battle and replies `201` with the id in the `X-Battle-ID` header (and body). Unstarted battles expire after 2 minutes.
-2. `POST /battles/start` (header `X-Battle-ID`) starts the battle. The `200` response stays open and streams newline-delimited JSON events: `{"type":"prompt","text":...}` whenever input is needed, then `{"type":"end","won":bool}` when the battle ends (`error`/`timeout` otherwise).
+2. `POST /battles/start` (header `X-Battle-ID`) starts the battle. The `200` response stays open and streams newline-delimited JSON events: `{"type":"prompt","text":...,"options":[...],"state":{...}}` whenever input is needed (`options` are the numbered choices, `state` is the full battle state), then `{"type":"end","won":bool,"state":{...}}` when the battle ends (`error`/`timeout` otherwise). `201` from `POST /battles` also includes the initial `state`.
 3. `POST /battles/input` (header `X-Battle-ID`, body `{"choice":N}`) answers the pending prompt with `202`; the next prompt arrives on the stream. Invalid choices are re-prompted on the stream with an error message. If no input arrives for 2 minutes the battle is aborted with a `timeout` event.
 
 ```bash

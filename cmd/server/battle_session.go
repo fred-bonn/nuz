@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,10 +40,26 @@ func newSession(b battle) *session {
 }
 
 type event struct {
-	Type  string `json:"type"`
-	Text  string `json:"text,omitempty"`
-	Won   *bool  `json:"won,omitempty"`
-	Error string `json:"error,omitempty"`
+	Type    string   `json:"type"`
+	Text    string   `json:"text,omitempty"`
+	Options []string `json:"options,omitempty"`
+	// State is the full battle state when the event was emitted.
+	State *nuzengine.BattleSnapshot `json:"state,omitempty"`
+	Won   *bool                     `json:"won,omitempty"`
+	Error string                    `json:"error,omitempty"`
+}
+
+var optionPattern = regexp.MustCompile(`^[0-9]+\. (.+)$`)
+
+// parsePromptOptions extracts the numbered options ("1. tackle") from prompt text, in order.
+func parsePromptOptions(text string) []string {
+	var options []string
+	for _, line := range strings.Split(text, "\n") {
+		if m := optionPattern.FindStringSubmatch(strings.TrimRight(line, "\r")); m != nil {
+			options = append(options, m[1])
+		}
+	}
+	return options
 }
 
 type inputRequest struct {
@@ -65,8 +82,11 @@ func (pw *promptWriter) Write(p []byte) (int, error) {
 	}
 	pw.buf.Reset()
 	pw.sess.awaiting.Store(true)
+	text = strings.TrimSuffix(text, "> ")
+	// Write runs on the engine goroutine, which is blocked on input, so reading the state here is safe.
+	state := pw.sess.battle.Snapshot()
 	select {
-	case pw.events <- event{Type: "prompt", Text: strings.TrimSuffix(text, "> ")}:
+	case pw.events <- event{Type: "prompt", Text: text, Options: parsePromptOptions(text), State: &state}:
 	case <-pw.done:
 	}
 	return len(p), nil
@@ -179,7 +199,8 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			won := sess.battle.PlayerWon()
-			send(event{Type: "end", Won: &won})
+			state := sess.battle.Snapshot()
+			send(event{Type: "end", Won: &won, State: &state})
 			return
 		case <-timerC:
 			send(event{Type: "timeout", Error: "no input received in time"})
