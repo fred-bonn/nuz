@@ -32,6 +32,45 @@
     <div style="margin: 24px 0;">
       <button type="button" id="send">Send</button>
     </div>
+    <p id="error" role="alert" style="margin: 24px 0; color: #b00020;"></p>
   </form>
+  <script>
+    const sendButton = document.getElementById("send");
+    const errorBox = document.getElementById("error");
+
+    sendButton.addEventListener("click", async () => {
+      errorBox.textContent = "";
+      const playerFile = document.getElementById("player").files[0];
+      const opponentFile = document.getElementById("opponent").files[0];
+      if (!playerFile || !opponentFile) {
+        errorBox.textContent = "Please choose both a player and an opponent file.";
+        return;
+      }
+      sendButton.disabled = true;
+      try {
+        const body = JSON.stringify({
+          player: await playerFile.text(),
+          opponent: await opponentFile.text(),
+          double: document.getElementById("double").checked,
+          weather: parseInt(document.getElementById("weather").value, 10),
+        });
+        const resp = await fetch("/battles", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (resp.status !== 201) {
+          errorBox.textContent = "Battle init failed: " + (data.error || resp.statusText || resp.status);
+          return;
+        }
+        window.location.href = "/battle?id=" + encodeURIComponent(data.id);
+      } catch (err) {
+        errorBox.textContent = "Battle init failed: " + err.message;
+      } finally {
+        sendButton.disabled = false;
+      }
+    });
+  </script>
 </body>
 </html>
