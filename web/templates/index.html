@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Nuzlocke Verifier</title>
+</head>
+<body>
+  <h1>Nuzlocke Verifier</h1>
+  <form id="battle-form">
+    <div style="margin: 24px 0;">
+      <label for="player">Player party (Showdown file)</label><br>
+      <input type="file" id="player" name="player" accept=".txt,text/plain">
+    </div>
+    <div style="margin: 24px 0;">
+      <label for="opponent">Opponent party (Showdown file)</label><br>
+      <input type="file" id="opponent" name="opponent" accept=".txt,text/plain">
+    </div>
+    <div style="margin: 24px 0;">
+      <input type="checkbox" id="double" name="double">
+      <label for="double">Double battle</label>
+    </div>
+    <div style="margin: 24px 0;">
+      <label for="weather">Weather</label><br>
+      <select id="weather" name="weather">
+        <option value="0" selected>None</option>
+        <option value="1">Rain</option>
+        <option value="2">Sun</option>
+        <option value="3">Sandstorm</option>
+        <option value="4">Hail</option>
+      </select>
+    </div>
+    <div style="margin: 24px 0;">
+      <button type="button" id="send">Send</button>
+    </div>
+  </form>
+</body>
+</html>

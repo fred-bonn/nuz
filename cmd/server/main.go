@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/fred-bonn/nuz/nuzengine"
+	"github.com/fred-bonn/nuz/web"
 	"github.com/spf13/pflag"
 )
 
@@ -67,6 +70,7 @@ func newServer() *server {
 
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", s.handleIndex)
 	mux.HandleFunc("/battles", s.handleBattleInit)
 	mux.HandleFunc("/battles/start", s.handleBattleStart)
 	mux.HandleFunc("/battles/input", s.handleBattleInput)
@@ -92,6 +96,27 @@ func (s *server) secure(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+var pages = template.Must(template.ParseFS(web.Templates, "templates/*.html"))
+
+func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path != "/" {
+		http.NotFound(w, r)
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	var buf bytes.Buffer
+	if err := pages.ExecuteTemplate(&buf, "index.html", nil); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = buf.WriteTo(w)
 }
 
 func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
