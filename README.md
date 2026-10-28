@@ -1,6 +1,6 @@
 # nuz - Nuzlocke Verifier
 
-A command line tool for simulating Pokemon battles for the purpose of developing strategies for Nuzlocke playthroughs.
+A command line tool and web server for simulating Pokemon battles for the purpose of developing strategies for Nuzlocke playthroughs.
 
 ## What is a Nuzlocke?
 
@@ -17,11 +17,10 @@ Losing Pokemon in a Nuzlocke playthrough can quickly compound and lead to a rese
 
 ## Quick Start
 
-Install nuz using the Go toolchain.
+Install using the Go toolchain. This installs a binary named `cli`; the examples below call it `nuz`, which is what `make build` writes to `./bin/nuz`.
 
 ```bash
-go install github.com/fred-bonn/nuz@latest
-
+go install github.com/fred-bonn/nuz/cmd/cli@latest
 ```
 
 ```bash
@@ -82,24 +81,7 @@ The main entrypoint is in [cmd/cli/main.go](cmd/cli/main.go). Supported flags ar
 | `-w <0..4>` | Weather override: `0=none`, `1=rain`, `2=sun`, `3=sandstorm`, `4=hail`; default `0` |
 | `-d` | Initialise a double battle instead of the default single battle |
 
-### Server
-
-`make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). 
-Battles are interactive: the player is driven by the guided AI over HTTP.
-
-1. `POST /battles` accepts JSON with Showdown party text and settings, initialises a battle and replies `201` with the id in the `X-Battle-ID` header (and body). Unstarted battles expire after 2 minutes.
-2. `POST /battles/start` (header `X-Battle-ID`) starts the battle. The `200` response stays open and streams newline-delimited JSON events: `{"type":"prompt","text":...,"options":[...],"state":{...}}` whenever input is needed (`options` are the numbered choices, `state` is the full battle state), then `{"type":"end","won":bool,"state":{...}}` when the battle ends (`error`/`timeout` otherwise). `201` from `POST /battles` also includes the initial `state`.
-3. `POST /battles/input` (header `X-Battle-ID`, body `{"choice":N}`) answers the pending prompt with `202`; the next prompt arrives on the stream. Invalid choices are re-prompted on the stream with an error message. If no input arrives for 2 minutes the battle is aborted with a `timeout` event.
-
-```bash
-curl -si -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')" | grep -i x-battle-id
-curl -N -X POST localhost:8080/battles/start -H "X-Battle-ID: <id>"
-curl -X POST localhost:8080/battles/input -H "X-Battle-ID: <id>" -d '{"choice":1}'
-```
-
-Invalid input returns `400` with `{"error": "..."}`.
-
-Examples:
+### Examples
 
 Train and save a policy to `data/policy.json.gz`:
 
@@ -119,6 +101,26 @@ Run a battle with the random AI controlling the player:
 nuz -a 2 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
 ```
 
+## Server
+
+`make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). Visiting it in a browser shows a page to upload the two Showdown party files, pick single/double battle and weather, and play the battle through numbered choice buttons (templates live in [web/templates](web/templates)).
+
+To serve HTTPS, pass both `--tls-cert <file>` and `--tls-key <file>` (e.g. `make serve SERVE_ARGS="--tls-cert cert.pem --tls-key key.pem"`); HSTS is then sent on every response. If a reverse proxy terminates TLS instead, it must not buffer `/battles/start` (nginx: `proxy_buffering off`) and its read timeout must exceed the 2 minute input timeout.
+
+The JSON API behind the page is below. Battles are interactive: the player is driven by the guided AI over HTTP.
+
+1. `POST /battles` accepts JSON with Showdown party text and settings, initialises a battle and replies `201` with the id in the `X-Battle-ID` header (and body). Unstarted battles expire after 2 minutes.
+2. `POST /battles/start` (header `X-Battle-ID`) starts the battle. The `200` response stays open and streams newline-delimited JSON events: `{"type":"prompt","text":...,"options":[...],"state":{...}}` whenever input is needed (`options` are the numbered choices, `state` is the full battle state), then `{"type":"end","won":bool,"state":{...}}` when the battle ends (`error`/`timeout` otherwise). `201` from `POST /battles` also includes the initial `state`.
+3. `POST /battles/input` (header `X-Battle-ID`, body `{"choice":N}`) answers the pending prompt with `202`; the next prompt arrives on the stream. Invalid choices are re-prompted on the stream with an error message. If no input arrives for 2 minutes the battle is aborted with a `timeout` event.
+
+```bash
+curl -si -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')" | grep -i x-battle-id
+curl -N -X POST localhost:8080/battles/start -H "X-Battle-ID: <id>"
+curl -X POST localhost:8080/battles/input -H "X-Battle-ID: <id>" -d '{"choice":1}'
+```
+
+Invalid input returns `400` with `{"error": "..."}`.
+
 ## Contributing
 
 ### Clone the repo
@@ -131,10 +133,10 @@ cd nuz
 ### Build the compiled binary
 
 ```bash
-go build
+go build ./cmd/cli
 ```
 
-Or:
+Or (runs the tests first, writes `./bin/nuz`):
 
 ```bash
 make build

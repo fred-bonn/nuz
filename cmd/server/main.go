@@ -56,6 +56,8 @@ type server struct {
 	// allowedOrigins lists browser origins permitted by CORS; empty disables CORS.
 	allowedOrigins []string
 	maxBattles     int
+	// tls reports whether the server is served over HTTPS; it enables HSTS.
+	tls bool
 }
 
 func newServer() *server {
@@ -83,6 +85,9 @@ func (s *server) handler() http.Handler {
 func (s *server) secure(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if s.tls {
+			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		}
 		if origin := r.Header.Get("Origin"); origin != "" && slices.Contains(s.allowedOrigins, origin) {
 			h := w.Header()
 			h.Add("Vary", "Origin")
@@ -216,11 +221,21 @@ func respondWithJSON(w http.ResponseWriter, status int, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+// validateTLS requires the certificate and key to be given together.
+func validateTLS(cert, key string) error {
+	if (cert == "") != (key == "") {
+		return errors.New("--tls-cert and --tls-key must be set together")
+	}
+	return nil
+}
+
 func main() {
 	fs := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	addr := fs.String("addr", ":8080", "address to listen on")
 	origins := fs.StringSlice("allow-origin", nil, "browser origin allowed by CORS (repeatable); CORS is disabled by default")
 	maxBattles := fs.Int("max-battles", defaultMaxBattles, "maximum number of concurrent battles")
+	tlsCert := fs.String("tls-cert", "", "TLS certificate file; serves HTTPS when set together with --tls-key")
+	tlsKey := fs.String("tls-key", "", "TLS private key file")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		if errors.Is(err, pflag.ErrHelp) {
 			return
@@ -228,7 +243,12 @@ func main() {
 		log.Fatalf("error: invalid flags: %s", err)
 	}
 
+	if err := validateTLS(*tlsCert, *tlsKey); err != nil {
+		log.Fatalf("error: invalid flags: %s", err)
+	}
+
 	s := newServer()
+	s.tls = *tlsCert != ""
 	s.allowedOrigins = *origins
 	s.maxBattles = *maxBattles
 	// No WriteTimeout: battle responses are long-lived streams.
@@ -239,6 +259,10 @@ func main() {
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       2 * time.Minute,
 		MaxHeaderBytes:    1 << 16,
+	}
+	if s.tls {
+		log.Printf("listening on %s (https)", *addr)
+		log.Fatal(srv.ListenAndServeTLS(*tlsCert, *tlsKey))
 	}
 	log.Printf("listening on %s", *addr)
 	log.Fatal(srv.ListenAndServe())
