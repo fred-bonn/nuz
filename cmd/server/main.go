@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -18,8 +19,9 @@ import (
 )
 
 const (
-	maxBodyBytes = 1 << 20
-	maxWeather   = 4
+	maxBodyBytes      = 1 << 20
+	maxWeather        = 4
+	defaultMaxBattles = 100
 )
 
 type createBattleRequest struct {
@@ -47,12 +49,16 @@ type server struct {
 	battles map[string]*session
 	init    initFunc
 	timeout time.Duration
+	// allowedOrigins lists browser origins permitted by CORS; empty disables CORS.
+	allowedOrigins []string
+	maxBattles     int
 }
 
 func newServer() *server {
 	return &server{
-		battles: make(map[string]*session),
-		timeout: inputTimeout,
+		battles:    make(map[string]*session),
+		timeout:    inputTimeout,
+		maxBattles: defaultMaxBattles,
 		init: func(t int, p, o string, w int) (battle, error) {
 			return nuzengine.InitInteractiveBattle(t, p, o, w)
 		},
@@ -64,7 +70,28 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("/battles", s.handleBattleInit)
 	mux.HandleFunc("/battles/start", s.handleBattleStart)
 	mux.HandleFunc("/battles/input", s.handleBattleInput)
-	return mux
+	return s.secure(mux)
+}
+
+// secure adds nosniff and CORS for allowed origins, and answers preflight requests.
+func (s *server) secure(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		if origin := r.Header.Get("Origin"); origin != "" && slices.Contains(s.allowedOrigins, origin) {
+			h := w.Header()
+			h.Add("Vary", "Origin")
+			h.Set("Access-Control-Allow-Origin", origin)
+			h.Set("Access-Control-Expose-Headers", battleIDHeader)
+			if r.Method == http.MethodOptions {
+				h.Set("Access-Control-Allow-Methods", "POST")
+				h.Set("Access-Control-Allow-Headers", "Content-Type, "+battleIDHeader)
+				h.Set("Access-Control-Max-Age", "600")
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
@@ -94,6 +121,10 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	if req.Double {
 		battleStateType = 1
 	}
+	if s.full() {
+		respondWithJSON(w, http.StatusServiceUnavailable, errorResponse{"too many active battles"})
+		return
+	}
 	bs, err := s.init(battleStateType, req.Player, req.Opponent, req.Weather)
 	if err != nil {
 		respondWithJSON(w, http.StatusBadRequest, errorResponse{err.Error()})
@@ -106,6 +137,12 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.mu.Lock()
+	if len(s.battles) >= s.maxBattles {
+		s.mu.Unlock()
+		bs.Close()
+		respondWithJSON(w, http.StatusServiceUnavailable, errorResponse{"too many active battles"})
+		return
+	}
 	s.battles[id] = newSession(bs)
 	s.mu.Unlock()
 	time.AfterFunc(s.timeout, func() { s.expireIfUnstarted(id) })
@@ -114,8 +151,14 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	respondWithJSON(w, http.StatusCreated, createBattleResponse{ID: id, Double: req.Double, Weather: req.Weather})
 }
 
+func (s *server) full() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.battles) >= s.maxBattles
+}
+
 func newID() (string, error) {
-	b := make([]byte, 8)
+	b := make([]byte, 16)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
 	}
@@ -131,6 +174,8 @@ func respondWithJSON(w http.ResponseWriter, status int, v any) {
 func main() {
 	fs := pflag.NewFlagSet("server", pflag.ContinueOnError)
 	addr := fs.String("addr", ":8080", "address to listen on")
+	origins := fs.StringSlice("allow-origin", nil, "browser origin allowed by CORS (repeatable); CORS is disabled by default")
+	maxBattles := fs.Int("max-battles", defaultMaxBattles, "maximum number of concurrent battles")
 	if err := fs.Parse(os.Args[1:]); err != nil {
 		if errors.Is(err, pflag.ErrHelp) {
 			return
@@ -138,6 +183,18 @@ func main() {
 		log.Fatalf("error: invalid flags: %s", err)
 	}
 
+	s := newServer()
+	s.allowedOrigins = *origins
+	s.maxBattles = *maxBattles
+	// No WriteTimeout: battle responses are long-lived streams.
+	srv := &http.Server{
+		Addr:              *addr,
+		Handler:           s.handler(),
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    1 << 16,
+	}
 	log.Printf("listening on %s", *addr)
-	log.Fatal(http.ListenAndServe(*addr, newServer().handler()))
+	log.Fatal(srv.ListenAndServe())
 }

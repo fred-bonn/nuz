@@ -2,6 +2,7 @@ package nuzengine
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 	"testing"
 )
@@ -98,5 +99,51 @@ func TestGuidedAIEvaluateActionsInput(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestParseChoice(t *testing.T) {
+	tests := []struct {
+		line    string
+		want    int
+		wantErr bool
+	}{
+		{line: "1\n", want: 1},
+		{line: "12\r\n", want: 12},
+		{line: "7", want: 7},
+		{line: "0\n", want: 0},
+		{line: "", wantErr: true},
+		{line: "\n", wantErr: true},
+		{line: " 1\n", wantErr: true},
+		{line: "1 \n", wantErr: true},
+		{line: "+1\n", wantErr: true},
+		{line: "-1\n", wantErr: true},
+		{line: "1 2\n", wantErr: true},
+		{line: "1abc\n", wantErr: true},
+		{line: "1\n2\n", wantErr: true},
+		{line: "1.0\n", wantErr: true},
+		{line: "0x1\n", wantErr: true},
+		{line: "١\n", wantErr: true},
+		{line: "99999999999999999999\n", wantErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(fmt.Sprintf("%q", tt.line), func(t *testing.T) {
+			got, err := parseChoice(tt.line)
+			if (err != nil) != tt.wantErr || got != tt.want {
+				t.Fatalf("parseChoice = %d, %v; want %d, err=%v", got, err, tt.want, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestGuidedAIDiscardsNonNumericInput(t *testing.T) {
+	mons := []*pokemon{{base: BasePokemon{Name: "first"}, stats: []int{10}}, {base: BasePokemon{Name: "second"}, stats: []int{10}}}
+	var output bytes.Buffer
+	ga := newGuidedAI(strings.NewReader("1 2\n+2\n -1\n2abc\n2\n"), &output)
+	if got := ga.evaluteSwitchIns(nil, mons, nil); got != mons[1] {
+		t.Fatalf("got %v, want second", got)
+	}
+	if n := strings.Count(output.String(), "invalid input"); n != 4 {
+		t.Fatalf("invalid input messages = %d, want 4", n)
 	}
 }

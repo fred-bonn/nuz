@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -50,7 +51,7 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 			continue
 		}
 
-		choice, err := strconv.Atoi(strings.TrimSpace(line))
+		choice, err := parseChoice(line)
 		if err != nil {
 			ga.print("error: invalid input, please enter a number between 1 and %d\n", numberOfChoices)
 			continue
@@ -89,7 +90,7 @@ func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSl
 			return nil
 		}
 
-		choice, err := strconv.Atoi(strings.TrimSpace(line))
+		choice, err := parseChoice(line)
 		if err != nil {
 			ga.print("error: invalid input, please enter a number between 1 and %d\n", len(mons))
 			continue
@@ -100,6 +101,18 @@ func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSl
 		}
 		return mons[choice-1]
 	}
+}
+
+var choicePattern = regexp.MustCompile(`^[0-9]{1,9}$`)
+
+// parseChoice accepts a line consisting of a single non-negative number and nothing else
+// (apart from the line terminator).
+func parseChoice(line string) (int, error) {
+	line = strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
+	if !choicePattern.MatchString(line) {
+		return 0, fmt.Errorf("input is not a single number")
+	}
+	return strconv.Atoi(line)
 }
 
 func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool {

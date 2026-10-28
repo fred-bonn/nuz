@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/fred-bonn/nuz/nuzengine/internal/parser"
@@ -27,6 +28,18 @@ func (cfg *config) validateInput(trainerContent string) ([]*pokemon, error) {
 func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*pokemon, error) {
 	if len(trainerPokemon) == 0 {
 		return nil, fmt.Errorf("showdown party is empty")
+	}
+
+	// Validate every name before any cache or network access happens.
+	for _, parsed := range trainerPokemon {
+		if err := validateName(parsed.Name); err != nil {
+			return nil, fmt.Errorf("invalid pokemon name %q: %w", parsed.Name, err)
+		}
+		for _, moveName := range parsed.Moves {
+			if err := validateName(moveName); err != nil {
+				return nil, fmt.Errorf("invalid move name %q: %w", moveName, err)
+			}
+		}
 	}
 
 	trainerParty, err := cfg.loadShowdown(trainerPokemon)
@@ -75,6 +88,10 @@ func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*pokem
 func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	var p BasePokemon
 
+	if !apiSlugPattern.MatchString(name) {
+		return p, fmt.Errorf("invalid pokemon name %q", name)
+	}
+
 	data, err := os.ReadFile(fmt.Sprintf("data/pokemon/%s.json", name))
 	if err == nil {
 		// If the file exists and is read successfully, unmarshal it into a Pokemon struct
@@ -110,6 +127,10 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 
 func (cfg *config) loadMove(name string) (Move, error) {
 	var m Move
+
+	if !apiSlugPattern.MatchString(name) {
+		return m, fmt.Errorf("invalid move name %q", name)
+	}
 
 	if strings.HasPrefix(name, "hidden-power") {
 		// If the move is Hidden Power, generate it
@@ -183,6 +204,34 @@ func writeToFile(filename string, data []byte) error {
 		return fmt.Errorf("error creating directory: %w", err)
 	}
 	return os.WriteFile(filename, data, 0644)
+}
+
+const maxNameLength = 40
+
+// apiSlugPattern is the only form that may reach file paths and API URLs.
+var apiSlugPattern = regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+
+// validateName checks a Pokémon or move name from a party file: it must start with an ASCII
+// letter and otherwise contain only ASCII letters, digits, spaces, '.', '-' and apostrophes
+// (e.g. "Mr. Mime", "Farfetch'd", "Ho-Oh", "Porygon2").
+func validateName(name string) error {
+	if name == "" {
+		return fmt.Errorf("name is empty")
+	}
+	if len(name) > maxNameLength {
+		return fmt.Errorf("name is longer than %d characters", maxNameLength)
+	}
+	for i, r := range name {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z':
+		case i == 0:
+			return fmt.Errorf("name must start with a letter")
+		case r >= '0' && r <= '9', r == ' ', r == '.', r == '-', r == '\'', r == '’':
+		default:
+			return fmt.Errorf("name contains illegal character %q", r)
+		}
+	}
+	return nil
 }
 
 func apiName(name string) string {

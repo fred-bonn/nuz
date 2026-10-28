@@ -93,6 +93,8 @@ func TestCreateBattleWithDemoFiles(t *testing.T) {
 	}{
 		{name: "single", player: string(player), opponent: string(opponent), wantStatus: http.StatusCreated},
 		{name: "double with rain", player: string(player), opponent: string(opponent), double: true, weather: 1, wantStatus: http.StatusCreated},
+		{name: "path traversal in pokemon name", player: "Pikachu/../../x\n- Thunderbolt\n", opponent: string(opponent), wantStatus: http.StatusBadRequest},
+		{name: "illegal move name", player: "Pikachu\n- Thunder~bolt\n", opponent: string(opponent), wantStatus: http.StatusBadRequest},
 		{name: "invalid player party", player: "not a showdown file", opponent: string(opponent), wantStatus: http.StatusBadRequest},
 	}
 	for _, tt := range tests {
@@ -109,6 +111,74 @@ func TestCreateBattleWithDemoFiles(t *testing.T) {
 			}
 			if tt.wantStatus == http.StatusCreated && len(s.battles) != 1 {
 				t.Fatalf("stored battles = %d, want 1", len(s.battles))
+			}
+		})
+	}
+}
+
+func TestSecurityHeadersAndCORS(t *testing.T) {
+	tests := []struct {
+		name        string
+		origin      string
+		method      string
+		wantStatus  int
+		wantOrigin  string
+		wantExposed bool
+	}{
+		{name: "allowed origin", origin: "https://app.example", method: http.MethodPost, wantStatus: http.StatusBadRequest, wantOrigin: "https://app.example", wantExposed: true},
+		{name: "preflight", origin: "https://app.example", method: http.MethodOptions, wantStatus: http.StatusNoContent, wantOrigin: "https://app.example", wantExposed: true},
+		{name: "other origin", origin: "https://evil.example", method: http.MethodPost, wantStatus: http.StatusBadRequest},
+		{name: "no origin", method: http.MethodPost, wantStatus: http.StatusBadRequest},
+		{name: "preflight from other origin", origin: "https://evil.example", method: http.MethodOptions, wantStatus: http.StatusMethodNotAllowed},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := newServer()
+			s.allowedOrigins = []string{"https://app.example"}
+			req := httptest.NewRequest(tt.method, "/battles", strings.NewReader("{"))
+			if tt.origin != "" {
+				req.Header.Set("Origin", tt.origin)
+			}
+			rec := httptest.NewRecorder()
+			s.handler().ServeHTTP(rec, req)
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+			if got := rec.Header().Get("Access-Control-Allow-Origin"); got != tt.wantOrigin {
+				t.Fatalf("allow-origin = %q, want %q", got, tt.wantOrigin)
+			}
+			if got := rec.Header().Get("Access-Control-Expose-Headers") != ""; got != tt.wantExposed {
+				t.Fatalf("expose headers set = %v, want %v", got, tt.wantExposed)
+			}
+			if rec.Header().Get("X-Content-Type-Options") != "nosniff" {
+				t.Fatal("missing nosniff")
+			}
+		})
+	}
+}
+
+func TestMaxBattlesAndIDLength(t *testing.T) {
+	s := newServer()
+	s.maxBattles = 2
+	s.init = func(int, string, string, int) (battle, error) { return &fakeBattle{closed: make(chan struct{})}, nil }
+
+	tests := []struct {
+		name       string
+		wantStatus int
+	}{
+		{"first", http.StatusCreated},
+		{"second", http.StatusCreated},
+		{"over limit", http.StatusServiceUnavailable},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			s.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/battles", strings.NewReader(`{"player":"a","opponent":"b"}`)))
+			if rec.Code != tt.wantStatus {
+				t.Fatalf("status = %d, want %d", rec.Code, tt.wantStatus)
+			}
+			if id := rec.Header().Get(battleIDHeader); tt.wantStatus == http.StatusCreated && len(id) != 32 {
+				t.Fatalf("id %q has length %d, want 32", id, len(id))
 			}
 		})
 	}
