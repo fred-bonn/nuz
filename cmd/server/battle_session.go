@@ -18,7 +18,7 @@ const (
 	battleIDHeader = "X-Battle-ID"
 	inputTimeout   = 2 * time.Minute
 	// hintInterval is how often the best known option is pushed while a prompt is pending.
-	hintInterval = 5 * time.Second
+	hintInterval = 1 * time.Second
 )
 
 // battle is an interactive battle driven through guided AI prompts.
