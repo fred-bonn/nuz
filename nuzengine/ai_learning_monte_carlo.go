@@ -45,8 +45,6 @@ const (
 	monteCarloEpsilon = 0.1
 
 	faintedMonPenalty = 10
-
-	policyFilePath = "data/policy.json.gz"
 )
 
 func LearnMonteCarlo(battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {

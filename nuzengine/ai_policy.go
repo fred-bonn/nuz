@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 )
 
@@ -101,7 +102,15 @@ func savePolicy(q qMap, playerPartyStr, opponentPartyStr string, weatherInt int,
 		disk.States = append(disk.States, ds)
 	}
 
-	file, err := os.Create(policyFilePath)
+	dataDir, err := dataDirectory()
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		return fmt.Errorf("failed creating data directory: %w", err)
+	}
+
+	file, err := os.Create(filepath.Join(dataDir, "policy.json.gz"))
 	if err != nil {
 		return fmt.Errorf("failed creating policy file: %w", err)
 	}

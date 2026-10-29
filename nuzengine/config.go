@@ -16,6 +16,28 @@ type config struct {
 	client pokeapi.Client
 }
 
+func dataDirectory() (string, error) {
+	workingDir, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed getting working directory: %w", err)
+	}
+
+	for dir := workingDir; ; dir = filepath.Dir(dir) {
+		_, err := os.Stat(filepath.Join(dir, "go.mod"))
+		if err == nil {
+			return filepath.Join(dir, "data"), nil
+		}
+		if !os.IsNotExist(err) {
+			return "", fmt.Errorf("failed locating project root: %w", err)
+		}
+
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return filepath.Join(workingDir, "data"), nil
+		}
+	}
+}
+
 func (cfg *config) validateInput(trainerContent string) ([]*pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(trainerContent)
 	if err != nil {
@@ -92,7 +114,13 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 		return p, fmt.Errorf("invalid pokemon name %q", name)
 	}
 
-	data, err := os.ReadFile(fmt.Sprintf("data/pokemon/%s.json", name))
+	dataDir, err := dataDirectory()
+	if err != nil {
+		return p, err
+	}
+	cachePath := filepath.Join(dataDir, "pokemon", name+".json")
+
+	data, err := os.ReadFile(cachePath)
 	if err == nil {
 		// If the file exists and is read successfully, unmarshal it into a Pokemon struct
 		err = json.Unmarshal(data, &p)
@@ -120,7 +148,9 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	if err != nil {
 		return BasePokemon{}, fmt.Errorf("failed marshaling Pokemon JSON data '%s' to file: %w", name, err)
 	}
-	writeToFile(fmt.Sprintf("data/pokemon/%s.json", name), data)
+	if err := writeToFile(cachePath, data); err != nil {
+		return BasePokemon{}, fmt.Errorf("failed saving Pokemon '%s' data: %w", name, err)
+	}
 
 	return p, nil
 }
@@ -142,7 +172,13 @@ func (cfg *config) loadMove(name string) (Move, error) {
 		return m, nil
 	}
 
-	data, err := os.ReadFile(fmt.Sprintf("data/moves/%s.json", name))
+	dataDir, err := dataDirectory()
+	if err != nil {
+		return m, err
+	}
+	cachePath := filepath.Join(dataDir, "moves", name+".json")
+
+	data, err := os.ReadFile(cachePath)
 	if err == nil {
 		// If the file exists and is read successfully, unmarshal it into a Move struct
 		err = json.Unmarshal(data, &m)
@@ -170,7 +206,9 @@ func (cfg *config) loadMove(name string) (Move, error) {
 	if err != nil {
 		return m, fmt.Errorf("failed marshaling Move JSON data '%s' to file: %w", name, err)
 	}
-	writeToFile(fmt.Sprintf("data/moves/%s.json", name), data)
+	if err := writeToFile(cachePath, data); err != nil {
+		return Move{}, fmt.Errorf("failed saving Move '%s' data: %w", name, err)
+	}
 
 	return m, nil
 }

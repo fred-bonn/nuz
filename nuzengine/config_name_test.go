@@ -1,9 +1,54 @@
 package nuzengine
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
+
+func TestDataDirectory(t *testing.T) {
+	projectRoot := t.TempDir()
+	nestedDir := filepath.Join(projectRoot, "nuzengine")
+	if err := os.Mkdir(nestedDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectRoot, "go.mod"), nil, 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	standaloneDir := t.TempDir()
+	tests := []struct {
+		name       string
+		workingDir string
+		want       string
+	}{
+		{
+			name:       "uses project root from nested package",
+			workingDir: nestedDir,
+			want:       filepath.Join(projectRoot, "data"),
+		},
+		{
+			name:       "falls back to working directory outside a module",
+			workingDir: standaloneDir,
+			want:       filepath.Join(standaloneDir, "data"),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Chdir(tt.workingDir)
+
+			got, err := dataDirectory()
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("dataDirectory() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
 
 func TestValidateName(t *testing.T) {
 	tests := []struct {
