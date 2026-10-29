@@ -31,81 +31,7 @@ func (ma *moveAction) invoke(bs battleState) {
 		return
 	}
 
-	if (ma.move.Move == "fake out" || ma.move.Move == "first impression") && !ma.userSlot.firstTurn {
-		vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.base.Name, ma.move.Move)
-		vprintf("but it failed")
-		return
-	}
-
-	ma.userSlot.firstTurn = false
-
-	ma.userSlot.suckerPunch = ma.move.Move == "sucker punch"
-
-	if _, ok := ma.userSlot.mon.ailments[freezeAilment]; ok {
-		if isSelfThawingMove(ma.move.Move) || roll(1, 5) {
-			vprintf("%s thawed out", ma.userSlot.mon.base.Name)
-			delete(ma.userSlot.mon.ailments, freezeAilment)
-		} else {
-			ma.userSlot.invulnerableAction = nil
-			vprintMove(ma.prio(bs), ma.speed(bs), "%s is frozen", ma.userSlot.mon.base.Name)
-			return
-		}
-	}
-
-	if sleep := ma.userSlot.mon.hasAilment(sleepAilment); sleep != nil {
-		if sleep.Turns <= 0 {
-			vprintf("%s woke up", ma.userSlot.mon.base.Name)
-			delete(ma.userSlot.mon.ailments, sleepAilment)
-		} else {
-			if ma.userSlot.mon.ability == earlyBirdAbility {
-				sleep.Turns -= 2
-			} else {
-				sleep.Turns--
-			}
-			ma.userSlot.invulnerableAction = nil
-			vprintMove(ma.prio(bs), ma.speed(bs), "%s is asleep", ma.userSlot.mon.base.Name)
-			return
-		}
-	}
-
-	if confusion := ma.userSlot.mon.hasAilment(confusionAilment); confusion != nil {
-		if confusion.Turns > 0 {
-			confusion.Turns -= 1
-			vprintf("%s is confused", ma.userSlot.mon.base.Name)
-			if roll(1, 3) {
-				damage := calculateDamage(bs, ma.userSlot.mon, ma.userSlot.mon, getConfusionMove(), new(false), bs.getWeather(), rollRandom, false, false)
-				ma.userSlot.invulnerableAction = nil
-				vprintMove(ma.prio(bs), ma.speed(bs), "%s hit itself in confusion for %d damage", ma.userSlot.mon.base.Name, damage)
-				ma.userSlot.mon.hp -= int(damage)
-				if ma.userSlot.mon.hp <= 0 {
-					monFainted(bs, ma.userSlot, false)
-				}
-				return
-			}
-		} else {
-			delete(ma.userSlot.mon.ailments, confusionAilment)
-			vprintf("%s snapped out of confusion", ma.userSlot.mon.base.Name)
-		}
-	}
-
-	if paralysis := ma.userSlot.mon.hasAilment(paralysisAilment); paralysis != nil {
-		if roll(1, 4) {
-			ma.userSlot.invulnerableAction = nil
-			vprintf("%s is paralysed", ma.userSlot.mon.base.Name)
-			return
-		}
-	}
-
-	if infatuation := ma.userSlot.mon.hasAilment(infatuationAilment); infatuation != nil {
-		if roll(1, 2) {
-			ma.userSlot.invulnerableAction = nil
-			vprintf("%s is infatuated with %s", ma.userSlot.mon.base.Name, infatuation.afflictedBy.mon.base.Name)
-			return
-		}
-	}
-
-	if ma.flinch {
-		vprintf("%s flinched", ma.userSlot.mon.base.Name)
+	if !ma.resolveMoveStart(bs) {
 		return
 	}
 
@@ -203,7 +129,88 @@ func (ma *moveAction) invoke(bs battleState) {
 	}
 
 	ma.userSlot.mon.checkItemTrigger(bs, true, makeLeppaBerryEvent(ma.move))
+}
 
+func (ma *moveAction) resolveMoveStart(bs battleState) bool {
+	if (ma.move.Move == "fake out" || ma.move.Move == "first impression") && !ma.userSlot.firstTurn {
+		vprintMove(ma.prio(bs), ma.speed(bs), "%s used %s", ma.userSlot.mon.base.Name, ma.move.Move)
+		vprintf("but it failed")
+		return false
+	}
+
+	ma.userSlot.firstTurn = false
+
+	ma.userSlot.suckerPunch = ma.move.Move == "sucker punch"
+
+	if _, ok := ma.userSlot.mon.ailments[freezeAilment]; ok {
+		if isSelfThawingMove(ma.move.Move) || roll(1, 5) {
+			vprintf("%s thawed out", ma.userSlot.mon.base.Name)
+			delete(ma.userSlot.mon.ailments, freezeAilment)
+		} else {
+			ma.userSlot.invulnerableAction = nil
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s is frozen", ma.userSlot.mon.base.Name)
+			return false
+		}
+	}
+
+	if sleep := ma.userSlot.mon.hasAilment(sleepAilment); sleep != nil {
+		if sleep.Turns <= 0 {
+			vprintf("%s woke up", ma.userSlot.mon.base.Name)
+			delete(ma.userSlot.mon.ailments, sleepAilment)
+		} else {
+			if ma.userSlot.mon.ability == earlyBirdAbility {
+				sleep.Turns -= 2
+			} else {
+				sleep.Turns--
+			}
+			ma.userSlot.invulnerableAction = nil
+			vprintMove(ma.prio(bs), ma.speed(bs), "%s is asleep", ma.userSlot.mon.base.Name)
+			return false
+		}
+	}
+
+	if confusion := ma.userSlot.mon.hasAilment(confusionAilment); confusion != nil {
+		if confusion.Turns > 0 {
+			confusion.Turns -= 1
+			vprintf("%s is confused", ma.userSlot.mon.base.Name)
+			if roll(1, 3) {
+				damage := calculateDamage(bs, ma.userSlot.mon, ma.userSlot.mon, getConfusionMove(), new(false), bs.getWeather(), rollRandom, false, false)
+				ma.userSlot.invulnerableAction = nil
+				vprintMove(ma.prio(bs), ma.speed(bs), "%s hit itself in confusion for %d damage", ma.userSlot.mon.base.Name, damage)
+				ma.userSlot.mon.hp -= int(damage)
+				if ma.userSlot.mon.hp <= 0 {
+					monFainted(bs, ma.userSlot, false)
+				}
+				return false
+			}
+		} else {
+			delete(ma.userSlot.mon.ailments, confusionAilment)
+			vprintf("%s snapped out of confusion", ma.userSlot.mon.base.Name)
+		}
+	}
+
+	if paralysis := ma.userSlot.mon.hasAilment(paralysisAilment); paralysis != nil {
+		if roll(1, 4) {
+			ma.userSlot.invulnerableAction = nil
+			vprintf("%s is paralysed", ma.userSlot.mon.base.Name)
+			return false
+		}
+	}
+
+	if infatuation := ma.userSlot.mon.hasAilment(infatuationAilment); infatuation != nil {
+		if roll(1, 2) {
+			ma.userSlot.invulnerableAction = nil
+			vprintf("%s is infatuated with %s", ma.userSlot.mon.base.Name, infatuation.afflictedBy.mon.base.Name)
+			return false
+		}
+	}
+
+	if ma.flinch {
+		vprintf("%s flinched", ma.userSlot.mon.base.Name)
+		return false
+	}
+
+	return true
 }
 
 func applySpreadDamageModifier(damage int, spread bool) int {
