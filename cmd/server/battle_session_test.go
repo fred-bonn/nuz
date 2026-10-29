@@ -25,6 +25,7 @@ type fakeBattle struct {
 	closeOnce sync.Once
 	mu        sync.Mutex
 	answers   []string
+	best      int // 0 means no hint
 }
 
 func newFakeBattle(prompts int) *fakeBattle {
@@ -58,6 +59,9 @@ func (f *fakeBattle) Send(line string) error {
 
 func (f *fakeBattle) Close()          { f.closeOnce.Do(func() { close(f.closed) }) }
 func (f *fakeBattle) PlayerWon() bool { return true }
+func (f *fakeBattle) BestOption() (int, bool) {
+	return f.best, f.best > 0
+}
 func (f *fakeBattle) Snapshot() nuzengine.BattleSnapshot {
 	return nuzengine.BattleSnapshot{
 		Player:   nuzengine.SideSnapshot{Active: []nuzengine.PokemonSnapshot{{Name: "pika", HP: 20, MaxHP: 45}}},
@@ -69,6 +73,7 @@ func newTestServer(t *testing.T, fb *fakeBattle, timeout time.Duration) (*server
 	t.Helper()
 	s := newServer()
 	s.timeout = timeout
+	s.hintInterval = 10 * time.Millisecond
 	s.init = func(int, string, string, int) (battle, error) { return fb, nil }
 	ts := httptest.NewServer(s.handler())
 	t.Cleanup(ts.Close)
@@ -314,6 +319,51 @@ func TestParsePromptOptions(t *testing.T) {
 			for i := range got {
 				if got[i] != tt.want[i] {
 					t.Fatalf("got %v, want %v", got, tt.want)
+				}
+			}
+		})
+	}
+}
+
+func TestBattleHints(t *testing.T) {
+	tests := []struct {
+		name     string
+		best     int
+		wantHint bool
+	}{
+		{name: "best option is streamed while prompt is pending", best: 2, wantHint: true},
+		{name: "no hint without learned data", best: 0},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fb := newFakeBattle(1)
+			fb.best = tt.best
+			_, ts, id := newTestServer(t, fb, time.Minute)
+
+			resp := post(t, ts.URL+"/battles/start", id, "")
+			defer resp.Body.Close()
+			sc := bufio.NewScanner(resp.Body)
+			if ev := readEvent(t, sc); ev.Type != "prompt" {
+				t.Fatalf("first event = %+v", ev)
+			}
+			if tt.wantHint {
+				if ev := readEvent(t, sc); ev.Type != "hint" || ev.Best != tt.best {
+					t.Fatalf("hint event = %+v", ev)
+				}
+			} else {
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			in := post(t, ts.URL+"/battles/input", id, `{"choice":1}`)
+			in.Body.Close()
+			// Hints already in flight may still arrive before the end of the battle.
+			for {
+				ev := readEvent(t, sc)
+				if ev.Type == "end" {
+					return
+				}
+				if ev.Type != "hint" || !tt.wantHint {
+					t.Fatalf("unexpected event %+v", ev)
 				}
 			}
 		})

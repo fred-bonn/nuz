@@ -17,6 +17,8 @@ type guidedAi struct {
 	pending actionCandidate
 	// aborted is only set for interactive battles; when it reports true, an ended input aborts the battle.
 	aborted func() bool
+	// onPrompt, when set, runs before a choice prompt is printed; replacement is true for switch-in prompts.
+	onPrompt func(bs battleState, s *slot, candidates []actionCandidate, replacement bool)
 }
 
 func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
@@ -28,6 +30,9 @@ func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
 
 func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	candidates := buildCandidates(bs, slot, actions)
+	if ga.onPrompt != nil {
+		ga.onPrompt(bs, slot, candidates, false)
+	}
 
 	ga.print("Choose an action:\n")
 	for i, c := range candidates {
@@ -73,6 +78,10 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if ga.pending.target != nil && slices.Contains(mons, ga.pending.target) {
 		return ga.pending.target
+	}
+
+	if ga.onPrompt != nil {
+		ga.onPrompt(bs, opponentSlot, buildSwitchCandidates(mons), true)
 	}
 
 	ga.print("Choose a replacement:\n")

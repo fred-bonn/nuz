@@ -53,6 +53,8 @@ type server struct {
 	battles map[string]*session
 	init    initFunc
 	timeout time.Duration
+	// hintInterval is the period of best-option hints during a pending prompt.
+	hintInterval time.Duration
 	// allowedOrigins lists browser origins permitted by CORS; empty disables CORS.
 	allowedOrigins []string
 	maxBattles     int
@@ -62,9 +64,10 @@ type server struct {
 
 func newServer() *server {
 	return &server{
-		battles:    make(map[string]*session),
-		timeout:    inputTimeout,
-		maxBattles: defaultMaxBattles,
+		battles:      make(map[string]*session),
+		timeout:      inputTimeout,
+		hintInterval: hintInterval,
+		maxBattles:   defaultMaxBattles,
 		init: func(t int, p, o string, w int) (battle, error) {
 			return nuzengine.InitInteractiveBattle(t, p, o, w)
 		},

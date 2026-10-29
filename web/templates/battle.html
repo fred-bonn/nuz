@@ -92,8 +92,23 @@
       }
     }
 
+    function clearHint() {
+      for (const button of choicesBox.querySelectorAll("button")) {
+        button.style.background = "";
+      }
+    }
+
+    function showHint(best) {
+      clearHint();
+      const button = choicesBox.querySelectorAll("button")[best - 1];
+      if (button) {
+        button.style.background = "#7ddc7d";
+      }
+    }
+
     async function choose(choice) {
       errorBox.textContent = "";
+      clearHint();
       setChoicesDisabled(true);
       try {
         const resp = await fetch("/battles/input", {
@@ -144,6 +159,9 @@
       switch (ev.type) {
         case "prompt":
           showPrompt(ev);
+          return false;
+        case "hint":
+          showHint(ev.best);
           return false;
         case "end":
           if (ev.state) {

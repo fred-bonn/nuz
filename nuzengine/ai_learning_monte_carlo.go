@@ -15,6 +15,8 @@ type learningAiMonteCarlo struct {
 	trajectory []trajectoryStep
 	pending    actionCandidate
 	planner    doublePlanner
+	// mu guards q for the live learner, whose hint reader runs beside the learning worker.
+	mu sync.RWMutex
 }
 
 type qMap map[string]map[string]*qEntry
@@ -199,6 +201,8 @@ func (la *learningAiMonteCarlo) beginEpisode() {
 }
 
 func (la *learningAiMonteCarlo) endEpisode(reward float64) {
+	la.mu.Lock()
+	defer la.mu.Unlock()
 	la.q.recordEpisode(la.trajectory, reward)
 }
 
@@ -256,6 +260,8 @@ func (la *learningAiMonteCarlo) choose(state string, candidates []actionCandidat
 	if rand.Float64() < la.epsilon {
 		return candidates[rand.Intn(len(candidates))]
 	}
+	la.mu.RLock()
+	defer la.mu.RUnlock()
 	return argmaxCandidate(la.q, state, candidates)
 }
 

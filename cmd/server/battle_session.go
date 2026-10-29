@@ -17,6 +17,8 @@ import (
 const (
 	battleIDHeader = "X-Battle-ID"
 	inputTimeout   = 2 * time.Minute
+	// hintInterval is how often the best known option is pushed while a prompt is pending.
+	hintInterval = 5 * time.Second
 )
 
 // battle is an interactive battle driven through guided AI prompts.
@@ -26,6 +28,8 @@ type battle interface {
 	Close()
 	PlayerWon() bool
 	Snapshot() nuzengine.BattleSnapshot
+	// BestOption is the 1-based number of the option currently rated best for the pending prompt.
+	BestOption() (int, bool)
 }
 
 type session struct {
@@ -45,8 +49,10 @@ type event struct {
 	Options []string `json:"options,omitempty"`
 	// State is the full battle state when the event was emitted.
 	State *nuzengine.BattleSnapshot `json:"state,omitempty"`
-	Won   *bool                     `json:"won,omitempty"`
-	Error string                    `json:"error,omitempty"`
+	// Best is the 1-based number of the best option in a hint event.
+	Best  int    `json:"best,omitempty"`
+	Won   *bool  `json:"won,omitempty"`
+	Error string `json:"error,omitempty"`
 }
 
 var optionPattern = regexp.MustCompile(`^[0-9]+\. (.+)$`)
@@ -180,15 +186,27 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	timer.Stop()
 	defer timer.Stop()
 	var timerC <-chan time.Time
+	hints := time.NewTicker(s.hintInterval)
+	defer hints.Stop()
+	promptShown := false
 	for {
 		select {
 		case ev := <-events:
 			timer.Reset(s.timeout)
 			timerC = timer.C
+			promptShown = ev.Type == "prompt"
 			send(ev)
 		case <-sess.inputs:
 			timer.Stop()
 			timerC = nil
+			promptShown = false
+		case <-hints.C:
+			if !promptShown {
+				continue
+			}
+			if best, ok := sess.battle.BestOption(); ok {
+				send(event{Type: "hint", Best: best})
+			}
 		case err := <-done:
 			for len(events) > 0 {
 				send(<-events)
