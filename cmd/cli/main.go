@@ -47,7 +47,8 @@ func run(args []string) int {
 	if *iterations < 0 {
 		log.Printf("error: iterations must be greater than 0")
 		return 1
-	} else if *iterations == 0 {
+	}
+	if *iterations == 0 {
 		if *learning {
 			*iterations = defaultLearningIterations
 		} else {

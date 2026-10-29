@@ -62,7 +62,7 @@ func (m *Move) isSpreadMove() bool {
 	return m.Target == "all-opponents" || m.Target == "all-other-pokemon"
 }
 
-var contactMoves map[string]any
+var contactMoves map[string]struct{}
 
 func toMove(mj pokeapi.MoveJSON) (Move, error) {
 	isContact := false
@@ -147,7 +147,7 @@ func initContactMoves() error {
 		return err
 	}
 
-	contactMoves = make(map[string]any, len(moves))
+	contactMoves = make(map[string]struct{}, len(moves))
 	for _, move := range moves {
 		contactMoves[move] = struct{}{}
 	}
