@@ -124,7 +124,7 @@ func playBattle(baseURL, label string, req createBattleRequest, rng *rand.Rand) 
 	sc := bufio.NewScanner(start.Body)
 	sc.Buffer(nil, 1<<20)
 	for sc.Scan() {
-		var ev event
+		var ev wireEvent
 		if err := json.Unmarshal(sc.Bytes(), &ev); err != nil {
 			res.err = err
 			return res

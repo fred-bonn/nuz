@@ -21,7 +21,7 @@ func parsePromptOptions(text string) []string {
 // promptWriter turns guided AI output into prompt events; every prompt ends with "> ".
 type promptWriter struct {
 	sess   *session
-	events chan<- event
+	events chan<- promptEvent
 	done   <-chan struct{}
 	buf    strings.Builder
 }
@@ -37,7 +37,7 @@ func (pw *promptWriter) Write(p []byte) (int, error) {
 	// Write runs on the engine goroutine, which is blocked on input, so reading the state here is safe.
 	state := pw.sess.battle.Snapshot()
 	select {
-	case pw.events <- event{Type: "prompt", Text: text, Options: parsePromptOptions(text), State: &state}:
+	case pw.events <- newPromptEvent(text, parsePromptOptions(text), state):
 	case <-pw.done:
 	}
 	return len(p), nil

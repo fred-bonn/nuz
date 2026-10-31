@@ -75,15 +75,3 @@ func (s *session) claim(choice int) error {
 	s.waiting = false
 	return nil
 }
-
-type event struct {
-	Type    string   `json:"type"`
-	Text    string   `json:"text,omitempty"`
-	Options []string `json:"options,omitempty"`
-	// State is the full battle state when the event was emitted.
-	State *nuzengine.BattleSnapshot `json:"state,omitempty"`
-	// Best is the 1-based number of the best option in a hint event.
-	Best  int    `json:"best,omitempty"`
-	Won   *bool  `json:"won,omitempty"`
-	Error string `json:"error,omitempty"`
-}

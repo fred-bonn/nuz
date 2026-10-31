@@ -114,12 +114,23 @@ func post(t *testing.T, url, id, body string) *http.Response {
 	return resp
 }
 
-func readEvent(t *testing.T, sc *bufio.Scanner) event {
+// wireEvent is the flat view of every event kind that a client sees on the stream.
+type wireEvent struct {
+	Type    string                    `json:"type"`
+	Text    string                    `json:"text"`
+	Options []string                  `json:"options"`
+	State   *nuzengine.BattleSnapshot `json:"state"`
+	Best    int                       `json:"best"`
+	Won     *bool                     `json:"won"`
+	Error   string                    `json:"error"`
+}
+
+func readEvent(t *testing.T, sc *bufio.Scanner) wireEvent {
 	t.Helper()
 	if !sc.Scan() {
 		t.Fatalf("stream ended: %v", sc.Err())
 	}
-	var ev event
+	var ev wireEvent
 	if err := json.Unmarshal(sc.Bytes(), &ev); err != nil {
 		t.Fatal(err)
 	}

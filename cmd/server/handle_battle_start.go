@@ -41,10 +41,8 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			timer.Reset(s.timeout)
 			timerC = timer.C
 			// Marked pending before the client can see the prompt, so an answer can never arrive early.
-			if ev.Type == "prompt" {
-				sess.setPending(len(ev.Options))
-				lastHint = 0
-			}
+			sess.setPending(len(ev.Options))
+			lastHint = 0
 			send(ev)
 		case <-hints.C:
 			if !sess.pending() {
@@ -52,7 +50,7 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			}
 			if best, ok := sess.battle.BestOption(); ok && best != lastHint {
 				lastHint = best
-				send(event{Type: "hint", Best: best})
+				send(newHintEvent(best))
 			}
 		case err := <-done:
 			for len(events) > 0 {
@@ -60,12 +58,10 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			}
 			sess.battle.Close()
 			if err != nil {
-				send(event{Type: "error", Error: err.Error()})
+				send(newErrorEvent(err))
 				return
 			}
-			won := sess.battle.PlayerWon()
-			state := sess.battle.Snapshot()
-			send(event{Type: "end", Won: &won, State: &state})
+			send(newEndEvent(sess.battle.PlayerWon(), sess.battle.Snapshot()))
 			return
 		case <-timerC:
 			// An answered prompt means the engine is working, not that the client went silent.
@@ -75,7 +71,7 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			}
 			// Abort first so the battle is already gone when the client sees the timeout.
 			abort()
-			send(event{Type: "timeout", Error: "no input received in time"})
+			send(newTimeoutEvent())
 			return
 		case <-r.Context().Done():
 			abort()
@@ -100,8 +96,8 @@ func startStream(w http.ResponseWriter) func(event) {
 
 // runBattle runs the battle on its own goroutine. Prompts arrive on events and the result on done;
 // stop releases a prompt writer blocked on events and is safe to call more than once.
-func runBattle(sess *session) (events chan event, done chan error, stop func()) {
-	events = make(chan event, 16)
+func runBattle(sess *session) (events chan promptEvent, done chan error, stop func()) {
+	events = make(chan promptEvent, 16)
 	done = make(chan error, 1)
 	stopped := make(chan struct{})
 	stop = sync.OnceFunc(func() { close(stopped) })
