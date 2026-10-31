@@ -68,7 +68,10 @@ func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleBattlePage(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	if id == "" {
+	s.mu.Lock()
+	_, ok := s.battles[id]
+	s.mu.Unlock()
+	if !ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
