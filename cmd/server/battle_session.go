@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"regexp"
@@ -33,14 +34,51 @@ type battle interface {
 }
 
 type session struct {
-	battle   battle
-	started  atomic.Bool
-	awaiting atomic.Bool
-	inputs   chan struct{}
+	battle  battle
+	started atomic.Bool
+
+	mu      sync.Mutex
+	waiting bool // a prompt has been shown and not yet answered
+	options int  // number of options of the latest prompt
 }
 
+var (
+	errNotWaiting = errors.New("battle is not waiting for input")
+	errBadChoice  = errors.New("choice is not one of the prompt options")
+)
+
 func newSession(b battle) *session {
-	return &session{battle: b, inputs: make(chan struct{}, 1)}
+	return &session{battle: b}
+}
+
+// setPending records a shown prompt. A prompt without options is a re-prompt, which keeps the previous options.
+func (s *session) setPending(options int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.waiting = true
+	if options > 0 {
+		s.options = options
+	}
+}
+
+func (s *session) pending() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.waiting
+}
+
+// claim answers the pending prompt; an invalid choice leaves the prompt pending.
+func (s *session) claim(choice int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.waiting {
+		return errNotWaiting
+	}
+	if choice < 1 || choice > s.options {
+		return errBadChoice
+	}
+	s.waiting = false
+	return nil
 }
 
 type event struct {
@@ -87,7 +125,6 @@ func (pw *promptWriter) Write(p []byte) (int, error) {
 		return len(p), nil
 	}
 	pw.buf.Reset()
-	pw.sess.awaiting.Store(true)
 	text = strings.TrimSuffix(text, "> ")
 	// Write runs on the engine goroutine, which is blocked on input, so reading the state here is safe.
 	state := pw.sess.battle.Snapshot()
@@ -157,20 +194,18 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	var timerC <-chan time.Time
 	hints := time.NewTicker(s.hintInterval)
 	defer hints.Stop()
-	promptShown := false
 	for {
 		select {
 		case ev := <-events:
 			timer.Reset(s.timeout)
 			timerC = timer.C
-			promptShown = ev.Type == "prompt"
+			// Marked pending before the client can see the prompt, so an answer can never arrive early.
+			if ev.Type == "prompt" {
+				sess.setPending(len(ev.Options))
+			}
 			send(ev)
-		case <-sess.inputs:
-			timer.Stop()
-			timerC = nil
-			promptShown = false
 		case <-hints.C:
-			if !promptShown {
+			if !sess.pending() {
 				continue
 			}
 			if best, ok := sess.battle.BestOption(); ok {
@@ -190,6 +225,11 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			send(event{Type: "end", Won: &won, State: &state})
 			return
 		case <-timerC:
+			// An answered prompt means the engine is working, not that the client went silent.
+			if !sess.pending() {
+				timerC = nil
+				continue
+			}
 			// Abort first so the battle is already gone when the client sees the timeout.
 			abort()
 			send(event{Type: "timeout", Error: "no input received in time"})
@@ -214,13 +254,13 @@ func (s *server) handleBattleInput(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), err)
 		return
 	}
-	if !sess.awaiting.CompareAndSwap(true, false) {
-		respondWithError(w, http.StatusConflict, "battle is not waiting for input", nil)
+	switch err := sess.claim(req.Choice); {
+	case errors.Is(err, errNotWaiting):
+		respondWithError(w, http.StatusConflict, err.Error(), nil)
 		return
-	}
-	select {
-	case sess.inputs <- struct{}{}:
-	default:
+	case errors.Is(err, errBadChoice):
+		respondWithError(w, http.StatusBadRequest, err.Error(), nil)
+		return
 	}
 	if err := sess.battle.Send(strconv.Itoa(req.Choice)); err != nil {
 		respondWithError(w, http.StatusGone, "battle is no longer running", err)

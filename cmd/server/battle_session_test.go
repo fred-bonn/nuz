@@ -209,6 +209,44 @@ func TestBattleStartAndInputErrors(t *testing.T) {
 	}
 }
 
+func TestInputChoiceValidation(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+		want int
+	}{
+		{name: "zero", body: `{"choice":0}`, want: http.StatusBadRequest},
+		{name: "negative", body: `{"choice":-1}`, want: http.StatusBadRequest},
+		{name: "above options", body: `{"choice":3}`, want: http.StatusBadRequest},
+		{name: "first option", body: `{"choice":1}`, want: http.StatusAccepted},
+		{name: "last option", body: `{"choice":2}`, want: http.StatusAccepted},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fb := newFakeBattle(1)
+			_, ts, id := newTestServer(t, fb, time.Minute)
+			resp := post(t, ts.URL+"/battles/start", id, "")
+			defer resp.Body.Close()
+			readEvent(t, bufio.NewScanner(resp.Body))
+
+			in := post(t, ts.URL+"/battles/input", id, tt.body)
+			in.Body.Close()
+			if in.StatusCode != tt.want {
+				t.Fatalf("status = %d, want %d", in.StatusCode, tt.want)
+			}
+			if tt.want == http.StatusAccepted {
+				return
+			}
+			// A rejected choice leaves the prompt pending, so a valid one still works.
+			ok := post(t, ts.URL+"/battles/input", id, `{"choice":1}`)
+			ok.Body.Close()
+			if ok.StatusCode != http.StatusAccepted {
+				t.Fatalf("follow-up status = %d, want %d", ok.StatusCode, http.StatusAccepted)
+			}
+		})
+	}
+}
+
 func TestBattleTimeout(t *testing.T) {
 	fb := newFakeBattle(1)
 	s, ts, id := newTestServer(t, fb, 100*time.Millisecond)
