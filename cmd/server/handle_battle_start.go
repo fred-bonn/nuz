@@ -16,27 +16,12 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/x-ndjson")
-	w.WriteHeader(http.StatusOK)
-	flusher, _ := w.(http.Flusher)
-	enc := json.NewEncoder(w)
-	send := func(ev event) {
-		_ = enc.Encode(ev)
-		if flusher != nil {
-			flusher.Flush()
-		}
-	}
-
-	events := make(chan event, 16)
-	stop := make(chan struct{})
-	var stopOnce sync.Once
-	closeStop := func() { stopOnce.Do(func() { close(stop) }) }
-	defer closeStop()
-	done := make(chan error, 1)
-	go func() { done <- sess.battle.Run(&promptWriter{sess: sess, events: events, done: stop}) }()
+	send := startStream(w)
+	events, done, stop := runBattle(sess)
+	defer stop()
 
 	abort := func() {
-		closeStop()
+		stop()
 		sess.battle.Close()
 		s.battles.remove(id)
 		<-done
@@ -94,4 +79,29 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+}
+
+// startStream writes the NDJSON response header and returns a function that sends and flushes one event.
+func startStream(w http.ResponseWriter) func(event) {
+	w.Header().Set("Content-Type", "application/x-ndjson")
+	w.WriteHeader(http.StatusOK)
+	flusher, _ := w.(http.Flusher)
+	enc := json.NewEncoder(w)
+	return func(ev event) {
+		_ = enc.Encode(ev)
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
+}
+
+// runBattle runs the battle on its own goroutine. Prompts arrive on events and the result on done;
+// stop releases a prompt writer blocked on events and is safe to call more than once.
+func runBattle(sess *session) (events chan event, done chan error, stop func()) {
+	events = make(chan event, 16)
+	done = make(chan error, 1)
+	stopped := make(chan struct{})
+	stop = sync.OnceFunc(func() { close(stopped) })
+	go func() { done <- sess.battle.Run(&promptWriter{sess: sess, events: events, done: stopped}) }()
+	return events, done, stop
 }
