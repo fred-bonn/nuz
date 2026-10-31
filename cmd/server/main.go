@@ -27,13 +27,6 @@ const (
 	defaultMaxBattles = 100
 )
 
-type createBattleRequest struct {
-	Player   string `json:"player"`
-	Opponent string `json:"opponent"`
-	Double   bool   `json:"double"`
-	Weather  int    `json:"weather"`
-}
-
 type createBattleResponse struct {
 	ID      string                   `json:"id"`
 	Double  bool                     `json:"double"`
@@ -154,7 +147,12 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req createBattleRequest
+	var req struct {
+		Player   string `json:"player"`
+		Opponent string `json:"opponent"`
+		Double   bool   `json:"double"`
+		Weather  int    `json:"weather"`
+	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {

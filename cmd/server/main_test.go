@@ -11,6 +11,14 @@ import (
 	"testing"
 )
 
+// createBattleRequest mirrors the JSON body accepted by POST /battles.
+type createBattleRequest struct {
+	Player   string `json:"player"`
+	Opponent string `json:"opponent"`
+	Double   bool   `json:"double"`
+	Weather  int    `json:"weather"`
+}
+
 func TestCreateBattle(t *testing.T) {
 	tests := []struct {
 		name       string
