@@ -31,7 +31,7 @@ func TestRandomClientPlaysFullBattle(t *testing.T) {
 
 	for _, double := range []bool{false, true} {
 		t.Run(fmt.Sprintf("double=%v", double), func(t *testing.T) {
-			ts := httptest.NewServer(newServer().handler())
+			ts := httptest.NewServer(newServer(serverConfig{}).handler())
 			defer ts.Close()
 
 			body, _ := json.Marshal(createBattleRequest{Player: string(player), Opponent: string(opponent), Double: double})
@@ -177,7 +177,7 @@ func TestConcurrentBattlesAreIndependent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := newServer()
+	s := newServer(serverConfig{})
 	ts := httptest.NewServer(s.handler())
 	defer ts.Close()
 

@@ -44,8 +44,7 @@ func TestHSTSHeader(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer()
-			s.tls = tt.tls
+			s := newServer(serverConfig{tls: tt.tls})
 			rec := httptest.NewRecorder()
 			s.handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, tt.path, nil))
 			if got := rec.Header().Get("Strict-Transport-Security"); got != tt.want {
@@ -57,8 +56,7 @@ func TestHSTSHeader(t *testing.T) {
 
 func TestBattleStreamOverTLS(t *testing.T) {
 	fb := newFakeBattle(1)
-	s := newServer()
-	s.tls = true
+	s := newServer(serverConfig{tls: true})
 	s.timeout = time.Minute
 	s.init = func(int, string, string, int) (battle, error) { return fb, nil }
 	ts := httptest.NewTLSServer(s.handler())

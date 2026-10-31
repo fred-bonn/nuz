@@ -40,12 +40,25 @@ type server struct {
 	tls bool
 }
 
-func newServer() *server {
+// serverConfig holds the flag-driven settings; the zero value is a plain-HTTP server without CORS.
+type serverConfig struct {
+	tls            bool
+	allowedOrigins []string
+	// maxBattles defaults to defaultMaxBattles when zero.
+	maxBattles int
+}
+
+func newServer(cfg serverConfig) *server {
+	if cfg.maxBattles == 0 {
+		cfg.maxBattles = defaultMaxBattles
+	}
 	return &server{
-		battles:      make(map[string]*session),
-		timeout:      inputTimeout,
-		hintInterval: hintInterval,
-		maxBattles:   defaultMaxBattles,
+		battles:        make(map[string]*session),
+		timeout:        inputTimeout,
+		hintInterval:   hintInterval,
+		maxBattles:     cfg.maxBattles,
+		allowedOrigins: cfg.allowedOrigins,
+		tls:            cfg.tls,
 		init: func(t int, p, o string, w int) (battle, error) {
 			return nuzengine.InitInteractiveBattle(t, p, o, w)
 		},
@@ -187,10 +200,7 @@ func main() {
 		log.Fatalf("error: invalid flags: %s", err)
 	}
 
-	s := newServer()
-	s.tls = *tlsCert != ""
-	s.allowedOrigins = *origins
-	s.maxBattles = *maxBattles
+	s := newServer(serverConfig{tls: *tlsCert != "", allowedOrigins: *origins, maxBattles: *maxBattles})
 	// No WriteTimeout: battle responses are long-lived streams.
 	srv := &http.Server{
 		Addr:              *addr,

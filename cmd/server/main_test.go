@@ -52,7 +52,7 @@ func TestCreateBattle(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer()
+			s := newServer(serverConfig{})
 			called, gotType := false, -1
 			s.init = func(bt int, p, o string, w int) (battle, error) {
 				called, gotType = true, bt
@@ -120,7 +120,7 @@ func TestCreateBattleWithDemoFiles(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer()
+			s := newServer(serverConfig{})
 			body, err := json.Marshal(createBattleRequest{Player: tt.player, Opponent: tt.opponent, Double: tt.double, Weather: tt.weather})
 			if err != nil {
 				t.Fatal(err)
@@ -154,8 +154,7 @@ func TestSecurityHeadersAndCORS(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s := newServer()
-			s.allowedOrigins = []string{"https://app.example"}
+			s := newServer(serverConfig{allowedOrigins: []string{"https://app.example"}})
 			req := httptest.NewRequest(tt.method, "/battles", strings.NewReader("{"))
 			if tt.origin != "" {
 				req.Header.Set("Origin", tt.origin)
@@ -179,8 +178,7 @@ func TestSecurityHeadersAndCORS(t *testing.T) {
 }
 
 func TestMaxBattlesAndIDLength(t *testing.T) {
-	s := newServer()
-	s.maxBattles = 2
+	s := newServer(serverConfig{maxBattles: 2})
 	s.init = func(int, string, string, int) (battle, error) { return &fakeBattle{closed: make(chan struct{})}, nil }
 
 	tests := []struct {
