@@ -121,19 +121,19 @@ func (s *server) remove(id string) {
 func (s *server) lookup(w http.ResponseWriter, r *http.Request) (string, *session, bool) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		respondWithJSON(w, http.StatusMethodNotAllowed, errorResponse{"method not allowed"})
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
 		return "", nil, false
 	}
 	id := r.Header.Get(battleIDHeader)
 	if id == "" {
-		respondWithJSON(w, http.StatusBadRequest, errorResponse{battleIDHeader + " header is required"})
+		respondWithError(w, http.StatusBadRequest, battleIDHeader+" header is required", nil)
 		return "", nil, false
 	}
 	s.mu.Lock()
 	sess, ok := s.battles[id]
 	s.mu.Unlock()
 	if !ok {
-		respondWithJSON(w, http.StatusNotFound, errorResponse{"battle not found"})
+		respondWithError(w, http.StatusNotFound, "battle not found", nil)
 		return "", nil, false
 	}
 	return id, sess, true
@@ -149,7 +149,7 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	s.mu.Lock()
 	if sess.started {
 		s.mu.Unlock()
-		respondWithJSON(w, http.StatusConflict, errorResponse{"battle already started"})
+		respondWithError(w, http.StatusConflict, "battle already started", nil)
 		return
 	}
 	sess.started = true
@@ -242,11 +242,11 @@ func (s *server) handleBattleInput(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, errorResponse{"invalid JSON body: " + err.Error()})
+		respondWithError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), err)
 		return
 	}
 	if !sess.awaiting.CompareAndSwap(true, false) {
-		respondWithJSON(w, http.StatusConflict, errorResponse{"battle is not waiting for input"})
+		respondWithError(w, http.StatusConflict, "battle is not waiting for input", nil)
 		return
 	}
 	select {
@@ -254,7 +254,7 @@ func (s *server) handleBattleInput(w http.ResponseWriter, r *http.Request) {
 	default:
 	}
 	if err := sess.battle.Send(strconv.Itoa(req.Choice)); err != nil {
-		respondWithJSON(w, http.StatusGone, errorResponse{"battle is no longer running"})
+		respondWithError(w, http.StatusGone, "battle is no longer running", err)
 		return
 	}
 	w.WriteHeader(http.StatusAccepted)

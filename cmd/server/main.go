@@ -27,10 +27,6 @@ const (
 	defaultMaxBattles = 100
 )
 
-type errorResponse struct {
-	Error string `json:"error"`
-}
-
 // initFunc builds a battle; it is a field so tests can avoid the PokeAPI.
 type initFunc func(battleStateType int, player, opponent string, weather int) (battle, error)
 
@@ -136,7 +132,7 @@ func renderPage(w http.ResponseWriter, name string, data any) {
 func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
-		respondWithJSON(w, http.StatusMethodNotAllowed, errorResponse{"method not allowed"})
+		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
 		return
 	}
 
@@ -149,15 +145,15 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
-		respondWithJSON(w, http.StatusBadRequest, errorResponse{"invalid JSON body: " + err.Error()})
+		respondWithError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), err)
 		return
 	}
 	if strings.TrimSpace(req.Player) == "" || strings.TrimSpace(req.Opponent) == "" {
-		respondWithJSON(w, http.StatusBadRequest, errorResponse{"player and opponent are required"})
+		respondWithError(w, http.StatusBadRequest, "player and opponent are required", nil)
 		return
 	}
 	if req.Weather < 0 || req.Weather > maxWeather {
-		respondWithJSON(w, http.StatusBadRequest, errorResponse{fmt.Sprintf("weather must be between 0 and %d", maxWeather)})
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("weather must be between 0 and %d", maxWeather), nil)
 		return
 	}
 
@@ -166,25 +162,25 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		battleStateType = 1
 	}
 	if s.full() {
-		respondWithJSON(w, http.StatusServiceUnavailable, errorResponse{"too many active battles"})
+		respondWithError(w, http.StatusServiceUnavailable, "too many active battles", nil)
 		return
 	}
 	bs, err := s.init(battleStateType, req.Player, req.Opponent, req.Weather)
 	if err != nil {
-		respondWithJSON(w, http.StatusBadRequest, errorResponse{err.Error()})
+		respondWithError(w, http.StatusBadRequest, err.Error(), err)
 		return
 	}
 
 	id, err := newID()
 	if err != nil {
-		respondWithJSON(w, http.StatusInternalServerError, errorResponse{"failed generating id"})
+		respondWithError(w, http.StatusInternalServerError, "failed generating id", err)
 		return
 	}
 	s.mu.Lock()
 	if len(s.battles) >= s.maxBattles {
 		s.mu.Unlock()
 		bs.Close()
-		respondWithJSON(w, http.StatusServiceUnavailable, errorResponse{"too many active battles"})
+		respondWithError(w, http.StatusServiceUnavailable, "too many active battles", nil)
 		return
 	}
 	s.battles[id] = newSession(bs)
@@ -212,12 +208,6 @@ func newID() (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(b), nil
-}
-
-func respondWithJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }
 
 // validateTLS requires the certificate and key to be given together.
