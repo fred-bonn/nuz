@@ -11,7 +11,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -64,30 +63,6 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("/battles/start", s.handleBattleStart)
 	mux.HandleFunc("/battles/input", s.handleBattleInput)
 	return s.secure(mux)
-}
-
-// secure adds nosniff and CORS for allowed origins, and answers preflight requests.
-func (s *server) secure(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("X-Content-Type-Options", "nosniff")
-		if s.tls {
-			w.Header().Set("Strict-Transport-Security", "max-age=31536000")
-		}
-		if origin := r.Header.Get("Origin"); origin != "" && slices.Contains(s.allowedOrigins, origin) {
-			h := w.Header()
-			h.Add("Vary", "Origin")
-			h.Set("Access-Control-Allow-Origin", origin)
-			h.Set("Access-Control-Expose-Headers", battleIDHeader)
-			if r.Method == http.MethodOptions {
-				h.Set("Access-Control-Allow-Methods", "POST")
-				h.Set("Access-Control-Allow-Headers", "Content-Type, "+battleIDHeader)
-				h.Set("Access-Control-Max-Age", "600")
-				w.WriteHeader(http.StatusNoContent)
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
-	})
 }
 
 var pages = template.Must(template.ParseFS(web.Templates, "templates/*.html"))
