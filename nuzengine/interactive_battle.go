@@ -51,9 +51,10 @@ func InitInteractiveBattle(battleStateInt int, playerPartyStr, opponentPartyStr 
 	return ib, nil
 }
 
-// Run executes the battle, writing guided AI prompts to out. Each prompt ends with "> ".
-func (ib *InteractiveBattle) Run(out io.Writer) error {
-	ib.ai.output = out
+// Run executes the battle, calling onPrompt on the engine goroutine each time the player must choose.
+// Options are numbered from 1 when answering with Send.
+func (ib *InteractiveBattle) Run(onPrompt func(title string, options []string)) error {
+	ib.ai.onChoices = onPrompt
 	if ib.live != nil {
 		ib.live.start()
 		defer ib.live.close()

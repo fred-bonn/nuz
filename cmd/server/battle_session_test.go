@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -32,10 +31,9 @@ func newFakeBattle(prompts int) *fakeBattle {
 	return &fakeBattle{prompts: prompts, lines: make(chan string), closed: make(chan struct{})}
 }
 
-func (f *fakeBattle) Run(out io.Writer) error {
+func (f *fakeBattle) Run(onPrompt func(title string, options []string)) error {
 	for i := 0; i < f.prompts; i++ {
-		fmt.Fprintf(out, "Choose an action:\n1. tackle against rat\n2. switch to raichu (30/30 HP)\n")
-		fmt.Fprintf(out, "> ")
+		onPrompt("Choose an action:", []string{"tackle against rat", "switch to raichu (30/30 HP)"})
 		select {
 		case line := <-f.lines:
 			f.mu.Lock()
@@ -344,34 +342,6 @@ func TestInteractiveBattleWithDemoFiles(t *testing.T) {
 				}
 			}
 			t.Fatal("battle did not end")
-		})
-	}
-}
-
-func TestParsePromptOptions(t *testing.T) {
-	tests := []struct {
-		name string
-		text string
-		want []string
-	}{
-		{name: "action prompt", text: "Choose an action:\n1. tackle against rat\n2. switch to raichu (30/30 HP)\n", want: []string{"tackle against rat", "switch to raichu (30/30 HP)"}},
-		{name: "replacement prompt", text: "Choose a replacement:\n1. pikachu (10/20 HP)\n", want: []string{"pikachu (10/20 HP)"}},
-		{name: "double digit numbering", text: "Choose an action:\n9. a\n10. b\n", want: []string{"a", "b"}},
-		{name: "windows line endings", text: "Choose:\r\n1. a\r\n", want: []string{"a"}},
-		{name: "error re-prompt has no options", text: "error: invalid input, please enter a number between 1 and 3\n", want: nil},
-		{name: "empty", text: "", want: nil},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := parsePromptOptions(tt.text)
-			if len(got) != len(tt.want) {
-				t.Fatalf("got %v, want %v", got, tt.want)
-			}
-			for i := range got {
-				if got[i] != tt.want[i] {
-					t.Fatalf("got %v, want %v", got, tt.want)
-				}
-			}
 		})
 	}
 }

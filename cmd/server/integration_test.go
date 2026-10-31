@@ -8,14 +8,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"regexp"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 )
-
-var optionLine = regexp.MustCompile(`^(\d+)\. (.+)$`)
 
 // TestRandomClientPlaysFullBattle drives the real endpoints, picking randomly among the options the server offers.
 func TestRandomClientPlaysFullBattle(t *testing.T) {
@@ -57,12 +54,7 @@ func TestRandomClientPlaysFullBattle(t *testing.T) {
 					fmt.Printf("[double=%v] battle ended after %d choices, player won: %v\n", double, step-1, *ev.Won)
 					return
 				case "prompt":
-					var options []string
-					for _, line := range strings.Split(ev.Text, "\n") {
-						if m := optionLine.FindStringSubmatch(line); m != nil {
-							options = append(options, m[2])
-						}
-					}
+					options := ev.Options
 					if len(options) == 0 {
 						t.Fatalf("prompt without options: %q", ev.Text)
 					}
@@ -133,12 +125,7 @@ func playBattle(baseURL, label string, req createBattleRequest, rng *rand.Rand) 
 		case "end":
 			return res
 		case "prompt":
-			options := 0
-			for _, line := range strings.Split(ev.Text, "\n") {
-				if optionLine.MatchString(line) {
-					options++
-				}
-			}
+			options := len(ev.Options)
 			if options == 0 {
 				res.err = fmt.Errorf("prompt without options: %q", ev.Text)
 				return res

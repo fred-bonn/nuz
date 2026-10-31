@@ -19,6 +19,8 @@ type guidedAi struct {
 	aborted func() bool
 	// onPrompt, when set, runs before a choice prompt is printed; replacement is true for switch-in prompts.
 	onPrompt func(bs battleState, s *slot, candidates []actionCandidate, replacement bool)
+	// onChoices, when set, receives each choice prompt as structured data right before it is printed.
+	onChoices func(title string, options []string)
 }
 
 func newGuidedAI(input io.Reader, output io.Writer) *guidedAi {
@@ -34,14 +36,15 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 		ga.onPrompt(bs, slot, candidates, false)
 	}
 
-	ga.print("Choose an action:\n")
+	options := make([]string, len(candidates))
 	for i, c := range candidates {
 		if c.move != nil {
-			ga.print("%d. %s against %s\n", i+1, c.move.move.Move, c.move.targetSlot.mon.base.Name)
+			options[i] = fmt.Sprintf("%s against %s", c.move.move.Move, c.move.targetSlot.mon.base.Name)
 			continue
 		}
-		ga.print("%d. switch to %s (%d/%d HP)\n", i+1, c.target.base.Name, c.target.hp, c.target.MaxHP())
+		options[i] = fmt.Sprintf("switch to %s (%d/%d HP)", c.target.base.Name, c.target.hp, c.target.MaxHP())
 	}
+	ga.announce("Choose an action:", options)
 	numberOfChoices := len(candidates)
 
 	for {
@@ -84,10 +87,11 @@ func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSl
 		ga.onPrompt(bs, opponentSlot, buildSwitchCandidates(mons), true)
 	}
 
-	ga.print("Choose a replacement:\n")
+	options := make([]string, len(mons))
 	for i, mon := range mons {
-		ga.print("%d. %s (%d/%d HP)\n", i+1, mon.base.Name, mon.hp, mon.MaxHP())
+		options[i] = fmt.Sprintf("%s (%d/%d HP)", mon.base.Name, mon.hp, mon.MaxHP())
 	}
+	ga.announce("Choose a replacement:", options)
 
 	for {
 		ga.print("> ")
@@ -129,6 +133,16 @@ func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []
 		return false
 	}
 	return ga.pending.move == nil
+}
+
+func (ga *guidedAi) announce(title string, options []string) {
+	if ga.onChoices != nil {
+		ga.onChoices(title, options)
+	}
+	ga.print("%s\n", title)
+	for i, option := range options {
+		ga.print("%d. %s\n", i+1, option)
+	}
 }
 
 func (ga *guidedAi) print(format string, args ...any) {

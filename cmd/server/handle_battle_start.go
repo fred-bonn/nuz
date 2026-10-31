@@ -95,12 +95,20 @@ func startStream(w http.ResponseWriter) func(event) {
 }
 
 // runBattle runs the battle on its own goroutine. Prompts arrive on events and the result on done;
-// stop releases a prompt writer blocked on events and is safe to call more than once.
+// stop releases a prompt callback blocked on events and is safe to call more than once.
 func runBattle(sess *session) (events chan promptEvent, done chan error, stop func()) {
 	events = make(chan promptEvent, 16)
 	done = make(chan error, 1)
 	stopped := make(chan struct{})
 	stop = sync.OnceFunc(func() { close(stopped) })
-	go func() { done <- sess.battle.Run(&promptWriter{sess: sess, events: events, done: stopped}) }()
+	go func() {
+		// Runs on the engine goroutine, which is blocked on input afterwards, so reading the state is safe.
+		done <- sess.battle.Run(func(title string, options []string) {
+			select {
+			case events <- newPromptEvent(title, options, sess.battle.Snapshot()):
+			case <-stopped:
+			}
+		})
+	}()
 	return events, done, stop
 }
