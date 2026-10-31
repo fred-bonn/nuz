@@ -91,12 +91,7 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusBadRequest, "invalid JSON body: "+err.Error(), err)
 		return
 	}
-	if strings.TrimSpace(req.Player) == "" || strings.TrimSpace(req.Opponent) == "" {
-		respondWithError(w, http.StatusBadRequest, "player and opponent are required", nil)
-		return
-	}
-	if req.Weather < 0 || req.Weather > maxWeather {
-		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("weather must be between 0 and %d", maxWeather), nil)
+	if !validBattleRequest(w, req.Player, req.Opponent, req.Weather) {
 		return
 	}
 
@@ -137,6 +132,19 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		Weather int                      `json:"weather"`
 		State   nuzengine.BattleSnapshot `json:"state"`
 	}{id, req.Double, req.Weather, bs.Snapshot()})
+}
+
+// validBattleRequest reports whether the fields are acceptable; if not, it has already written the error response.
+func validBattleRequest(w http.ResponseWriter, player, opponent string, weather int) bool {
+	if strings.TrimSpace(player) == "" || strings.TrimSpace(opponent) == "" {
+		respondWithError(w, http.StatusBadRequest, "player and opponent are required", nil)
+		return false
+	}
+	if weather < 0 || weather > maxWeather {
+		respondWithError(w, http.StatusBadRequest, fmt.Sprintf("weather must be between 0 and %d", maxWeather), nil)
+		return false
+	}
+	return true
 }
 
 func (s *server) full() bool {
