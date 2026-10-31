@@ -27,13 +27,6 @@ const (
 	defaultMaxBattles = 100
 )
 
-type createBattleResponse struct {
-	ID      string                   `json:"id"`
-	Double  bool                     `json:"double"`
-	Weather int                      `json:"weather"`
-	State   nuzengine.BattleSnapshot `json:"state"`
-}
-
 type errorResponse struct {
 	Error string `json:"error"`
 }
@@ -199,7 +192,12 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	time.AfterFunc(s.timeout, func() { s.expireIfUnstarted(id) })
 
 	w.Header().Set(battleIDHeader, id)
-	respondWithJSON(w, http.StatusCreated, createBattleResponse{ID: id, Double: req.Double, Weather: req.Weather, State: bs.Snapshot()})
+	respondWithJSON(w, http.StatusCreated, struct {
+		ID      string                   `json:"id"`
+		Double  bool                     `json:"double"`
+		Weather int                      `json:"weather"`
+		State   nuzengine.BattleSnapshot `json:"state"`
+	}{id, req.Double, req.Weather, bs.Snapshot()})
 }
 
 func (s *server) full() bool {

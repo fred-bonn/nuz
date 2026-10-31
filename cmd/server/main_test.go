@@ -9,6 +9,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/fred-bonn/nuz/nuzengine"
 )
 
 // createBattleRequest mirrors the JSON body accepted by POST /battles.
@@ -17,6 +19,14 @@ type createBattleRequest struct {
 	Opponent string `json:"opponent"`
 	Double   bool   `json:"double"`
 	Weather  int    `json:"weather"`
+}
+
+// createBattleResponse mirrors the JSON body returned by POST /battles.
+type createBattleResponse struct {
+	ID      string                   `json:"id"`
+	Double  bool                     `json:"double"`
+	Weather int                      `json:"weather"`
+	State   nuzengine.BattleSnapshot `json:"state"`
 }
 
 func TestCreateBattle(t *testing.T) {
