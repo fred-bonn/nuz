@@ -106,10 +106,6 @@ func parsePromptOptions(text string) []string {
 	return options
 }
 
-type inputRequest struct {
-	Choice int `json:"choice"`
-}
-
 // promptWriter turns guided AI output into prompt events; every prompt ends with "> ".
 type promptWriter struct {
 	sess   *session
@@ -247,7 +243,9 @@ func (s *server) handleBattleInput(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	var req inputRequest
+	var req struct {
+		Choice int `json:"choice"`
+	}
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxBodyBytes))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(&req); err != nil {
