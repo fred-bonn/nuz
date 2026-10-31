@@ -34,6 +34,7 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	var timerC <-chan time.Time
 	hints := time.NewTicker(s.hintInterval)
 	defer hints.Stop()
+	lastHint := 0 // best option last sent for the current prompt; 0 means none yet
 	for {
 		select {
 		case ev := <-events:
@@ -42,13 +43,15 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			// Marked pending before the client can see the prompt, so an answer can never arrive early.
 			if ev.Type == "prompt" {
 				sess.setPending(len(ev.Options))
+				lastHint = 0
 			}
 			send(ev)
 		case <-hints.C:
 			if !sess.pending() {
 				continue
 			}
-			if best, ok := sess.battle.BestOption(); ok {
+			if best, ok := sess.battle.BestOption(); ok && best != lastHint {
+				lastHint = best
 				send(event{Type: "hint", Best: best})
 			}
 		case err := <-done:

@@ -60,7 +60,15 @@ func (f *fakeBattle) Send(line string) error {
 func (f *fakeBattle) Close()          { f.closeOnce.Do(func() { close(f.closed) }) }
 func (f *fakeBattle) PlayerWon() bool { return true }
 func (f *fakeBattle) BestOption() (int, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	return f.best, f.best > 0
+}
+
+func (f *fakeBattle) setBest(best int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.best = best
 }
 func (f *fakeBattle) Snapshot() nuzengine.BattleSnapshot {
 	return nuzengine.BattleSnapshot{
@@ -354,6 +362,41 @@ func TestParsePromptOptions(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestBattleHintsOnlyOnChange(t *testing.T) {
+	fb := newFakeBattle(2)
+	fb.setBest(2)
+	_, ts, id := newTestServer(t, fb, time.Minute)
+
+	resp := post(t, ts.URL+"/battles/start", id, "")
+	defer resp.Body.Close()
+	sc := bufio.NewScanner(resp.Body)
+
+	if ev := readEvent(t, sc); ev.Type != "prompt" {
+		t.Fatalf("first event = %+v", ev)
+	}
+	if ev := readEvent(t, sc); ev.Type != "hint" || ev.Best != 2 {
+		t.Fatalf("first hint = %+v", ev)
+	}
+
+	// Many hint ticks pass with an unchanged best option; none of them may produce another hint.
+	time.Sleep(150 * time.Millisecond)
+	fb.setBest(3)
+	if ev := readEvent(t, sc); ev.Type != "hint" || ev.Best != 3 {
+		t.Fatalf("changed hint = %+v, want best 3 right after the unchanged one", ev)
+	}
+
+	in := post(t, ts.URL+"/battles/input", id, `{"choice":1}`)
+	in.Body.Close()
+
+	// A new prompt starts over, so its first hint is sent even though the value matches the last one.
+	if ev := readEvent(t, sc); ev.Type != "prompt" {
+		t.Fatalf("second prompt = %+v", ev)
+	}
+	if ev := readEvent(t, sc); ev.Type != "hint" || ev.Best != 3 {
+		t.Fatalf("hint for second prompt = %+v", ev)
 	}
 }
 
