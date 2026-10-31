@@ -119,11 +119,6 @@ func (s *server) remove(id string) {
 }
 
 func (s *server) lookup(w http.ResponseWriter, r *http.Request) (string, *session, bool) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
-		return "", nil, false
-	}
 	id := r.Header.Get(battleIDHeader)
 	if id == "" {
 		respondWithError(w, http.StatusBadRequest, battleIDHeader+" header is required", nil)

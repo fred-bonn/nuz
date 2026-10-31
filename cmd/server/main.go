@@ -1,13 +1,11 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -16,7 +14,6 @@ import (
 	"time"
 
 	"github.com/fred-bonn/nuz/nuzengine"
-	"github.com/fred-bonn/nuz/web"
 	"github.com/spf13/pflag"
 )
 
@@ -57,35 +54,19 @@ func newServer() *server {
 
 func (s *server) handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", s.handleIndex)
-	mux.HandleFunc("/battle", s.handleBattlePage)
-	mux.HandleFunc("/battles", s.handleBattleInit)
-	mux.HandleFunc("/battles/start", s.handleBattleStart)
-	mux.HandleFunc("/battles/input", s.handleBattleInput)
+	mux.HandleFunc("GET /{$}", s.handleIndex)
+	mux.HandleFunc("GET /battle", s.handleBattlePage)
+	mux.HandleFunc("POST /battles", s.handleBattleInit)
+	mux.HandleFunc("POST /battles/start", s.handleBattleStart)
+	mux.HandleFunc("POST /battles/input", s.handleBattleInput)
 	return s.secure(mux)
 }
 
-var pages = template.Must(template.ParseFS(web.Templates, "templates/*.html"))
-
 func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		w.Header().Set("Allow", "GET, HEAD")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	renderPage(w, "index.html", nil)
 }
 
 func (s *server) handleBattlePage(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet && r.Method != http.MethodHead {
-		w.Header().Set("Allow", "GET, HEAD")
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
@@ -94,23 +75,7 @@ func (s *server) handleBattlePage(w http.ResponseWriter, r *http.Request) {
 	renderPage(w, "battle.html", struct{ ID string }{id})
 }
 
-func renderPage(w http.ResponseWriter, name string, data any) {
-	var buf bytes.Buffer
-	if err := pages.ExecuteTemplate(&buf, name, data); err != nil {
-		http.Error(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = buf.WriteTo(w)
-}
-
 func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.Header().Set("Allow", http.MethodPost)
-		respondWithError(w, http.StatusMethodNotAllowed, "method not allowed", nil)
-		return
-	}
-
 	var req struct {
 		Player   string `json:"player"`
 		Opponent string `json:"opponent"`
