@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"slices"
 )
@@ -63,4 +64,35 @@ func cors(allowedOrigins []string) middleware {
 			w.WriteHeader(http.StatusNoContent)
 		})
 	}
+}
+
+type sessionKey struct{}
+
+type sessionValue struct {
+	id   string
+	sess *session
+}
+
+// withSession resolves the battle named by the X-Battle-ID header and makes it available through sessionFrom.
+func (s *server) withSession(next http.HandlerFunc) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		id := r.Header.Get(battleIDHeader)
+		if id == "" {
+			respondWithError(w, http.StatusBadRequest, battleIDHeader+" header is required", nil)
+			return
+		}
+		sess, ok := s.battles.get(id)
+		if !ok {
+			respondWithError(w, http.StatusNotFound, "battle not found", nil)
+			return
+		}
+		ctx := context.WithValue(r.Context(), sessionKey{}, sessionValue{id, sess})
+		next.ServeHTTP(w, r.WithContext(ctx))
+	})
+}
+
+// sessionFrom returns the battle resolved by withSession; it must only be called from handlers wrapped by it.
+func sessionFrom(r *http.Request) (string, *session) {
+	v := r.Context().Value(sessionKey{}).(sessionValue)
+	return v.id, v.sess
 }

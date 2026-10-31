@@ -9,10 +9,7 @@ import (
 
 // handleBattleInput answers the pending prompt; the next prompt arrives on the start stream.
 func (s *server) handleBattleInput(w http.ResponseWriter, r *http.Request) {
-	_, sess, ok := s.lookup(w, r)
-	if !ok {
-		return
-	}
+	_, sess := sessionFrom(r)
 	var req struct {
 		Choice int `json:"choice"`
 	}

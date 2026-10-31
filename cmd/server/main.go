@@ -61,8 +61,8 @@ func (s *server) handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.handleIndex)
 	mux.HandleFunc("GET /battle", s.handleBattlePage)
 	mux.HandleFunc("POST /battles", s.handleBattleInit)
-	mux.HandleFunc("POST /battles/start", s.handleBattleStart)
-	mux.HandleFunc("POST /battles/input", s.handleBattleInput)
+	mux.Handle("POST /battles/start", s.withSession(s.handleBattleStart))
+	mux.Handle("POST /battles/input", s.withSession(s.handleBattleInput))
 	return s.secure(mux)
 }
 

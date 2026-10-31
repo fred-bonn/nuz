@@ -10,10 +10,7 @@ import (
 // handleBattleStart runs the battle and streams NDJSON events until it ends,
 // fails, or the client stays silent for longer than the input timeout.
 func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
-	id, sess, ok := s.lookup(w, r)
-	if !ok {
-		return
-	}
+	id, sess := sessionFrom(r)
 	if !sess.started.CompareAndSwap(false, true) {
 		respondWithError(w, http.StatusConflict, "battle already started", nil)
 		return
@@ -97,18 +94,4 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-}
-
-func (s *server) lookup(w http.ResponseWriter, r *http.Request) (string, *session, bool) {
-	id := r.Header.Get(battleIDHeader)
-	if id == "" {
-		respondWithError(w, http.StatusBadRequest, battleIDHeader+" header is required", nil)
-		return "", nil, false
-	}
-	sess, ok := s.battles.get(id)
-	if !ok {
-		respondWithError(w, http.StatusNotFound, "battle not found", nil)
-		return "", nil, false
-	}
-	return id, sess, true
 }
