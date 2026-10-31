@@ -33,7 +33,7 @@ func TestBattlePage(t *testing.T) {
 			rec := httptest.NewRecorder()
 			s := newServer(serverConfig{})
 			if tt.battleID != "" {
-				s.battles[tt.battleID] = newSession(newFakeBattle(0))
+				s.battles.add(tt.battleID, newSession(newFakeBattle(0)))
 			}
 			s.handler().ServeHTTP(rec, httptest.NewRequest(tt.method, tt.path, nil))
 			if rec.Code != tt.wantStatus {

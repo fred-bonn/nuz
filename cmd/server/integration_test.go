@@ -212,9 +212,7 @@ func TestConcurrentBattlesAreIndependent(t *testing.T) {
 	}
 
 	time.Sleep(50 * time.Millisecond)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.battles) != 0 {
-		t.Fatalf("%d battles left on the server", len(s.battles))
+	if n := s.battles.len(); n != 0 {
+		t.Fatalf("%d battles left on the server", n)
 	}
 }

@@ -153,9 +153,7 @@ func TestBattleFlow(t *testing.T) {
 		t.Fatalf("answers = %q", got)
 	}
 	time.Sleep(20 * time.Millisecond)
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.battles) != 0 {
+	if s.battles.len() != 0 {
 		t.Fatal("finished battle was not removed")
 	}
 }
@@ -229,9 +227,7 @@ func TestBattleTimeout(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("battle was not closed after timeout")
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.battles) != 0 {
+	if s.battles.len() != 0 {
 		t.Fatal("timed out battle was not removed")
 	}
 }
@@ -244,9 +240,7 @@ func TestUnstartedBattleExpires(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("unstarted battle was not closed")
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(s.battles) != 0 {
+	if s.battles.len() != 0 {
 		t.Fatal("unstarted battle was not removed")
 	}
 }

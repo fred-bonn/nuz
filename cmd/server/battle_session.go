@@ -34,7 +34,7 @@ type battle interface {
 
 type session struct {
 	battle   battle
-	started  bool // guarded by server.mu
+	started  bool // guarded by registry.mu
 	awaiting atomic.Bool
 	inputs   chan struct{}
 }
@@ -98,35 +98,13 @@ func (pw *promptWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-// expireIfUnstarted drops a battle the client never started.
-func (s *server) expireIfUnstarted(id string) {
-	s.mu.Lock()
-	sess, ok := s.battles[id]
-	expired := ok && !sess.started
-	if expired {
-		delete(s.battles, id)
-	}
-	s.mu.Unlock()
-	if expired {
-		sess.battle.Close()
-	}
-}
-
-func (s *server) remove(id string) {
-	s.mu.Lock()
-	delete(s.battles, id)
-	s.mu.Unlock()
-}
-
 func (s *server) lookup(w http.ResponseWriter, r *http.Request) (string, *session, bool) {
 	id := r.Header.Get(battleIDHeader)
 	if id == "" {
 		respondWithError(w, http.StatusBadRequest, battleIDHeader+" header is required", nil)
 		return "", nil, false
 	}
-	s.mu.Lock()
-	sess, ok := s.battles[id]
-	s.mu.Unlock()
+	sess, ok := s.battles.get(id)
 	if !ok {
 		respondWithError(w, http.StatusNotFound, "battle not found", nil)
 		return "", nil, false
@@ -141,14 +119,10 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	s.mu.Lock()
-	if sess.started {
-		s.mu.Unlock()
+	if !s.battles.markStarted(sess) {
 		respondWithError(w, http.StatusConflict, "battle already started", nil)
 		return
 	}
-	sess.started = true
-	s.mu.Unlock()
 
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.WriteHeader(http.StatusOK)
@@ -172,10 +146,10 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	abort := func() {
 		closeStop()
 		sess.battle.Close()
-		s.remove(id)
+		s.battles.remove(id)
 		<-done
 	}
-	defer s.remove(id)
+	defer s.battles.remove(id)
 
 	timer := time.NewTimer(s.timeout)
 	timer.Stop()

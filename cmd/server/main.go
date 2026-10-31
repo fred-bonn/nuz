@@ -10,7 +10,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/fred-bonn/nuz/nuzengine"
@@ -27,15 +26,13 @@ const (
 type initFunc func(battleStateType int, player, opponent string, weather int) (battle, error)
 
 type server struct {
-	mu      sync.Mutex
-	battles map[string]*session
+	battles *registry
 	init    initFunc
 	timeout time.Duration
 	// hintInterval is the period of best-option hints during a pending prompt.
 	hintInterval time.Duration
 	// allowedOrigins lists browser origins permitted by CORS; empty disables CORS.
 	allowedOrigins []string
-	maxBattles     int
 	// tls reports whether the server is served over HTTPS; it enables HSTS.
 	tls bool
 }
@@ -53,10 +50,9 @@ func newServer(cfg serverConfig) *server {
 		cfg.maxBattles = defaultMaxBattles
 	}
 	return &server{
-		battles:        make(map[string]*session),
+		battles:        newRegistry(cfg.maxBattles),
 		timeout:        inputTimeout,
 		hintInterval:   hintInterval,
-		maxBattles:     cfg.maxBattles,
 		allowedOrigins: cfg.allowedOrigins,
 		tls:            cfg.tls,
 		init: func(t int, p, o string, w int) (battle, error) {
@@ -81,10 +77,7 @@ func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func (s *server) handleBattlePage(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
-	s.mu.Lock()
-	_, ok := s.battles[id]
-	s.mu.Unlock()
-	if !ok {
+	if _, ok := s.battles.get(id); !ok {
 		http.Redirect(w, r, "/", http.StatusSeeOther)
 		return
 	}
@@ -112,7 +105,7 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 	if req.Double {
 		battleStateType = 1
 	}
-	if s.full() {
+	if s.battles.full() {
 		respondWithError(w, http.StatusServiceUnavailable, "too many active battles", nil)
 		return
 	}
@@ -127,16 +120,12 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusInternalServerError, "failed generating id", err)
 		return
 	}
-	s.mu.Lock()
-	if len(s.battles) >= s.maxBattles {
-		s.mu.Unlock()
+	if !s.battles.add(id, newSession(bs)) {
 		bs.Close()
 		respondWithError(w, http.StatusServiceUnavailable, "too many active battles", nil)
 		return
 	}
-	s.battles[id] = newSession(bs)
-	s.mu.Unlock()
-	time.AfterFunc(s.timeout, func() { s.expireIfUnstarted(id) })
+	time.AfterFunc(s.timeout, func() { s.battles.expireIfUnstarted(id) })
 
 	w.Header().Set(battleIDHeader, id)
 	respondWithJSON(w, http.StatusCreated, struct {
@@ -158,12 +147,6 @@ func validBattleRequest(w http.ResponseWriter, player, opponent string, weather 
 		return false
 	}
 	return true
-}
-
-func (s *server) full() bool {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return len(s.battles) >= s.maxBattles
 }
 
 func newID() (string, error) {

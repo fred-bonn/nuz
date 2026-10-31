@@ -71,7 +71,7 @@ func TestCreateBattle(t *testing.T) {
 				t.Fatalf("init type = %d, want %d", gotType, tt.wantType)
 			}
 			if tt.wantStatus != http.StatusCreated {
-				if len(s.battles) != 0 {
+				if s.battles.len() != 0 {
 					t.Fatalf("battle stored on failure")
 				}
 				return
@@ -80,7 +80,7 @@ func TestCreateBattle(t *testing.T) {
 			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
 				t.Fatal(err)
 			}
-			if _, ok := s.battles[resp.ID]; !ok || resp.ID == "" {
+			if _, ok := s.battles.get(resp.ID); !ok || resp.ID == "" {
 				t.Fatalf("battle %q not stored", resp.ID)
 			}
 			if got := rec.Header().Get(battleIDHeader); got != resp.ID {
@@ -130,8 +130,8 @@ func TestCreateBattleWithDemoFiles(t *testing.T) {
 			if rec.Code != tt.wantStatus {
 				t.Fatalf("status = %d, want %d (%s)", rec.Code, tt.wantStatus, rec.Body)
 			}
-			if tt.wantStatus == http.StatusCreated && len(s.battles) != 1 {
-				t.Fatalf("stored battles = %d, want 1", len(s.battles))
+			if tt.wantStatus == http.StatusCreated && s.battles.len() != 1 {
+				t.Fatalf("stored battles = %d, want 1", s.battles.len())
 			}
 		})
 	}
