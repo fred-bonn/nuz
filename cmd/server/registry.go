@@ -49,27 +49,13 @@ func (r *registry) remove(id string) {
 	delete(r.sessions, id)
 }
 
-// markStarted reports false if the session was already started.
-func (r *registry) markStarted(sess *session) bool {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if sess.started {
-		return false
-	}
-	sess.started = true
-	return true
-}
-
 // expireIfUnstarted drops a battle the client never started.
 func (r *registry) expireIfUnstarted(id string) {
-	r.mu.Lock()
-	sess, ok := r.sessions[id]
-	expired := ok && !sess.started
-	if expired {
-		delete(r.sessions, id)
+	sess, ok := r.get(id)
+	// Claiming started also makes a concurrent start request fail instead of running an expired battle.
+	if !ok || !sess.started.CompareAndSwap(false, true) {
+		return
 	}
-	r.mu.Unlock()
-	if expired {
-		sess.battle.Close()
-	}
+	r.remove(id)
+	sess.battle.Close()
 }

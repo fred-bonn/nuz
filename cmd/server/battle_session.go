@@ -34,7 +34,7 @@ type battle interface {
 
 type session struct {
 	battle   battle
-	started  bool // guarded by registry.mu
+	started  atomic.Bool
 	awaiting atomic.Bool
 	inputs   chan struct{}
 }
@@ -119,7 +119,7 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
-	if !s.battles.markStarted(sess) {
+	if !sess.started.CompareAndSwap(false, true) {
 		respondWithError(w, http.StatusConflict, "battle already started", nil)
 		return
 	}
