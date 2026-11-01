@@ -10,6 +10,7 @@ import (
 type battleState interface {
 	execute() error
 	reset()
+	getResetPoint() *battleResetState
 	setError(error)
 	getError() error
 	gatherActions()
@@ -254,11 +255,5 @@ func resolveOnEntry(bs battleState) {
 		if f, ok := onSwitchAbilities[slot.mon.ability]; ok {
 			f(slot, bs, true)
 		}
-	}
-}
-
-func resetPokemonParty(party []*pokemon) {
-	for _, mon := range party {
-		mon.reset()
 	}
 }

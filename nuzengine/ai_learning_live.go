@@ -7,14 +7,13 @@ import (
 )
 
 // liveLearner runs one Monte Carlo worker without an iteration limit beside a live
-// battle. The worker plays its own copy of the battle; rebase moves the root of
+// battle. The worker plays its own copy of the battle; rebase moves the reset point of
 // that copy to the live state while keeping everything learned so far.
 type liveLearner struct {
-	la   *learningAiMonteCarlo
-	bs   battleState
-	root battleRoot
+	la *learningAiMonteCarlo
+	bs battleState
 
-	// mu is held while an episode runs and while the root is replaced.
+	// mu is held while an episode runs and while the reset point is replaced.
 	mu       sync.Mutex
 	stop     chan struct{}
 	done     chan struct{}
@@ -43,7 +42,6 @@ func newLiveLearner(battleStateInt int, playerPartyStr, opponentPartyStr string,
 	return &liveLearner{
 		la:   la,
 		bs:   bs,
-		root: captureRoot(bs),
 		stop: make(chan struct{}),
 		done: make(chan struct{}),
 	}, nil
@@ -78,7 +76,7 @@ func (l *liveLearner) episode() error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
-	l.root.apply(l.bs)
+	l.bs.reset()
 	l.la.pending = actionCandidate{}
 	l.la.planner = doublePlanner{}
 	l.la.beginEpisode()
@@ -89,13 +87,12 @@ func (l *liveLearner) episode() error {
 	return nil
 }
 
-// rebase makes the current state of src the root of all further episodes.
+// rebase makes the current state of src the reset point of all further episodes.
 // It must be called from the goroutine that owns src.
 func (l *liveLearner) rebase(src battleState) {
-	root := captureRoot(src)
 	l.mu.Lock()
-	l.root = root
-	l.mu.Unlock()
+	defer l.mu.Unlock()
+	setResetPoint(l.bs, src, true)
 }
 
 func (l *liveLearner) signalStop() {

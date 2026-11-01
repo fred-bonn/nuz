@@ -28,7 +28,7 @@ func testRootBattle(t *testing.T, ai ai) *singleBattleState {
 	return bs.(*singleBattleState)
 }
 
-func TestBattleRootApply(t *testing.T) {
+func TestSetResetPoint(t *testing.T) {
 	tests := map[string]struct {
 		mutate func(bs *singleBattleState)
 		check  func(t *testing.T, bs *singleBattleState)
@@ -90,18 +90,19 @@ func TestBattleRootApply(t *testing.T) {
 
 	for name, tc := range tests {
 		t.Run(name, func(t *testing.T) {
-			bs := testRootBattle(t, rnbAi{})
-			tc.mutate(bs)
-			root := captureRoot(bs)
-			wantKey := bs.key()
+			src := testRootBattle(t, rnbAi{})
+			tc.mutate(src)
+			wantKey := src.key()
 
-			// Diverge completely, then restore.
-			bs.reset()
+			bs := testRootBattle(t, rnbAi{})
+			setResetPoint(bs, src, true)
+
+			// Diverge completely, then reset.
 			bs.player.pokemonParty[0].hp = 1
 			bs.activeOpponentSlot.mon.fainted = true
 			bs.player.lost = true
 			bs.setError(errors.New("boom"))
-			root.apply(bs)
+			bs.reset()
 
 			if bs.getError() != nil || bs.player.lost {
 				t.Errorf("error=%v lost=%v, want cleared", bs.getError(), bs.player.lost)
@@ -188,7 +189,7 @@ func TestLiveLearnerBestOption(t *testing.T) {
 func TestLiveLearnerKeepsLearningAcrossRebase(t *testing.T) {
 	la := newLearningAIMonteCarlo()
 	bs := testRootBattle(t, la)
-	l := &liveLearner{la: la, bs: bs, root: captureRoot(bs), stop: make(chan struct{}), done: make(chan struct{})}
+	l := &liveLearner{la: la, bs: bs, stop: make(chan struct{}), done: make(chan struct{})}
 	rootKey := bs.key()
 
 	total := func(state string) int {
@@ -227,7 +228,7 @@ func TestLiveLearnerKeepsLearningAcrossRebase(t *testing.T) {
 
 	l.mu.Lock()
 	defer l.mu.Unlock()
-	if got := l.root.opponent.mons[0].hp; got != 1 {
+	if got := l.bs.(*singleBattleState).opponent.pokemonParty[0].resetPoint.hp; got != 1 {
 		t.Errorf("root opponent hp = %d, want 1", got)
 	}
 }

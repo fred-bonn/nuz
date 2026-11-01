@@ -13,9 +13,7 @@ type doubleBattleState struct {
 	weather               weatherState
 	fieldEffects          map[fieldEffect]int
 	err                   error
-	initialPlayerMons     []*pokemon
-	initialOpponentMons   []*pokemon
-	initialWeather        weatherState
+	resetPoint            battleResetState
 }
 
 func (dbs *doubleBattleState) execute() error {
@@ -47,35 +45,9 @@ func (dbs *doubleBattleState) execute() error {
 
 	return nil
 }
-func (dbs *doubleBattleState) reset() {
-	for _, slot := range dbs.getAllSlots() {
-		slot.mon.switchReset()
-		slot.firstTurn = true
-		slot.suckerPunch = false
-		slot.protected = false
-		slot.protectTurns = 0
-		slot.invulnerableAction = nil
-		slot.unnerved = false
-	}
+func (dbs *doubleBattleState) reset() { resetBattle(dbs) }
 
-	dbs.activePlayerSlotOne.mon = dbs.initialPlayerMons[0]
-	dbs.activePlayerSlotTwo.mon = dbs.initialPlayerMons[1]
-	dbs.activeOpponentSlotOne.mon = dbs.initialOpponentMons[0]
-	dbs.activeOpponentSlotTwo.mon = dbs.initialOpponentMons[1]
-
-	resetPokemonParty(dbs.player.pokemonParty)
-	resetPokemonParty(dbs.opponent.pokemonParty)
-	dbs.player.fieldEffects = make(map[fieldEffect]int)
-	dbs.opponent.fieldEffects = make(map[fieldEffect]int)
-	dbs.fieldEffects = make(map[fieldEffect]int)
-	dbs.player.lost = false
-	dbs.opponent.lost = false
-	dbs.actions.queue = dbs.actions.queue[:0]
-	dbs.weather = dbs.initialWeather
-	dbs.err = nil
-
-	resolveOnEntry(dbs)
-}
+func (dbs *doubleBattleState) getResetPoint() *battleResetState { return &dbs.resetPoint }
 
 func (dbs *doubleBattleState) setError(err error) {
 	dbs.err = err
@@ -213,25 +185,17 @@ func initDoubleBattleState(player, opponent trainer, playerParty, opponentParty 
 			Trainer:   &opponent,
 			firstTurn: true,
 		},
-		player:   &player,
-		opponent: &opponent,
-		initialPlayerMons: []*pokemon{
-			playerParty[0],
-			playerParty[1],
-		},
-		initialOpponentMons: []*pokemon{
-			opponentParty[0],
-			opponentParty[1],
-		},
-		weather:        weather,
-		initialWeather: weather,
-		fieldEffects:   make(map[fieldEffect]int),
+		player:       &player,
+		opponent:     &opponent,
+		weather:      weather,
+		fieldEffects: make(map[fieldEffect]int),
 		actions: actionQueue{
 			queue: make(priorityQueue[action], 0, 3),
 		},
 	}
 
 	res.setWeather(weather)
+	setResetPoint(&res, &res, false)
 
 	resolveOnEntry(&res)
 

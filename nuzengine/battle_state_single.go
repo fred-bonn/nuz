@@ -11,9 +11,7 @@ type singleBattleState struct {
 	weather            weatherState
 	fieldEffects       map[fieldEffect]int
 	err                error
-	initialPlayerMon   *pokemon
-	initialOpponentMon *pokemon
-	initialWeather     weatherState
+	resetPoint         battleResetState
 }
 
 func (sbs *singleBattleState) execute() error {
@@ -111,27 +109,9 @@ func (sbs *singleBattleState) getFieldEffects() map[fieldEffect]int {
 	return sbs.fieldEffects
 }
 
-func (sbs *singleBattleState) reset() {
-	sbs.activePlayerSlot.mon.switchReset()
-	sbs.activePlayerSlot.mon = sbs.initialPlayerMon
-	sbs.activeOpponentSlot.mon.switchReset()
-	sbs.activeOpponentSlot.mon = sbs.initialOpponentMon
+func (sbs *singleBattleState) reset() { resetBattle(sbs) }
 
-	resetPokemonParty(sbs.player.pokemonParty)
-	resetPokemonParty(sbs.opponent.pokemonParty)
-
-	sbs.player.fieldEffects = make(map[fieldEffect]int)
-	sbs.opponent.fieldEffects = make(map[fieldEffect]int)
-
-	sbs.player.lost = false
-	sbs.opponent.lost = false
-
-	sbs.weather = sbs.initialWeather
-
-	sbs.err = nil
-
-	resolveOnEntry(sbs)
-}
+func (sbs *singleBattleState) getResetPoint() *battleResetState { return &sbs.resetPoint }
 
 func initSingleBattleState(player, opponent trainer, playerParty, opponentParty []*pokemon, weather weatherState) (battleState, error) {
 	if len(playerParty) < 1 {
@@ -160,12 +140,10 @@ func initSingleBattleState(player, opponent trainer, playerParty, opponentParty 
 		actions: actionQueue{
 			queue: make(priorityQueue[action], 0, 3),
 		},
-		initialPlayerMon:   playerParty[0],
-		initialOpponentMon: opponentParty[0],
-		initialWeather:     weather,
 	}
 
 	res.setWeather(weather)
+	setResetPoint(&res, &res, false)
 
 	resolveOnEntry(&res)
 

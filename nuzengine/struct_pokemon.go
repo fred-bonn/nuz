@@ -9,28 +9,26 @@ import (
 )
 
 type pokemon struct {
-	base           BasePokemon
-	level          int
-	ivs            []int
-	nat            nature
-	moves          []*Move
-	lockedMove     *Move
-	stats          []int
-	stages         []int
-	hp             int
-	fainted        bool
-	ailments       map[ailmentState]*ailment
-	item           *item
-	ability        abilityState
-	unnerved       bool
-	flashFire      bool
-	unburden       bool
-	trace          bool
-	focusEnergy    bool
-	laserFocus     bool
-	initialHp      int
-	initialAilment ailmentState
-	initialItem    itemState
+	base        BasePokemon
+	level       int
+	ivs         []int
+	nat         nature
+	moves       []*Move
+	lockedMove  *Move
+	stats       []int
+	stages      []int
+	hp          int
+	fainted     bool
+	ailments    map[ailmentState]*ailment
+	item        *item
+	ability     abilityState
+	unnerved    bool
+	flashFire   bool
+	unburden    bool
+	trace       bool
+	focusEnergy bool
+	laserFocus  bool
+	resetPoint  pokemonResetState
 }
 
 func initPokemon(baseMon BasePokemon, moves []*Move, parsedMon parser.ParsedPokemon) (*pokemon, error) {
@@ -71,13 +69,10 @@ func initPokemon(baseMon BasePokemon, moves []*Move, parsedMon parser.ParsedPoke
 	}
 
 	res.hp = max(1, min(res.MaxHP(), parsedMon.HP))
-	res.initialHp = res.hp
 
-	res.initialAilment = noneAilment
 	status := stringToAilmentState(parsedMon.Status)
 	if status.isNonVolatileStatus() {
 		res.ailments[status] = generateAilment(status, nil)
-		res.initialAilment = status
 	}
 
 	item, err := registerItem(stringToItemState(strings.ToLower(parsedMon.Item)), &res)
@@ -85,7 +80,6 @@ func initPokemon(baseMon BasePokemon, moves []*Move, parsedMon parser.ParsedPoke
 		return nil, err
 	}
 	res.item = item
-	res.initialItem = item.State
 
 	res.ability = stringToAbility(strings.ToLower(parsedMon.Ability))
 	if res.ability == noneAbility {
@@ -134,19 +128,39 @@ func calculateStats(Pokemon *pokemon) error {
 	return nil
 }
 
-func (p *pokemon) reset() {
-	for _, move := range p.moves {
-		move.PP = move.MaxPP
+// reset restores the pokemon to its reset point. Slots resolve the afflictedBy indices of its ailments.
+func (p *pokemon) reset(slots []*slot) {
+	r := &p.resetPoint
+	p.hp = r.hp
+	p.fainted = r.fainted
+	copy(p.stages, r.stages)
+	for i, pp := range r.pp {
+		p.moves[i].PP = pp
 	}
-	p.hp = p.initialHp
-	for ailment := range p.ailments {
-		delete(p.ailments, ailment)
+	p.lockedMove = nil
+	if r.lockedMove >= 0 {
+		p.lockedMove = p.moves[r.lockedMove]
 	}
-	if p.initialAilment != noneAilment {
-		p.ailments[p.initialAilment] = generateAilment(p.initialAilment, nil)
+	p.item, _ = registerItem(r.item, p)
+	p.item.Consumed = r.itemConsumed
+	p.ability = r.ability
+	p.unnerved = r.unnerved
+	p.flashFire = r.flashFire
+	p.unburden = r.unburden
+	p.trace = r.trace
+	p.focusEnergy = r.focusEnergy
+	p.laserFocus = r.laserFocus
+
+	clear(p.ailments)
+	for _, ar := range r.ailments {
+		var by *slot
+		if ar.afflictedBy >= 0 {
+			by = slots[ar.afflictedBy]
+		}
+		a := generateAilment(ar.state, by)
+		a.Turns = ar.turns
+		p.ailments[ar.state] = a
 	}
-	p.item, _ = registerItem(p.initialItem, p)
-	p.fainted = false
 }
 
 func (p *pokemon) switchReset() {
