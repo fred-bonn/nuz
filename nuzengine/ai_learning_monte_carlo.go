@@ -287,7 +287,7 @@ func (la *learningAiMonteCarlo) evaluateActions(bs battleState, slot *slot, acti
 	return actions[0], -1
 }
 
-func (la *learningAiMonteCarlo) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
+func (la *learningAiMonteCarlo) evaluateSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if la.pending.target != nil && slices.Contains(mons, la.pending.target) {
 		return la.pending.target
 	}

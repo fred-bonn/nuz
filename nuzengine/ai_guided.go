@@ -78,7 +78,7 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 	}
 }
 
-func (ga *guidedAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
+func (ga *guidedAi) evaluateSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if ga.pending.target != nil && slices.Contains(mons, ga.pending.target) {
 		return ga.pending.target
 	}

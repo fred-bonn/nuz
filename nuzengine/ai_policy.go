@@ -66,7 +66,7 @@ func (pa *policyAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 	return actions[0], -1
 }
 
-func (pa *policyAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
+func (pa *policyAi) evaluateSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if pa.pending.target != nil && slices.Contains(mons, pa.pending.target) {
 		return pa.pending.target
 	}

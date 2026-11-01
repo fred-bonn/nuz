@@ -4,7 +4,7 @@ import "math/rand"
 
 type ai interface {
 	evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int)
-	evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon
+	evaluateSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon
 	shouldSwitch(bs battleState, slot *slot, score int, party []*pokemon) bool
 }
 
@@ -14,7 +14,7 @@ func (ra randomAi) evaluateActions(bs battleState, slot *slot, actions []*moveAc
 	return actions[rand.Intn(len(actions))], 1
 }
 
-func (ra randomAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
+func (ra randomAi) evaluateSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	return mons[rand.Intn(len(mons))]
 }
 
@@ -74,7 +74,7 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 	if len(possibleMons) == 0 {
 		return chosenAction
 	}
-	chosenMon := decisionAI.evaluteSwitchIns(bs, possibleMons, bs.getOpponentSlot(slot))
+	chosenMon := decisionAI.evaluateSwitchIns(bs, possibleMons, bs.getOpponentSlot(slot))
 	return &switchAction{oldSlot: slot, new: chosenMon}
 }
 
@@ -89,7 +89,7 @@ func chooseSwitchIn(bs battleState, slot *slot, party []*pokemon, decisionAI ai)
 		return nil
 	}
 
-	return decisionAI.evaluteSwitchIns(bs, possibleMons, bs.getOpponentSlot(slot))
+	return decisionAI.evaluateSwitchIns(bs, possibleMons, bs.getOpponentSlot(slot))
 }
 
 func canReplace(party []*pokemon) bool {

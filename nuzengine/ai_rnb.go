@@ -228,7 +228,7 @@ func (rnb rnbAi) evaluateActions(bs battleState, userSlot *slot, actions []*move
 	return actions[bestIndices[resultIndex]], scores[bestIndices[resultIndex]]
 }
 
-func (rnb rnbAi) evaluteSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
+func (rnb rnbAi) evaluateSwitchIns(bs battleState, mons []*pokemon, opponentSlot *slot) *pokemon {
 	if len(mons) == 1 {
 		return mons[0]
 	}

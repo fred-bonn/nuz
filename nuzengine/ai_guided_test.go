@@ -34,7 +34,7 @@ func TestGuidedAIChoosesForcedReplacement(t *testing.T) {
 			var output bytes.Buffer
 			ga := newGuidedAI(strings.NewReader(tc.input), &output)
 
-			got := ga.evaluteSwitchIns(nil, mons, nil)
+			got := ga.evaluateSwitchIns(nil, mons, nil)
 			if got != mons[0] && got != mons[1] || got.base.Name != tc.wantName {
 				t.Fatalf("replacement = %v, want %s", got, tc.wantName)
 			}
@@ -140,7 +140,7 @@ func TestGuidedAIDiscardsNonNumericInput(t *testing.T) {
 	mons := []*pokemon{{base: BasePokemon{Name: "first"}, stats: []int{10}}, {base: BasePokemon{Name: "second"}, stats: []int{10}}}
 	var output bytes.Buffer
 	ga := newGuidedAI(strings.NewReader("1 2\n+2\n -1\n2abc\n2\n"), &output)
-	if got := ga.evaluteSwitchIns(nil, mons, nil); got != mons[1] {
+	if got := ga.evaluateSwitchIns(nil, mons, nil); got != mons[1] {
 		t.Fatalf("got %v, want second", got)
 	}
 	if n := strings.Count(output.String(), "invalid input"); n != 4 {
