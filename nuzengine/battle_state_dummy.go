@@ -30,7 +30,7 @@ func (bs *dummyBattleState) setWeather(weatherState)              {}
 func (bs *dummyBattleState) getFieldEffects() map[fieldEffect]int { return nil }
 func (bs *dummyBattleState) reset()                               {}
 func (bs *dummyBattleState) getResetPoint() *battleResetState     { return nil }
-func (bs *dummyBattleState) key() string                          { return "" }
+func (bs *dummyBattleState) key() stateKey                        { return "" }
 
 func initBenchBattleState(w weatherState) *dummyBattleState {
 	return &dummyBattleState{

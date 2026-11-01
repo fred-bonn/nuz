@@ -124,51 +124,51 @@ func TestLiveLearnerBestOption(t *testing.T) {
 		wantOk bool
 	}{
 		"no data": {
-			hint: optionHint{state: state, keys: []string{"move:a", "move:b"}},
+			hint: optionHint{state: state, actionKeys: []string{"move:a", "move:b"}},
 		},
 		"picks highest value": {
 			q:      map[string]float64{"move:a": -10, "move:b": -2},
-			hint:   optionHint{state: state, keys: []string{"move:a", "move:b"}},
+			hint:   optionHint{state: state, actionKeys: []string{"move:a", "move:b"}},
 			want:   1,
 			wantOk: true,
 		},
 		"ignores learned actions that are not options": {
 			q:      map[string]float64{"move:a": -10, "move:z": 0},
-			hint:   optionHint{state: state, keys: []string{"move:a", "move:b"}},
+			hint:   optionHint{state: state, actionKeys: []string{"move:a", "move:b"}},
 			want:   0,
 			wantOk: true,
 		},
 		"ties pick the first option": {
 			q:      map[string]float64{"move:a": -5, "move:b": -5},
-			hint:   optionHint{state: state, keys: []string{"move:a", "move:b"}},
+			hint:   optionHint{state: state, actionKeys: []string{"move:a", "move:b"}},
 			want:   0,
 			wantOk: true,
 		},
 		"composite first slot": {
 			q:      map[string]float64{"move:a,move:x": -8, "move:b,move:x": -1, "move:c,move:x": 0},
-			hint:   optionHint{state: state, keys: []string{"move:a", "move:b"}, composite: true},
+			hint:   optionHint{state: state, actionKeys: []string{"move:a", "move:b"}, composite: true},
 			want:   1,
 			wantOk: true,
 		},
 		"composite second slot follows the chosen first": {
 			q:      map[string]float64{"move:a,move:x": -8, "move:a,move:y": -3, "move:b,move:x": 0},
-			hint:   optionHint{state: state, keys: []string{"move:x", "move:y"}, composite: true, second: true, first: "move:a"},
+			hint:   optionHint{state: state, actionKeys: []string{"move:x", "move:y"}, composite: true, second: true, first: "move:a"},
 			want:   1,
 			wantOk: true,
 		},
 		"composite second slot after a skipped first slot": {
 			q:      map[string]float64{"none,move:y": -3},
-			hint:   optionHint{state: state, keys: []string{"move:x", "move:y"}, composite: true, second: true, first: noActionKey},
+			hint:   optionHint{state: state, actionKeys: []string{"move:x", "move:y"}, composite: true, second: true, first: noActionKey},
 			want:   1,
 			wantOk: true,
 		},
 		"composite second slot with no matching first": {
 			q:    map[string]float64{"move:b,move:x": 0},
-			hint: optionHint{state: state, keys: []string{"move:x"}, composite: true, second: true, first: "move:a"},
+			hint: optionHint{state: state, actionKeys: []string{"move:x"}, composite: true, second: true, first: "move:a"},
 		},
 		"other state": {
 			q:    map[string]float64{"move:a": 0},
-			hint: optionHint{state: "other", keys: []string{"move:a"}},
+			hint: optionHint{state: "other", actionKeys: []string{"move:a"}},
 		},
 	}
 	for name, tc := range tests {
@@ -192,7 +192,7 @@ func TestLiveLearnerKeepsLearningAcrossRebase(t *testing.T) {
 	l := &liveLearner{la: la, bs: bs, stop: make(chan struct{}), done: make(chan struct{})}
 	rootKey := bs.key()
 
-	total := func(state string) int {
+	total := func(state stateKey) int {
 		la.mu.RLock()
 		defer la.mu.RUnlock()
 		n := 0

@@ -7,6 +7,8 @@ import (
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
 
+type stateKey string
+
 type battleState interface {
 	execute() error
 	reset()
@@ -23,7 +25,7 @@ type battleState interface {
 	getWeather() weatherState
 	setWeather(weatherState)
 	getFieldEffects() map[fieldEffect]int
-	key() string
+	key() stateKey
 }
 
 func executeActions(bs battleState) error {

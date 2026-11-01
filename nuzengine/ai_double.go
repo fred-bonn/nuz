@@ -22,7 +22,7 @@ func (c compositeCandidate) key() string {
 
 // plan returns this slot's part of the composite action. When a new composite
 // was chosen, recorded is true and state/key describe the trajectory step.
-func (dp *doublePlanner) plan(dbs *doubleBattleState, s *slot, actions []*moveAction, pick func(state string, candidates []actionCandidate) actionCandidate) (mine actionCandidate, state, key string, recorded bool) {
+func (dp *doublePlanner) plan(dbs *doubleBattleState, s *slot, actions []*moveAction, pick func(state stateKey, candidates []actionCandidate) actionCandidate) (mine actionCandidate, state stateKey, key string, recorded bool) {
 	if s == dbs.activePlayerSlotTwo && dp.second != nil {
 		mine = *dp.second
 		dp.second = nil

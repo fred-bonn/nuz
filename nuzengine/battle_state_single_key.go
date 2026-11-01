@@ -58,11 +58,11 @@ func (stateKey singleBattleStateKey) String() string {
 	return string(buf)
 }
 
-func (sbs *singleBattleState) key() string {
+func (sbs *singleBattleState) key() stateKey {
 	playerMon := sbs.activePlayerSlot.mon
 	opponentMon := sbs.activeOpponentSlot.mon
 
-	stateKey := singleBattleStateKey{
+	state := singleBattleStateKey{
 		Weather:           sbs.weather,
 		PlayerMon:         playerMon.base.Name,
 		OpponentMon:       opponentMon.base.Name,
@@ -101,13 +101,13 @@ func (sbs *singleBattleState) key() string {
 		rollType:          rollMax,
 	})
 
-	stateKey.PlayerMonHasKill = playerMonMax >= opponentMon.hp
-	stateKey.PlayerMonHasFastKill = playerMonMaxPrio >= opponentMon.hp || (stateKey.PlayerMonHasKill && playerMon.isFasterThan(sbs, opponentMon))
-	stateKey.OpponentMonHasKill = opponentMonMax >= playerMon.hp
-	stateKey.OpponentMonHasFastKill = opponentMonMaxPrio >= playerMon.hp || (stateKey.OpponentMonHasKill && opponentMon.isFasterThan(sbs, playerMon))
-	stateKey.PlayerMonIsTrapped = sbs.activePlayerSlot.isTrapped()
+	state.PlayerMonHasKill = playerMonMax >= opponentMon.hp
+	state.PlayerMonHasFastKill = playerMonMaxPrio >= opponentMon.hp || (state.PlayerMonHasKill && playerMon.isFasterThan(sbs, opponentMon))
+	state.OpponentMonHasKill = opponentMonMax >= playerMon.hp
+	state.OpponentMonHasFastKill = opponentMonMaxPrio >= playerMon.hp || (state.OpponentMonHasKill && opponentMon.isFasterThan(sbs, playerMon))
+	state.PlayerMonIsTrapped = sbs.activePlayerSlot.isTrapped()
 
-	return stateKey.String()
+	return stateKey(state.String())
 }
 
 func isItemUsed(mon *pokemon) bool {

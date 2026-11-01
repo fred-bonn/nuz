@@ -18,7 +18,7 @@ type InteractiveBattle struct {
 	live      *liveLearner
 	hintMu    sync.Mutex
 	hint      *optionHint
-	rootState string
+	rootState stateKey
 }
 
 func InitInteractiveBattle(battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt int) (*InteractiveBattle, error) {
@@ -66,7 +66,7 @@ func (ib *InteractiveBattle) Run(onPrompt func(title string, options []string)) 
 func (ib *InteractiveBattle) onPrompt(bs battleState, s *slot, candidates []actionCandidate, replacement bool) {
 	h := optionHint{state: bs.key()}
 	for _, c := range candidates {
-		h.keys = append(h.keys, c.key)
+		h.actionKeys = append(h.actionKeys, c.key)
 	}
 
 	if dbs, ok := bs.(*doubleBattleState); ok && !replacement {

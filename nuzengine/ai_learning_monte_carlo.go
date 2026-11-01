@@ -19,7 +19,7 @@ type learningAiMonteCarlo struct {
 	mu sync.RWMutex
 }
 
-type qMap map[string]map[string]*qEntry
+type qMap map[stateKey]map[string]*qEntry
 
 type qEntry struct {
 	Value float64 `json:"value"`
@@ -33,7 +33,7 @@ type actionCandidate struct {
 }
 
 type trajectoryStep struct {
-	state  string
+	state  stateKey
 	action string
 }
 
@@ -150,7 +150,7 @@ func newQMap() qMap {
 	return make(qMap)
 }
 
-func (q qMap) update(state, action string, reward float64) {
+func (q qMap) update(state stateKey, action string, reward float64) {
 	actions, ok := q[state]
 	if !ok {
 		actions = make(map[string]*qEntry)
@@ -165,7 +165,7 @@ func (q qMap) update(state, action string, reward float64) {
 	entry.Value += (reward - entry.Value) / float64(entry.Count)
 }
 
-func (q qMap) valueFor(state, action string) float64 {
+func (q qMap) valueFor(state stateKey, action string) float64 {
 	actions, ok := q[state]
 	if !ok {
 		return 0
@@ -236,7 +236,7 @@ func buildSwitchCandidates(mons []*pokemon) []actionCandidate {
 	return candidates
 }
 
-func argmaxCandidate(q qMap, state string, candidates []actionCandidate) actionCandidate {
+func argmaxCandidate(q qMap, state stateKey, candidates []actionCandidate) actionCandidate {
 	best := candidates[0]
 	bestValue := q.valueFor(state, best.key)
 	bestCount := 1
@@ -256,7 +256,7 @@ func argmaxCandidate(q qMap, state string, candidates []actionCandidate) actionC
 	return best
 }
 
-func (la *learningAiMonteCarlo) choose(state string, candidates []actionCandidate) actionCandidate {
+func (la *learningAiMonteCarlo) choose(state stateKey, candidates []actionCandidate) actionCandidate {
 	if rand.Float64() < la.epsilon {
 		return candidates[rand.Intn(len(candidates))]
 	}

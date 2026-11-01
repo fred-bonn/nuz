@@ -35,8 +35,8 @@ type doubleBattleStateKey struct {
 	Weather       weatherState
 }
 
-func (dbs *doubleBattleState) key() string {
-	stateKey := doubleBattleStateKey{
+func (dbs *doubleBattleState) key() stateKey {
+	state := doubleBattleStateKey{
 		Weather:       dbs.weather,
 		AlivePlayer:   aliveMask(dbs.player.pokemonParty),
 		AliveOpponent: aliveMask(dbs.opponent.pokemonParty),
@@ -45,11 +45,11 @@ func (dbs *doubleBattleState) key() string {
 	playerSlots := [2]*slot{dbs.activePlayerSlotOne, dbs.activePlayerSlotTwo}
 	opponentSlots := [2]*slot{dbs.activeOpponentSlotOne, dbs.activeOpponentSlotTwo}
 	for i := range 2 {
-		stateKey.PlayerSlots[i] = dbs.slotKey(playerSlots[i], opponentSlots, true)
-		stateKey.OpponentSlots[i] = dbs.slotKey(opponentSlots[i], playerSlots, false)
+		state.PlayerSlots[i] = dbs.slotKey(playerSlots[i], opponentSlots, true)
+		state.OpponentSlots[i] = dbs.slotKey(opponentSlots[i], playerSlots, false)
 	}
 
-	return stateKey.String()
+	return stateKey(state.String())
 }
 
 // String renders the key as "mon.flags.ailment" per slot followed by the

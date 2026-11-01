@@ -23,9 +23,9 @@ type liveLearner struct {
 
 // optionHint describes the prompt currently shown to the player.
 type optionHint struct {
-	state string
-	// keys are the action keys of the options, in display order.
-	keys []string
+	state stateKey
+	// actionKeys are the keys of the options, in display order.
+	actionKeys []string
 	// composite marks double battle action prompts, whose learned actions cover both player slots.
 	composite bool
 	// second marks the prompt of the second player slot; first is the key chosen for the first slot.
@@ -126,14 +126,14 @@ func (l *liveLearner) bestOption(h optionHint) (int, bool) {
 	}
 	for action, entry := range actions {
 		if !h.composite {
-			consider(slices.Index(h.keys, action), entry)
+			consider(slices.Index(h.actionKeys, action), entry)
 			continue
 		}
 		first, second, _ := strings.Cut(action, compositeSeparator)
 		if !h.second {
-			consider(slices.Index(h.keys, first), entry)
+			consider(slices.Index(h.actionKeys, first), entry)
 		} else if first == h.first {
-			consider(slices.Index(h.keys, second), entry)
+			consider(slices.Index(h.actionKeys, second), entry)
 		}
 	}
 	return best, best >= 0

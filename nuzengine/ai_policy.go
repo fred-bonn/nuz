@@ -50,7 +50,7 @@ func newPolicyAI(q qMap) *policyAi {
 
 func (pa *policyAi) evaluateActions(bs battleState, slot *slot, actions []*moveAction) (*moveAction, int) {
 	if dbs, ok := bs.(*doubleBattleState); ok {
-		mine, _, _, _ := pa.planner.plan(dbs, slot, actions, func(state string, candidates []actionCandidate) actionCandidate {
+		mine, _, _, _ := pa.planner.plan(dbs, slot, actions, func(state stateKey, candidates []actionCandidate) actionCandidate {
 			return argmaxCandidate(pa.q, state, candidates)
 		})
 		pa.pending = mine
@@ -89,7 +89,7 @@ func savePolicy(q qMap, playerPartyStr, opponentPartyStr string, weatherInt int,
 
 	actionIndex := make(map[string]int)
 	for state, actions := range q {
-		ds := diskState{Key: state, Entries: make([]diskEntry, 0, len(actions))}
+		ds := diskState{Key: string(state), Entries: make([]diskEntry, 0, len(actions))}
 		for action, entry := range actions {
 			idx, ok := actionIndex[action]
 			if !ok {
@@ -156,7 +156,7 @@ func loadPolicy(path string) (policyData, error) {
 			}
 			actions[disk.Actions[e.Action]] = &qEntry{Value: e.Value, Count: e.Count}
 		}
-		q[ds.Key] = actions
+		q[stateKey(ds.Key)] = actions
 	}
 
 	return policyData{
