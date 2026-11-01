@@ -58,6 +58,9 @@ func chooseNextAction(bs battleState, slot *slot, party []*pokemon, decisionAI a
 	possibleActions := possibleMoveActions(bs, slot)
 
 	chosenAction, score := decisionAI.evaluateActions(bs, slot, possibleActions)
+	if bs.getError() != nil {
+		return chosenAction
+	}
 	if slot.mon.item.State.isChoice() {
 		slot.mon.lockedMove = chosenAction.move
 	}

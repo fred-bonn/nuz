@@ -53,6 +53,9 @@ func (sbs *singleBattleState) getError() error {
 
 func (sbs *singleBattleState) gatherActions() {
 	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activePlayerSlot, sbs.player.pokemonParty, sbs.player.ai))
+	if sbs.err != nil {
+		return
+	}
 	sbs.actions.queue.push(chooseNextAction(sbs, sbs.activeOpponentSlot, sbs.opponent.pokemonParty, sbs.opponent.ai))
 }
 

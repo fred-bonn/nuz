@@ -2,6 +2,7 @@ package nuzengine
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -53,6 +54,32 @@ type errRecordingState struct {
 }
 
 func (s *errRecordingState) setError(err error) { s.err = err }
+func (s *errRecordingState) getError() error    { return s.err }
+
+type failingWriter struct {
+	err error
+}
+
+func (w failingWriter) Write([]byte) (int, error) {
+	return 0, w.err
+}
+
+type countingAI struct {
+	evaluateCalls int
+}
+
+func (ai *countingAI) evaluateActions(_ battleState, _ *slot, actions []*moveAction) (*moveAction, int) {
+	ai.evaluateCalls++
+	return actions[0], 1
+}
+
+func (ai *countingAI) evaluateSwitchIns(_ battleState, mons []*pokemon, _ *slot) *pokemon {
+	return mons[0]
+}
+
+func (ai *countingAI) shouldSwitch(battleState, *slot, int, []*pokemon) bool {
+	return false
+}
 
 func TestGuidedAIEvaluateActionsInput(t *testing.T) {
 	newSlot := func() (*slot, []*moveAction) {
@@ -99,6 +126,59 @@ func TestGuidedAIEvaluateActionsInput(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestGuidedAIOutputErrorsSetBattleError(t *testing.T) {
+	outputErr := errors.New("writer failed")
+	newSlot := func() (*slot, []*moveAction) {
+		active := &pokemon{base: BasePokemon{Name: "active"}, stats: []int{10}}
+		sl := &slot{mon: active, Trainer: &trainer{pokemonParty: []*pokemon{active}}}
+		target := &slot{mon: &pokemon{base: BasePokemon{Name: "foe"}}}
+		return sl, []*moveAction{{userSlot: sl, targetSlot: target, move: &Move{Move: "Tackle"}}}
+	}
+
+	tests := map[string]struct {
+		run func(*errRecordingState, *guidedAi) error
+	}{
+		"action prompt": {
+			run: func(bs *errRecordingState, ga *guidedAi) error {
+				sl, actions := newSlot()
+				ga.evaluateActions(bs, sl, actions)
+				return bs.err
+			},
+		},
+		"replacement prompt": {
+			run: func(bs *errRecordingState, ga *guidedAi) error {
+				mons := []*pokemon{{base: BasePokemon{Name: "replacement"}, stats: []int{10}}}
+				ga.evaluateSwitchIns(bs, mons, nil)
+				return bs.err
+			},
+		},
+	}
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			bs := &errRecordingState{dummyBattleState: &dummyBattleState{}}
+			ga := newGuidedAI(strings.NewReader("1\n"), failingWriter{err: outputErr})
+			if err := tc.run(bs, ga); !errors.Is(err, outputErr) {
+				t.Fatalf("error = %v, want wrapped writer error %v", err, outputErr)
+			}
+		})
+	}
+}
+
+func TestGuidedAIOutputErrorStopsGatheringActions(t *testing.T) {
+	outputErr := errors.New("writer failed")
+	ga := newGuidedAI(strings.NewReader(""), failingWriter{err: outputErr})
+	bs := testRootBattle(t, ga)
+	opponentAI := &countingAI{}
+	bs.opponent.ai = opponentAI
+
+	if err := bs.execute(); !errors.Is(err, outputErr) {
+		t.Fatalf("execute error = %v, want wrapped writer error %v", err, outputErr)
+	}
+	if opponentAI.evaluateCalls != 0 {
+		t.Fatalf("opponent evaluated %d actions, want none after player output failure", opponentAI.evaluateCalls)
 	}
 }
 

@@ -31,6 +31,9 @@ func (ra *replaceAction) invoke(bs battleState) {
 	}
 
 	mon := chooseSwitchIn(bs, ra.oldSlot, ra.Trainer.pokemonParty, ra.Trainer.ai)
+	if bs.getError() != nil {
+		return
+	}
 	if mon == nil {
 		ra.Trainer.lost = true
 		for _, m := range ra.Trainer.pokemonParty {

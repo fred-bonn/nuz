@@ -60,7 +60,7 @@ func (dbs *doubleBattleState) getError() error {
 func (dbs *doubleBattleState) gatherActions() {
 	// slot one is chosen first so slot two can exclude mons slot one is switching to
 	choose := func(s *slot, t *trainer) {
-		if s.mon.fainted {
+		if s.mon.fainted || dbs.err != nil {
 			return
 		}
 		dbs.actions.queue.push(chooseNextAction(dbs, s, t.pokemonParty, t.ai))

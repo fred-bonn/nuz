@@ -44,28 +44,43 @@ func (ga *guidedAi) evaluateActions(bs battleState, slot *slot, actions []*moveA
 		}
 		options[i] = fmt.Sprintf("switch to %s (%d/%d HP)", c.target.base.Name, c.target.hp, c.target.MaxHP())
 	}
-	ga.announce("Choose an action:", options)
+	if err := ga.announce("Choose an action:", options); err != nil {
+		bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+		return actions[0], 1
+	}
 	numberOfChoices := len(candidates)
 
 	for {
-		ga.print("> ")
+		if err := ga.print("> "); err != nil {
+			bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+			return actions[0], 1
+		}
 		line, err := ga.input.ReadString('\n')
 		if err != nil && len(line) == 0 {
 			if ga.aborted != nil && ga.aborted() {
 				bs.setError(fmt.Errorf("guided AI input ended before a valid choice was entered"))
 				return actions[0], 1
 			}
-			ga.print("error: guided AI input ended before a valid choice was entered\n")
+			if err := ga.print("error: guided AI input ended before a valid choice was entered\n"); err != nil {
+				bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+				return actions[0], 1
+			}
 			continue
 		}
 
 		choice, err := parseChoice(line)
 		if err != nil {
-			ga.print("error: invalid input, please enter a number between 1 and %d\n", numberOfChoices)
+			if err := ga.print("error: invalid input, please enter a number between 1 and %d\n", numberOfChoices); err != nil {
+				bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+				return actions[0], 1
+			}
 			continue
 		}
 		if choice < 1 || choice > numberOfChoices {
-			ga.print("error: choice out of range, please enter a number between 1 and %d\n", numberOfChoices)
+			if err := ga.print("error: choice out of range, please enter a number between 1 and %d\n", numberOfChoices); err != nil {
+				bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+				return actions[0], 1
+			}
 			continue
 		}
 
@@ -91,25 +106,40 @@ func (ga *guidedAi) evaluateSwitchIns(bs battleState, mons []*pokemon, opponentS
 	for i, mon := range mons {
 		options[i] = fmt.Sprintf("%s (%d/%d HP)", mon.base.Name, mon.hp, mon.MaxHP())
 	}
-	ga.announce("Choose a replacement:", options)
+	if err := ga.announce("Choose a replacement:", options); err != nil {
+		bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+		return nil
+	}
 
 	for {
-		ga.print("> ")
+		if err := ga.print("> "); err != nil {
+			bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+			return nil
+		}
 		line, err := ga.input.ReadString('\n')
 		if err != nil && len(line) == 0 {
 			inputErr := fmt.Errorf("error: guided AI input ended before a valid replacement was chosen")
-			ga.print("%s\n", inputErr)
+			if err := ga.print("%s\n", inputErr); err != nil {
+				bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+				return nil
+			}
 			bs.setError(inputErr)
 			return nil
 		}
 
 		choice, err := parseChoice(line)
 		if err != nil {
-			ga.print("error: invalid input, please enter a number between 1 and %d\n", len(mons))
+			if err := ga.print("error: invalid input, please enter a number between 1 and %d\n", len(mons)); err != nil {
+				bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+				return nil
+			}
 			continue
 		}
 		if choice < 1 || choice > len(mons) {
-			ga.print("error: choice out of range, please enter a number between 1 and %d\n", len(mons))
+			if err := ga.print("error: choice out of range, please enter a number between 1 and %d\n", len(mons)); err != nil {
+				bs.setError(fmt.Errorf("guided AI output failed: %w", err))
+				return nil
+			}
 			continue
 		}
 		return mons[choice-1]
@@ -135,20 +165,26 @@ func (ga *guidedAi) shouldSwitch(bs battleState, slot *slot, score int, party []
 	return ga.pending.move == nil
 }
 
-func (ga *guidedAi) announce(title string, options []string) {
+func (ga *guidedAi) announce(title string, options []string) error {
 	if ga.onChoices != nil {
 		ga.onChoices(title, options)
 	}
-	ga.print("%s\n", title)
-	for i, option := range options {
-		ga.print("%d. %s\n", i+1, option)
+	if err := ga.print("%s\n", title); err != nil {
+		return err
 	}
+	for i, option := range options {
+		if err := ga.print("%d. %s\n", i+1, option); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
-func (ga *guidedAi) print(format string, args ...any) {
+func (ga *guidedAi) print(format string, args ...any) error {
 	output := ga.output
 	if output == nil {
 		output = os.Stdout
 	}
-	fmt.Fprintf(output, format, args...)
+	_, err := fmt.Fprintf(output, format, args...)
+	return err
 }
