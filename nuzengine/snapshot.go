@@ -56,7 +56,8 @@ func snapshotSlots(slots []*slot, player *trainer) BattleSnapshot {
 }
 
 func isActive(slots []*slot, t *trainer, mon *pokemon) bool {
-	return slices.ContainsFunc(slots, func(s *slot) bool { return s.Trainer == t && s.mon == mon })
+	isActiveSlot := func(s *slot) bool { return s.Trainer == t && s.mon == mon }
+	return slices.ContainsFunc(slots, isActiveSlot)
 }
 
 func snapshotPokemon(mon *pokemon) PokemonSnapshot {
