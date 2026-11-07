@@ -122,7 +122,7 @@ Battles are interactive: the player is driven by the guided AI over HTTP.
 
 - POST /battles: Initialises a battle and returns its ID and the initial battle state.
   - Input: JSON with the following fields:
-    ```json
+    ```
     {
         player: <String: player showdown file>,
         opponent: <String: opponent showdown file>,
@@ -133,7 +133,7 @@ Battles are interactive: the player is driven by the guided AI over HTTP.
   - Headers:
     - `Content-Type: application/json`
   - Response: `201` with the following fields:
-    ```json
+    ```
     {
         id: <String: battle ID>,
         double: <Boolean: whether this is a double battle>,
@@ -155,7 +155,7 @@ Battles are interactive: the player is driven by the guided AI over HTTP.
     - `X-Battle-ID`: Battle ID returned by `POST /battles`.
   - Response: `200` streaming the following event types:
     - `prompt`:
-      ```json
+      ```
       {
           type: <String: "prompt">,
           text: <String: prompt text>,
@@ -164,14 +164,14 @@ Battles are interactive: the player is driven by the guided AI over HTTP.
       }
       ```
     - `hint`:
-      ```json
+      ```
       {
           type: <String: "hint">,
           best: <Number: 1-based number of the best option>,
       }
       ```
     - `end`:
-      ```json
+      ```
       {
           type: <String: "end">,
           won: <Boolean: whether the player won>,
@@ -179,14 +179,14 @@ Battles are interactive: the player is driven by the guided AI over HTTP.
       }
       ```
     - `error`:
-      ```json
+      ```
       {
           type: <String: "error">,
           error: <String: error message>,
       }
       ```
     - `timeout`:
-      ```json
+      ```
       {
           type: <String: "timeout">,
           error: <String: timeout message>,
@@ -202,7 +202,7 @@ Battles are interactive: the player is driven by the guided AI over HTTP.
     - `409`: Battle already started.
 - POST /battles/input: Answers the pending prompt.
   - Input: JSON with the following fields:
-    ```json
+    ```
     {
         choice: <Number: 1-based option number>,
     }
