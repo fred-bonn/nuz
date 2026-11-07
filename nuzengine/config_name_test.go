@@ -109,7 +109,7 @@ func TestValidateInputRejectsBadNamesBeforeLoading(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			cfg := &config{}
 			// A zero-value client would hit the network if loading were reached.
-			if _, err := cfg.validateInput(tt.content); err == nil {
+			if _, err := cfg.validateInput(t.Context(), tt.content); err == nil {
 				t.Fatal("expected an error")
 			}
 		})
@@ -126,10 +126,10 @@ func TestAPISlugPattern(t *testing.T) {
 		}
 	}
 	cfg := &config{}
-	if _, err := cfg.loadPokemon("../x"); err == nil {
+	if _, err := cfg.loadPokemon(t.Context(), "../x"); err == nil {
 		t.Error("loadPokemon accepted a path")
 	}
-	if _, err := cfg.loadMove("a/b"); err == nil {
+	if _, err := cfg.loadMove(t.Context(), "a/b"); err == nil {
 		t.Error("loadMove accepted a path")
 	}
 }

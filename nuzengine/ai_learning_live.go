@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"context"
 	"slices"
 	"strings"
 	"sync"
@@ -14,11 +15,10 @@ type liveLearner struct {
 	bs battleState
 
 	// mu is held while an episode runs and while the reset point is replaced.
-	mu       sync.Mutex
-	stop     chan struct{}
-	done     chan struct{}
-	stopOnce sync.Once
-	started  bool
+	mu      sync.Mutex
+	cancel  context.CancelFunc
+	done    chan struct{}
+	started bool
 }
 
 // optionHint describes the prompt currently shown to the player.
@@ -33,35 +33,37 @@ type optionHint struct {
 	first  string
 }
 
-func newLiveLearner(battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt int) (*liveLearner, error) {
+func newLiveLearner(ctx context.Context, battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt int) (*liveLearner, error) {
 	la := newLearningAIMonteCarlo()
-	bs, err := initBattleState(battleStateInt, playerPartyStr, opponentPartyStr, 0, weatherInt, "", la)
+	bs, err := initBattleState(ctx, battleStateInt, playerPartyStr, opponentPartyStr, 0, weatherInt, "", la)
 	if err != nil {
 		return nil, err
 	}
 	return &liveLearner{
 		la:   la,
 		bs:   bs,
-		stop: make(chan struct{}),
 		done: make(chan struct{}),
 	}, nil
 }
 
-func (l *liveLearner) start() {
+// start launches the episode loop on a context derived from parent.
+func (l *liveLearner) start(parent context.Context) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.started {
 		return
 	}
 	l.started = true
-	go l.run()
+	ctx, cancel := context.WithCancel(parent)
+	l.cancel = cancel
+	go l.run(ctx)
 }
 
-func (l *liveLearner) run() {
+func (l *liveLearner) run(ctx context.Context) {
 	defer close(l.done)
 	for {
 		select {
-		case <-l.stop:
+		case <-ctx.Done():
 			return
 		default:
 		}
@@ -95,12 +97,19 @@ func (l *liveLearner) rebase(src battleState) {
 	setResetPoint(l.bs, src, true)
 }
 
-func (l *liveLearner) signalStop() {
-	l.stopOnce.Do(func() { close(l.stop) })
+// stop cancels the episode loop; it is safe to call more than once. Called before
+// start, it stops nothing because no loop is running yet; a loop started afterwards
+// is stopped by close, which Run always defers.
+func (l *liveLearner) stop() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.cancel != nil {
+		l.cancel()
+	}
 }
 
 func (l *liveLearner) close() {
-	l.signalStop()
+	l.stop()
 	l.mu.Lock()
 	started := l.started
 	l.mu.Unlock()

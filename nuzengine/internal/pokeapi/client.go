@@ -1,6 +1,7 @@
 package pokeapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -19,7 +20,7 @@ func NewClient() Client {
 	}
 }
 
-func (c *Client) fetchJSON(url string, v any) error {
+func (c *Client) fetchJSON(ctx context.Context, url string, v any) error {
 	if c.httpClient == nil {
 		c.httpClient = &http.Client{}
 	}
@@ -27,7 +28,11 @@ func (c *Client) fetchJSON(url string, v any) error {
 		c.baseURL = "https://pokeapi.co/api/v2"
 	}
 
-	res, err := c.httpClient.Get(url)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return fmt.Errorf("error building API request: %w", err)
+	}
+	res, err := c.httpClient.Do(req)
 	if err != nil {
 		return fmt.Errorf("error fetching API data: %w", err)
 	}
@@ -43,10 +48,10 @@ func (c *Client) fetchJSON(url string, v any) error {
 	return nil
 }
 
-func (c *Client) FetchPokemon(name string) (PokemonJSON, error) {
+func (c *Client) FetchPokemon(ctx context.Context, name string) (PokemonJSON, error) {
 	url := fmt.Sprintf("%s/pokemon/%s", c.baseURL, name)
 	var pokemonJSON PokemonJSON
-	if err := c.fetchJSON(url, &pokemonJSON); err != nil {
+	if err := c.fetchJSON(ctx, url, &pokemonJSON); err != nil {
 		return PokemonJSON{}, fmt.Errorf("error fetching Pokemon data from API: %w", err)
 	}
 
@@ -55,10 +60,10 @@ func (c *Client) FetchPokemon(name string) (PokemonJSON, error) {
 	return pokemonJSON, nil
 }
 
-func (c *Client) FetchMove(name string) (MoveJSON, error) {
+func (c *Client) FetchMove(ctx context.Context, name string) (MoveJSON, error) {
 	url := fmt.Sprintf("%s/move/%s", c.baseURL, name)
 	var move MoveJSON
-	if err := c.fetchJSON(url, &move); err != nil {
+	if err := c.fetchJSON(ctx, url, &move); err != nil {
 		return MoveJSON{}, fmt.Errorf("error fetching Move data from API: %w", err)
 	}
 

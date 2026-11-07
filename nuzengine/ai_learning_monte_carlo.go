@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"context"
 	"math/rand"
 	"slices"
 	"strings"
@@ -49,14 +50,14 @@ const (
 	faintedMonPenalty = 10
 )
 
-func LearnMonteCarlo(battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
-	merged := learnMonteCarlo(battleStateInt, monteCarloWorkers, playerPartyStr, opponentPartyStr, weatherInt, iterations)
+func LearnMonteCarlo(ctx context.Context, battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+	merged := learnMonteCarlo(ctx, battleStateInt, monteCarloWorkers, playerPartyStr, opponentPartyStr, weatherInt, iterations)
 	if err := savePolicy(merged, playerPartyStr, opponentPartyStr, weatherInt, battleStateInt == 1); err != nil {
 		elogf("error: failed saving policy: %s", err)
 	}
 }
 
-func learnMonteCarlo(battleStateInt, workers int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) qMap {
+func learnMonteCarlo(ctx context.Context, battleStateInt, workers int, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) qMap {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),
@@ -77,7 +78,7 @@ func learnMonteCarlo(battleStateInt, workers int, playerPartyStr, opponentPartyS
 	var wg sync.WaitGroup
 	for range workers {
 		wg.Go(func() {
-			runWorker(cfg, battleStateInt, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+			runWorker(ctx, cfg, battleStateInt, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				episodes <- ep
 			})
 		})
@@ -89,13 +90,13 @@ func learnMonteCarlo(battleStateInt, workers int, playerPartyStr, opponentPartyS
 	return merged
 }
 
-func runWorker(cfg *config, battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
-	playerParty, err := cfg.validateInput(playerPartyStr)
+func runWorker(ctx context.Context, cfg *config, battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt, episodeCount int, emit func(episode)) {
+	playerParty, err := cfg.validateInput(ctx, playerPartyStr)
 	if err != nil {
 		elogf("error: failed validating player party: %s", err)
 		return
 	}
-	opponentParty, err := cfg.validateInput(opponentPartyStr)
+	opponentParty, err := cfg.validateInput(ctx, opponentPartyStr)
 	if err != nil {
 		elogf("error: failed validating opponent party: %s", err)
 		return
@@ -119,6 +120,9 @@ func runWorker(cfg *config, battleStateInt int, playerPartyStr, opponentPartyStr
 	}
 
 	for i := range episodeCount {
+		if err := ctx.Err(); err != nil {
+			return
+		}
 		if i > 0 {
 			bs.reset()
 		}

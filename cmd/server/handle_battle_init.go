@@ -37,9 +37,14 @@ func (s *server) handleBattleInit(w http.ResponseWriter, r *http.Request) {
 		respondWithError(w, http.StatusServiceUnavailable, "too many active battles", nil)
 		return
 	}
-	bs, err := s.init(battleStateType, req.Player, req.Opponent, req.Weather)
+	bs, err := s.init(r.Context(), battleStateType, req.Player, req.Opponent, req.Weather)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, err.Error(), err)
+		return
+	}
+	if err := r.Context().Err(); err != nil {
+		// The client is gone; drop the battle instead of registering it.
+		bs.Close()
 		return
 	}
 

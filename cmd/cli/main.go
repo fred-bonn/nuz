@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/fred-bonn/nuz/nuzengine"
 	"github.com/spf13/pflag"
@@ -19,6 +22,10 @@ func main() {
 }
 
 func run(args []string) int {
+	// Ctrl+C and SIGTERM cancel the engine instead of killing the process outright.
+	ctx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
+
 	fs := pflag.NewFlagSet("nuz", pflag.ContinueOnError)
 	fs.SetOutput(os.Stdout)
 	fs.Usage = func() {
@@ -97,18 +104,24 @@ func run(args []string) int {
 	}
 
 	if *learning {
-		nuzengine.LearnMonteCarlo(battleStateType, playerParty, opponentParty, *weather, *iterations)
+		nuzengine.LearnMonteCarlo(ctx, battleStateType, playerParty, opponentParty, *weather, *iterations)
 		return 0
 	}
 
-	battleState, err := nuzengine.InitBattleState(battleStateType, playerParty, opponentParty, *inputAi, *weather, *policyFile)
+	battleState, err := nuzengine.InitBattleState(ctx, battleStateType, playerParty, opponentParty, *inputAi, *weather, *policyFile)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return 0
+		}
 		log.Printf("error: failed initializing battle state: %s", err)
 		return 1
 	}
 
-	err = nuzengine.Execute(battleState, *iterations)
+	err = nuzengine.Execute(ctx, battleState, *iterations)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return 0
+		}
 		log.Printf("error: failed executing battle state: %s", err)
 		return 1
 	}

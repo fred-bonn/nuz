@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"context"
 	"fmt"
 	"os"
 
@@ -44,12 +45,12 @@ func executeActions(bs battleState) error {
 	return nil
 }
 
-func InitBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
-	return initBattleState(battleStateInt, playerPartyStr, opponentPartyStr, aiInt, weatherInt, policyFile, nil)
+func InitBattleState(ctx context.Context, battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string) (battleState, error) {
+	return initBattleState(ctx, battleStateInt, playerPartyStr, opponentPartyStr, aiInt, weatherInt, policyFile, nil)
 }
 
 // initBattleState builds a battle; a non-nil customAi replaces the player AI chosen by aiInt.
-func initBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string, customAi ai) (battleState, error) {
+func initBattleState(ctx context.Context, battleStateInt int, playerPartyStr, opponentPartyStr string, aiInt, weatherInt int, policyFile string, customAi ai) (battleState, error) {
 	cfg := &config{
 		client: pokeapi.NewClient(),
 	}
@@ -95,12 +96,12 @@ func initBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	}
 	weather := weatherState(weatherInt)
 
-	playerParty, err := cfg.validateInput(playerPartyStr)
+	playerParty, err := cfg.validateInput(ctx, playerPartyStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed validating player party: %s", err)
 	}
 
-	opponentParty, err := cfg.validateInput(opponentPartyStr)
+	opponentParty, err := cfg.validateInput(ctx, opponentPartyStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed validating opponent party: %s", err)
 	}
@@ -134,7 +135,7 @@ func initBattleState(battleStateInt int, playerPartyStr, opponentPartyStr string
 	return battleState, nil
 }
 
-func Execute(bs battleState, iterations int) error {
+func Execute(ctx context.Context, bs battleState, iterations int) error {
 	statistics := newBattleStatistics(bs)
 
 	if err := bs.execute(); err != nil {
@@ -143,6 +144,9 @@ func Execute(bs battleState, iterations int) error {
 	statistics.record()
 
 	for i := iterations - 1; i > 0; i-- {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		bs.reset()
 		if err := bs.execute(); err != nil {
 			return err

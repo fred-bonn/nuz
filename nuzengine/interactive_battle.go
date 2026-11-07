@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"context"
 	"io"
 	"sync"
 )
@@ -21,7 +22,7 @@ type InteractiveBattle struct {
 	rootState stateKey
 }
 
-func InitInteractiveBattle(battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt int) (*InteractiveBattle, error) {
+func InitInteractiveBattle(ctx context.Context, battleStateInt int, playerPartyStr, opponentPartyStr string, weatherInt int) (*InteractiveBattle, error) {
 	pr, pw := io.Pipe()
 	ib := &InteractiveBattle{input: pw, inputRead: pr, closed: make(chan struct{})}
 	ga := newGuidedAI(pr, io.Discard)
@@ -33,7 +34,7 @@ func InitInteractiveBattle(battleStateInt int, playerPartyStr, opponentPartyStr 
 			return false
 		}
 	}
-	bs, err := initBattleState(battleStateInt, playerPartyStr, opponentPartyStr, 1, weatherInt, "", ga)
+	bs, err := initBattleState(ctx, battleStateInt, playerPartyStr, opponentPartyStr, 1, weatherInt, "", ga)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +42,7 @@ func InitInteractiveBattle(battleStateInt int, playerPartyStr, opponentPartyStr 
 	ib.ai = ga
 
 	// Hints are optional: without a learner the battle still works.
-	live, err := newLiveLearner(battleStateInt, playerPartyStr, opponentPartyStr, weatherInt)
+	live, err := newLiveLearner(ctx, battleStateInt, playerPartyStr, opponentPartyStr, weatherInt)
 	if err != nil {
 		elogf("error: failed initializing live learner: %s", err)
 	} else {
@@ -52,13 +53,16 @@ func InitInteractiveBattle(battleStateInt int, playerPartyStr, opponentPartyStr 
 }
 
 // Run executes the battle, calling onPrompt on the engine goroutine each time the player must choose.
-// Options are numbered from 1 when answering with Send.
-func (ib *InteractiveBattle) Run(onPrompt func(title string, options []string)) error {
+// Options are numbered from 1 when answering with Send. Cancelling ctx aborts the battle.
+func (ib *InteractiveBattle) Run(ctx context.Context, onPrompt func(title string, options []string)) error {
 	ib.ai.onChoices = onPrompt
 	if ib.live != nil {
-		ib.live.start()
+		ib.live.start(ctx)
 		defer ib.live.close()
 	}
+	// Cancelling the context aborts the battle even when no one calls Close.
+	stopAfter := context.AfterFunc(ctx, ib.Close)
+	defer stopAfter()
 	return ib.bs.execute()
 }
 
@@ -119,7 +123,7 @@ func (ib *InteractiveBattle) Close() {
 		ib.input.Close()
 		ib.inputRead.Close()
 		if ib.live != nil {
-			ib.live.signalStop()
+			ib.live.stop()
 		}
 	})
 }

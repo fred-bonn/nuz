@@ -1,11 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sync"
 	"time"
 )
+
+// errInputTimeout is the cause recorded on the battle context when a shown prompt
+// stays unanswered for longer than the input timeout.
+var errInputTimeout = errors.New("no input received in time")
 
 // handleBattleStart runs the battle and streams NDJSON events until it ends,
 // fails, or the client stays silent for longer than the input timeout.
@@ -17,7 +23,11 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	}
 
 	send := startStream(w)
-	events, done, stop := runBattle(sess)
+	// The battle context is cancelled on the input timeout and on client disconnects;
+	// cancelling it aborts the battle and stops the live learner.
+	battleCtx, cancelBattle := context.WithCancelCause(r.Context())
+	defer cancelBattle(nil)
+	events, done, stop := runBattle(battleCtx, sess)
 	defer stop()
 
 	abort := func() {
@@ -28,18 +38,20 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 	}
 	defer s.battles.remove(id)
 
-	timer := time.NewTimer(s.timeout)
-	timer.Stop()
-	defer timer.Stop()
-	var timerC <-chan time.Time
+	idle := time.AfterFunc(s.timeout, func() {
+		// An answered prompt means the engine is working, not that the client went silent.
+		if sess.pending() {
+			cancelBattle(errInputTimeout)
+		}
+	})
+	defer idle.Stop()
 	hints := time.NewTicker(s.hintInterval)
 	defer hints.Stop()
 	lastHint := 0 // best option last sent for the current prompt; 0 means none yet
 	for {
 		select {
 		case ev := <-events:
-			timer.Reset(s.timeout)
-			timerC = timer.C
+			idle.Reset(s.timeout)
 			// Marked pending before the client can see the prompt, so an answer can never arrive early.
 			sess.setPending(len(ev.Options))
 			lastHint = 0
@@ -53,6 +65,15 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 				send(newHintEvent(best))
 			}
 		case err := <-done:
+			if err != nil && battleCtx.Err() != nil {
+				// The battle stopped because its context was cancelled; close it and
+				// report the timeout, if that was the cause. The deferred remove drops it.
+				sess.battle.Close()
+				if errors.Is(context.Cause(battleCtx), errInputTimeout) {
+					send(newTimeoutEvent())
+				}
+				return
+			}
 			for len(events) > 0 {
 				send(<-events)
 			}
@@ -63,18 +84,12 @@ func (s *server) handleBattleStart(w http.ResponseWriter, r *http.Request) {
 			}
 			send(newEndEvent(sess.battle.PlayerWon(), sess.battle.Snapshot()))
 			return
-		case <-timerC:
-			// An answered prompt means the engine is working, not that the client went silent.
-			if !sess.pending() {
-				timerC = nil
-				continue
-			}
+		case <-battleCtx.Done():
 			// Abort first so the battle is already gone when the client sees the timeout.
 			abort()
-			send(newTimeoutEvent())
-			return
-		case <-r.Context().Done():
-			abort()
+			if errors.Is(context.Cause(battleCtx), errInputTimeout) {
+				send(newTimeoutEvent())
+			}
 			return
 		}
 	}
@@ -96,14 +111,14 @@ func startStream(w http.ResponseWriter) func(event) {
 
 // runBattle runs the battle on its own goroutine. Prompts arrive on events and the result on done;
 // stop releases a prompt callback blocked on events and is safe to call more than once.
-func runBattle(sess *session) (events chan promptEvent, done chan error, stop func()) {
+func runBattle(ctx context.Context, sess *session) (events chan promptEvent, done chan error, stop func()) {
 	events = make(chan promptEvent, 16)
 	done = make(chan error, 1)
 	stopped := make(chan struct{})
 	stop = sync.OnceFunc(func() { close(stopped) })
 	go func() {
 		// Runs on the engine goroutine, which is blocked on input afterwards, so reading the state is safe.
-		done <- sess.battle.Run(func(title string, options []string) {
+		done <- sess.battle.Run(ctx, func(title string, options []string) {
 			select {
 			case events <- newPromptEvent(title, options, sess.battle.Snapshot()):
 			case <-stopped:

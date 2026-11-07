@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -38,16 +39,16 @@ func dataDirectory() (string, error) {
 	}
 }
 
-func (cfg *config) validateInput(trainerContent string) ([]*pokemon, error) {
+func (cfg *config) validateInput(ctx context.Context, trainerContent string) ([]*pokemon, error) {
 	trainerPokemon, err := parser.ParseShowdown(trainerContent)
 	if err != nil {
 		return nil, err
 	}
 
-	return cfg.validateParty(trainerPokemon)
+	return cfg.validateParty(ctx, trainerPokemon)
 }
 
-func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*pokemon, error) {
+func (cfg *config) validateParty(ctx context.Context, trainerPokemon []parser.ParsedPokemon) ([]*pokemon, error) {
 	if len(trainerPokemon) == 0 {
 		return nil, fmt.Errorf("showdown party is empty")
 	}
@@ -64,7 +65,7 @@ func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*poke
 		}
 	}
 
-	trainerParty, err := cfg.loadShowdown(trainerPokemon)
+	trainerParty, err := cfg.loadShowdown(ctx, trainerPokemon)
 	if err != nil {
 		return nil, fmt.Errorf("failed loading showdown file: %w", err)
 	}
@@ -72,19 +73,19 @@ func (cfg *config) validateParty(trainerPokemon []parser.ParsedPokemon) ([]*poke
 	return trainerParty, nil
 }
 
-func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*pokemon, error) {
+func (cfg *config) loadShowdown(ctx context.Context, parsedPokemons []parser.ParsedPokemon) ([]*pokemon, error) {
 	var res []*pokemon
 
 	for _, parsedPokemon := range parsedPokemons {
 		var moves []*Move
 
-		basePokemon, err := cfg.loadPokemon(apiName(parsedPokemon.Name))
+		basePokemon, err := cfg.loadPokemon(ctx, apiName(parsedPokemon.Name))
 		if err != nil {
 			return nil, err
 		}
 
 		for _, moveName := range parsedPokemon.Moves {
-			baseMove, err := cfg.loadMove(apiName(moveName))
+			baseMove, err := cfg.loadMove(ctx, apiName(moveName))
 			if err != nil {
 				return nil, err
 			}
@@ -107,7 +108,7 @@ func (cfg *config) loadShowdown(parsedPokemons []parser.ParsedPokemon) ([]*pokem
 	return res, nil
 }
 
-func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
+func (cfg *config) loadPokemon(ctx context.Context, name string) (BasePokemon, error) {
 	var p BasePokemon
 
 	if !apiSlugPattern.MatchString(name) {
@@ -132,7 +133,7 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	}
 
 	// Otherwise, fetch the Pokemon data from the API
-	pokemonJSON, err := cfg.client.FetchPokemon(name)
+	pokemonJSON, err := cfg.client.FetchPokemon(ctx, name)
 	if err != nil {
 		return BasePokemon{}, fmt.Errorf("failed fetching Pokemon '%s': %w", name, err)
 	}
@@ -155,7 +156,7 @@ func (cfg *config) loadPokemon(name string) (BasePokemon, error) {
 	return p, nil
 }
 
-func (cfg *config) loadMove(name string) (Move, error) {
+func (cfg *config) loadMove(ctx context.Context, name string) (Move, error) {
 	var m Move
 
 	if !apiSlugPattern.MatchString(name) {
@@ -190,7 +191,7 @@ func (cfg *config) loadMove(name string) (Move, error) {
 	}
 
 	// Otherwise, fetch the Move data from the API
-	moveJson, err := cfg.client.FetchMove(name)
+	moveJson, err := cfg.client.FetchMove(ctx, name)
 	if err != nil {
 		return Move{}, fmt.Errorf("failed fetching Move '%s': %w", name, err)
 	}

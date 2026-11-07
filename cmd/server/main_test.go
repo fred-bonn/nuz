@@ -2,13 +2,16 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/fred-bonn/nuz/nuzengine"
 )
@@ -54,7 +57,7 @@ func TestCreateBattle(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			s := newServer(serverConfig{})
 			called, gotType := false, -1
-			s.init = func(bt int, p, o string, w int) (battle, error) {
+			s.init = func(ctx context.Context, bt int, p, o string, w int) (battle, error) {
 				called, gotType = true, bt
 				return &fakeBattle{}, tt.initErr
 			}
@@ -137,6 +140,81 @@ func TestCreateBattleWithDemoFiles(t *testing.T) {
 	}
 }
 
+func TestCreateBattleDropsBattleWhenClientDisconnects(t *testing.T) {
+	s := newServer(serverConfig{})
+	fb := newFakeBattle(1)
+	s.init = func(context.Context, int, string, string, int) (battle, error) { return fb, nil }
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodPost, "/battles", strings.NewReader(`{"player":"a","opponent":"b"}`))
+	req = req.WithContext(ctx)
+	rec := httptest.NewRecorder()
+	s.handler().ServeHTTP(rec, req)
+
+	select {
+	case <-fb.closed:
+	case <-time.After(time.Second):
+		t.Fatal("battle was not closed when the create request was cancelled")
+	}
+	if s.battles.len() != 0 {
+		t.Fatal("battle was registered for a cancelled request")
+	}
+}
+
+// TestListenAndServeCancelsInFlightRequestsOnShutdown verifies that cancelling the
+// root context reaches in-flight handlers through the server's BaseContext, and that
+// shutdown waits for them to finish.
+func TestListenAndServeCancelsInFlightRequestsOnShutdown(t *testing.T) {
+	rootCtx, cancelRoot := context.WithCancel(t.Context())
+	defer cancelRoot()
+
+	inFlight := make(chan struct{})
+	handlerDone := make(chan struct{})
+	srv := &http.Server{
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			close(inFlight)
+			<-r.Context().Done()
+			close(handlerDone)
+		}),
+		BaseContext: func(net.Listener) context.Context { return rootCtx },
+	}
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	served := make(chan error, 1)
+	go func() { served <- listenAndServe(rootCtx, srv, func() error { return srv.Serve(ln) }) }()
+
+	go func() {
+		resp, err := http.Get("http://" + ln.Addr().String())
+		if err == nil {
+			resp.Body.Close()
+		}
+	}()
+	select {
+	case <-inFlight:
+	case <-time.After(time.Second):
+		t.Fatal("request never reached the handler")
+	}
+
+	cancelRoot()
+	select {
+	case <-handlerDone:
+	case <-time.After(time.Second):
+		t.Fatal("in-flight request was not cancelled on shutdown")
+	}
+	select {
+	case err := <-served:
+		if err != nil {
+			t.Fatalf("listenAndServe error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("listenAndServe did not return after shutdown")
+	}
+}
+
 func TestSecurityHeadersAndCORS(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -179,7 +257,9 @@ func TestSecurityHeadersAndCORS(t *testing.T) {
 
 func TestMaxBattlesAndIDLength(t *testing.T) {
 	s := newServer(serverConfig{maxBattles: 2})
-	s.init = func(int, string, string, int) (battle, error) { return &fakeBattle{closed: make(chan struct{})}, nil }
+	s.init = func(context.Context, int, string, string, int) (battle, error) {
+		return &fakeBattle{closed: make(chan struct{})}, nil
+	}
 
 	tests := []struct {
 		name       string

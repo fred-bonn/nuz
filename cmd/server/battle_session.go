@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"sync/atomic"
@@ -18,7 +19,7 @@ const (
 
 // battle is an interactive battle driven through guided AI prompts.
 type battle interface {
-	Run(onPrompt func(title string, options []string)) error
+	Run(ctx context.Context, onPrompt func(title string, options []string)) error
 	Send(line string) error
 	Close()
 	PlayerWon() bool

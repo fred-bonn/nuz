@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -58,7 +59,7 @@ func TestBattleStreamOverTLS(t *testing.T) {
 	fb := newFakeBattle(1)
 	s := newServer(serverConfig{tls: true})
 	s.timeout = time.Minute
-	s.init = func(int, string, string, int) (battle, error) { return fb, nil }
+	s.init = func(context.Context, int, string, string, int) (battle, error) { return fb, nil }
 	ts := httptest.NewTLSServer(s.handler())
 	defer ts.Close()
 	client := ts.Client()

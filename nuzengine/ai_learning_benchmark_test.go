@@ -1,6 +1,7 @@
 package nuzengine
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sync"
@@ -9,12 +10,12 @@ import (
 	"github.com/fred-bonn/nuz/nuzengine/internal/pokeapi"
 )
 
-func LearnSingle(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+func LearnSingle(ctx context.Context, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	cfg := &config{}
-	runWorker(cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, iterations, func(episode) {})
+	runWorker(ctx, cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, iterations, func(episode) {})
 }
 
-func LearnParallelAggregator(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+func LearnParallelAggregator(ctx context.Context, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),
@@ -35,7 +36,7 @@ func LearnParallelAggregator(playerPartyStr, opponentPartyStr string, weatherInt
 	var wg sync.WaitGroup
 	for range monteCarloWorkers {
 		wg.Go(func() {
-			runWorker(cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+			runWorker(ctx, cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				episodes <- ep
 			})
 		})
@@ -46,7 +47,7 @@ func LearnParallelAggregator(playerPartyStr, opponentPartyStr string, weatherInt
 }
 
 // LearnParallelMerge is the previous design: each worker builds its own qMap, merged after all finish.
-func LearnParallelMerge(playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
+func LearnParallelMerge(ctx context.Context, playerPartyStr, opponentPartyStr string, weatherInt, iterations int) {
 	Verbose = false
 	cfg := &config{
 		client: pokeapi.NewClient(),
@@ -59,7 +60,7 @@ func LearnParallelMerge(playerPartyStr, opponentPartyStr string, weatherInt, ite
 	for range monteCarloWorkers {
 		wg.Go(func() {
 			q := newQMap()
-			runWorker(cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
+			runWorker(ctx, cfg, 0, playerPartyStr, opponentPartyStr, weatherInt, episodesPerWorker, func(ep episode) {
 				q.recordEpisode(ep.trajectory, ep.reward)
 			})
 			results <- q
@@ -110,8 +111,8 @@ func BenchmarkLearnParallelMerge(b *testing.B) {
 func BenchmarkLearnMonteCarloWorkers(b *testing.B) {
 	for workers := 2; workers <= 10; workers++ {
 		b.Run(fmt.Sprintf("workers=%d", workers), func(b *testing.B) {
-			benchmarkLearn(b, func(player, opponent string, weather, iterations int) {
-				learnMonteCarlo(0, workers, player, opponent, weather, iterations)
+			benchmarkLearn(b, func(ctx context.Context, player, opponent string, weather, iterations int) {
+				learnMonteCarlo(ctx, 0, workers, player, opponent, weather, iterations)
 			})
 		})
 	}
@@ -121,7 +122,7 @@ func BenchmarkLearnSingle(b *testing.B) {
 	benchmarkLearn(b, LearnSingle)
 }
 
-func benchmarkLearn(b *testing.B, learn func(string, string, int, int)) {
+func benchmarkLearn(b *testing.B, learn func(context.Context, string, string, int, int)) {
 	workingDirectory, err := os.Getwd()
 	if err != nil {
 		b.Fatal(err)
@@ -142,6 +143,6 @@ func benchmarkLearn(b *testing.B, learn func(string, string, int, int)) {
 
 	b.ResetTimer()
 	for range b.N {
-		learn(string(playerParty), string(opponentParty), 0, 100000)
+		learn(b.Context(), string(playerParty), string(opponentParty), 0, 100000)
 	}
 }

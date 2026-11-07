@@ -1,6 +1,8 @@
 package pokeapi
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -85,7 +87,7 @@ func TestClientFetchHandlesAPIResponses(t *testing.T) {
 			}
 
 			if tc.resource == "pokemon" {
-				pokemon, err := client.FetchPokemon(tc.name)
+				pokemon, err := client.FetchPokemon(t.Context(), tc.name)
 				if tc.wantError {
 					if err == nil {
 						t.Fatal("FetchPokemon returned no error")
@@ -104,7 +106,7 @@ func TestClientFetchHandlesAPIResponses(t *testing.T) {
 				return
 			}
 
-			move, err := client.FetchMove(tc.name)
+			move, err := client.FetchMove(t.Context(), tc.name)
 			if tc.wantError {
 				if err == nil {
 					t.Fatal("FetchMove returned no error")
@@ -121,6 +123,24 @@ func TestClientFetchHandlesAPIResponses(t *testing.T) {
 				t.Errorf("move power = %d, want %d", move.Power, tc.wantMovePower)
 			}
 		})
+	}
+}
+
+func TestClientFetchAbortsWhenContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	client := Client{
+		httpClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			cancel()
+			<-req.Context().Done()
+			return nil, req.Context().Err()
+		})},
+		baseURL: "https://pokeapi.co/api/v2",
+	}
+	if _, err := client.FetchPokemon(ctx, "charizard"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("FetchPokemon error = %v, want context.Canceled", err)
+	}
+	if _, err := client.FetchMove(ctx, "flamethrower"); !errors.Is(err, context.Canceled) {
+		t.Fatalf("FetchMove error = %v, want context.Canceled", err)
 	}
 }
 

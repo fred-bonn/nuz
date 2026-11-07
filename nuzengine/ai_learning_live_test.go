@@ -189,7 +189,7 @@ func TestLiveLearnerBestOption(t *testing.T) {
 func TestLiveLearnerKeepsLearningAcrossRebase(t *testing.T) {
 	la := newLearningAIMonteCarlo()
 	bs := testRootBattle(t, la)
-	l := &liveLearner{la: la, bs: bs, stop: make(chan struct{}), done: make(chan struct{})}
+	l := &liveLearner{la: la, bs: bs, done: make(chan struct{})}
 	rootKey := bs.key()
 
 	total := func(state stateKey) int {
@@ -211,7 +211,7 @@ func TestLiveLearnerKeepsLearningAcrossRebase(t *testing.T) {
 		t.Fatalf("timed out waiting for %s", what)
 	}
 
-	l.start()
+	l.start(t.Context())
 	defer l.close()
 	waitFor("episodes from the initial root", func() bool { return total(rootKey) > 0 })
 

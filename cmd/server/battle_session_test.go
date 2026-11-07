@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -31,7 +32,7 @@ func newFakeBattle(prompts int) *fakeBattle {
 	return &fakeBattle{prompts: prompts, lines: make(chan string), closed: make(chan struct{})}
 }
 
-func (f *fakeBattle) Run(onPrompt func(title string, options []string)) error {
+func (f *fakeBattle) Run(ctx context.Context, onPrompt func(title string, options []string)) error {
 	for i := 0; i < f.prompts; i++ {
 		onPrompt("Choose an action:", []string{"tackle against rat", "switch to raichu (30/30 HP)"})
 		select {
@@ -39,6 +40,8 @@ func (f *fakeBattle) Run(onPrompt func(title string, options []string)) error {
 			f.mu.Lock()
 			f.answers = append(f.answers, line)
 			f.mu.Unlock()
+		case <-ctx.Done():
+			return ctx.Err()
 		case <-f.closed:
 			return errors.New("closed")
 		}
@@ -80,7 +83,7 @@ func newTestServer(t *testing.T, fb *fakeBattle, timeout time.Duration) (*server
 	s := newServer(serverConfig{})
 	s.timeout = timeout
 	s.hintInterval = 10 * time.Millisecond
-	s.init = func(int, string, string, int) (battle, error) { return fb, nil }
+	s.init = func(context.Context, int, string, string, int) (battle, error) { return fb, nil }
 	ts := httptest.NewServer(s.handler())
 	t.Cleanup(ts.Close)
 
@@ -297,6 +300,41 @@ func TestUnstartedBattleExpires(t *testing.T) {
 	}
 	if s.battles.len() != 0 {
 		t.Fatal("unstarted battle was not removed")
+	}
+}
+
+func TestBattleClientDisconnectAbortsBattle(t *testing.T) {
+	fb := newFakeBattle(1)
+	s, ts, id := newTestServer(t, fb, time.Minute)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/battles/start", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set(battleIDHeader, id)
+	req = req.WithContext(ctx)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	sc := bufio.NewScanner(resp.Body)
+	if ev := readEvent(t, sc); ev.Type != "prompt" {
+		t.Fatalf("event = %+v", ev)
+	}
+
+	cancel()
+	select {
+	case <-fb.closed:
+	case <-time.After(time.Second):
+		t.Fatal("battle was not closed after the client disconnected")
+	}
+	for deadline := time.Now().Add(time.Second); s.battles.len() != 0 && time.Now().Before(deadline); time.Sleep(time.Millisecond) {
+	}
+	if s.battles.len() != 0 {
+		t.Fatal("battle was not removed after the client disconnected")
 	}
 }
 

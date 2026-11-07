@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/fred-bonn/nuz/nuzengine"
@@ -15,10 +19,12 @@ const (
 	maxBodyBytes      = 1 << 20
 	maxWeather        = 4
 	defaultMaxBattles = 100
+	// shutdownTimeout bounds how long graceful shutdown waits for in-flight battles.
+	shutdownTimeout = 10 * time.Second
 )
 
 // initFunc builds a battle; it is a field so tests can avoid the PokeAPI.
-type initFunc func(battleStateType int, player, opponent string, weather int) (battle, error)
+type initFunc func(ctx context.Context, battleStateType int, player, opponent string, weather int) (battle, error)
 
 type server struct {
 	battles *registry
@@ -50,8 +56,8 @@ func newServer(cfg serverConfig) *server {
 		hintInterval:   hintInterval,
 		allowedOrigins: cfg.allowedOrigins,
 		tls:            cfg.tls,
-		init: func(t int, p, o string, w int) (battle, error) {
-			return nuzengine.InitInteractiveBattle(t, p, o, w)
+		init: func(ctx context.Context, t int, p, o string, w int) (battle, error) {
+			return nuzengine.InitInteractiveBattle(ctx, t, p, o, w)
 		},
 	}
 }
@@ -93,10 +99,15 @@ func main() {
 	}
 
 	s := newServer(serverConfig{tls: *tlsCert != "", allowedOrigins: *origins, maxBattles: *maxBattles})
+	// The root context is the base of every request context, so a signal cancels
+	// in-flight requests and with them their battles.
+	rootCtx, stopSignals := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stopSignals()
 	// No WriteTimeout: battle responses are long-lived streams.
 	srv := &http.Server{
 		Addr:              *addr,
 		Handler:           s.handler(),
+		BaseContext:       func(net.Listener) context.Context { return rootCtx },
 		ReadHeaderTimeout: 10 * time.Second,
 		ReadTimeout:       30 * time.Second,
 		IdleTimeout:       2 * time.Minute,
@@ -104,8 +115,32 @@ func main() {
 	}
 	if s.tls {
 		log.Printf("listening on %s (https)", *addr)
-		log.Fatal(srv.ListenAndServeTLS(*tlsCert, *tlsKey))
+		if err := listenAndServe(rootCtx, srv, func() error { return srv.ListenAndServeTLS(*tlsCert, *tlsKey) }); err != nil {
+			log.Fatal(err)
+		}
+		return
 	}
 	log.Printf("listening on %s", *addr)
-	log.Fatal(srv.ListenAndServe())
+	if err := listenAndServe(rootCtx, srv, srv.ListenAndServe); err != nil {
+		log.Fatal(err)
+	}
+}
+
+// listenAndServe runs serve until it fails or ctx is cancelled, then shuts the server
+// down gracefully, waiting at most shutdownTimeout for in-flight requests.
+func listenAndServe(ctx context.Context, srv *http.Server, serve func() error) error {
+	serveErr := make(chan error, 1)
+	go func() { serveErr <- serve() }()
+
+	select {
+	case err := <-serveErr:
+		if errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	case <-ctx.Done():
+	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	return srv.Shutdown(shutdownCtx)
 }
