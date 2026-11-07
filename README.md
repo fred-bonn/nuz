@@ -120,34 +120,113 @@ To serve HTTPS, pass both `--tls-cert <file>` and `--tls-key <file>` (e.g. `make
 
 Battles are interactive: the player is driven by the guided AI over HTTP.
 
-- `POST /battles` initialises a battle and returns its id in the `X-Battle-ID` header and the JSON body (along with the initial `state`).
-  - Input: JSON body with `player` and `opponent` (Showdown party text, required), `double` (default `false`), and `weather` (`0`–`4`, default `0`); unknown fields are rejected.
-  - Headers: none required.
-  - Status codes: `201` created; `400` invalid JSON, unknown field, missing party, weather out of range, or unparsable party; `405` wrong method; `503` concurrent battle limit reached.
-- `POST /battles/start` starts the battle and streams its events.
-  - Input: none.
-  - Headers: `X-Battle-ID` required.
-  - Response: `200` with `Content-Type: application/x-ndjson`; the response stays open and streams one JSON event per line:
-    - `prompt`: `{"type":"prompt","text":...,"options":[...],"state":{...}}` when input is needed; `options` are the numbered choices and `state` is the full battle state.
-    - `hint`: `{"type":"hint","best":N}` while a prompt is pending, sent when the learner's best option changes (omitted when nothing has been learned yet).
-    - `end`: `{"type":"end","won":bool,"state":{...}}` when the battle ends.
-    - `error`: `{"type":"error","error":"..."}` when the battle fails.
-    - `timeout`: `{"type":"timeout","error":"..."}` when no input arrives within the 2-minute timeout.
-  - Status codes: `200` streaming; `400` missing `X-Battle-ID`; `404` unknown battle; `405` wrong method; `409` battle already started.
-- `POST /battles/input` answers the pending prompt.
-  - Input: JSON body with `choice`, the 1-based option number.
-  - Headers: `X-Battle-ID` required.
-  - Status codes: `202` accepted; `400` missing `X-Battle-ID`, invalid JSON, or choice outside the current prompt; `404` unknown battle; `405` wrong method; `409` no prompt pending; `410` battle no longer running.
+- POST /battles: Initialises a battle and returns its ID and the initial battle state.
+  - Input: JSON with the following fields:
+    ```json
+    {
+        player: <String: player showdown file>,
+        opponent: <String: opponent showdown file>,
+        double: <Boolean: default false>,
+        weather: <Number: 0-4, default 0>,
+    }
+    ```
+  - Headers:
+    - `Content-Type: application/json`
+  - Response: `201` with the following fields:
+    ```json
+    {
+        id: <String: battle ID>,
+        double: <Boolean: whether this is a double battle>,
+        weather: <Number: weather used for the battle>,
+        state: <Object: initial battle state>,
+    }
+    ```
+  - Response Headers:
+    - `X-Battle-ID`: Battle ID of the created battle.
+    - `Content-Type: application/json`
+  - Status Codes:
+    - `201`: Battle created successfully.
+    - `400`: Invalid JSON, unknown field, missing player or opponent, weather outside `0`–`4`, or unparsable party file.
+    - `405`: Wrong method.
+    - `503`: Concurrent battle limit reached.
+- POST /battles/start: Starts the battle and streams its events.
+  - Input: None.
+  - Headers:
+    - `X-Battle-ID`: Battle ID returned by `POST /battles`.
+  - Response: `200` streaming the following event types:
+    - `prompt`:
+      ```json
+      {
+          type: <String: "prompt">,
+          text: <String: prompt text>,
+          options: <Array<String>: numbered choices>,
+          state: <Object: full battle state>,
+      }
+      ```
+    - `hint`:
+      ```json
+      {
+          type: <String: "hint">,
+          best: <Number: 1-based number of the best option>,
+      }
+      ```
+    - `end`:
+      ```json
+      {
+          type: <String: "end">,
+          won: <Boolean: whether the player won>,
+          state: <Object: final battle state>,
+      }
+      ```
+    - `error`:
+      ```json
+      {
+          type: <String: "error">,
+          error: <String: error message>,
+      }
+      ```
+    - `timeout`:
+      ```json
+      {
+          type: <String: "timeout">,
+          error: <String: timeout message>,
+      }
+      ```
+  - Response Headers:
+    - `Content-Type: application/x-ndjson`
+  - Status Codes:
+    - `200`: Stream opened.
+    - `400`: Missing `X-Battle-ID`.
+    - `404`: Unknown battle.
+    - `405`: Wrong method.
+    - `409`: Battle already started.
+- POST /battles/input: Answers the pending prompt.
+  - Input: JSON with the following fields:
+    ```json
+    {
+        choice: <Number: 1-based option number>,
+    }
+    ```
+  - Headers:
+    - `Content-Type: application/json`
+    - `X-Battle-ID`: Battle ID returned by `POST /battles`.
+  - Response: `202` with no body; the next prompt arrives on the start stream.
+  - Response Headers: None required
+  - Status Codes:
+    - `202`: Choice accepted.
+    - `400`: Missing `X-Battle-ID`, invalid JSON, or choice outside the current prompt.
+    - `404`: Unknown battle.
+    - `405`: Wrong method.
+    - `409`: No prompt pending.
+    - `410`: Battle no longer running.
 
 A choice is only accepted while its prompt is pending; the next prompt arrives on the start stream. After each answered prompt the learner moves its starting point to the new battle state and keeps what it already learned.
 
 ```bash
-curl -si -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')" | grep -i x-battle-id
+curl -si -X POST localhost:8080/battles -H "Content-Type: application/json" -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')" | grep -i x-battle-id
 curl -N -X POST localhost:8080/battles/start -H "X-Battle-ID: <id>"
-curl -X POST localhost:8080/battles/input -H "X-Battle-ID: <id>" -d '{"choice":1}'
+curl -X POST localhost:8080/battles/input -H "Content-Type: application/json" -H "X-Battle-ID: <id>" -d '{"choice":1}'
 ```
-
-Invalid input returns `400` with `{"error": "..."}`.
 
 ## Contributing
 
