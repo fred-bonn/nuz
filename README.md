@@ -1,14 +1,14 @@
 # nuz - Nuzlocke Verifier
 
-A command line tool and web server for simulating Pokemon battles for the purpose of developing strategies for Nuzlocke playthroughs.
+A command-line tool and web server for simulating Pokemon battles for the purpose of developing strategies for Nuzlocke playthroughs.
 
 ## What is a Nuzlocke?
 
 A Nuzlocke is a self-imposed ruleset for Pokemon games that turns them into roguelite games. Generally, the rules are as follows:
 
 - For each location only the first Pokemon encounter may be caught.
-- If a Pokemon faints it cannot be used anymore for the rest of playthrough.
-- If all Pokemon in the party faints the playthrough must be reset.
+- If a Pokemon faints it cannot be used anymore for the rest of the playthrough.
+- If all Pokemon in the party faint the playthrough must be reset.
 - Rules to prevent overleveling.
 
 ## Motivation
@@ -62,10 +62,10 @@ Ability: Swift Swim
 
 - `@ Item` is optional
 - `Level`, `Nature`, and `Ability` are required
-- status, HP, and IVs are optional sections:
-  - status allows the set a non-volatile ailment, default to none
-  - HP allows to set the starting HP for the, default to max HP
-  - IVs allows for individually setting each IV, default to 31 in all stats
+- Status, HP, and IVs are optional sections:
+  - Status allows setting a non-volatile ailment, defaulting to none
+  - HP allows setting the starting HP, defaulting to max HP
+  - IVs allow setting each IV individually, defaulting to 31 in all stats
 
 ## Usage
 
@@ -103,7 +103,7 @@ nuz -a 2 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
 
 ## Server
 
-`make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). Visiting it in a browser shows a page to upload the two Showdown party files, pick single/double battle and weather, and play the battle through numbered choice buttons (templates live in [web/templates](web/templates)). The index is served at `/` and the battle page at `/battle?id=<id>`; an unknown battle id redirects there to `/`.
+`make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). Visiting it in a browser shows a page to upload the two Showdown party files, pick single/double battle and weather, and play the battle through numbered choice buttons (templates live in [web/templates](web/templates)). The index is served at `/` and the battle page at `/battle?id=<id>`; an unknown battle id redirects to `/`.
 
 Server flags:
 
@@ -111,10 +111,10 @@ Server flags:
 | ---- | --- |
 | `--addr <host:port>` | Listen address; default `:8080` |
 | `--allow-origin <origin>` | Browser origin allowed by CORS (repeatable); CORS is disabled by default |
-| `--max-battles <n>` | Maximum concurrent battles; default `100`, further creates return `503` |
+| `--max-battles <n>` | Maximum concurrent battles; default `100`, further creation attempts return `503` |
 | `--tls-cert <file>`, `--tls-key <file>` | Serve HTTPS; both must be given together |
 
-To serve HTTPS, pass both `--tls-cert <file>` and `--tls-key <file>` (e.g. `make serve SERVE_ARGS="--tls-cert cert.pem --tls-key key.pem"`); HSTS is then sent on every response. If a reverse proxy terminates TLS instead, it must not buffer `/battles/start` (nginx: `proxy_buffering off`) and its read timeout must exceed the 2 minute input timeout.
+To serve HTTPS, pass both `--tls-cert <file>` and `--tls-key <file>` (e.g. `make serve SERVE_ARGS="--tls-cert cert.pem --tls-key key.pem"`); HSTS is then sent on every response. If a reverse proxy terminates TLS instead, it must not buffer `/battles/start` (nginx: `proxy_buffering off`) and its read timeout must exceed the 2-minute input timeout.
 
 The JSON API behind the page is below. Battles are interactive: the player is driven by the guided AI over HTTP.
 
@@ -173,5 +173,5 @@ If you'd like to contribute, please fork the repository and open a pull request 
 ## TODO
 
 - more exhaustive coverage of abilities and items; several common competitive abilities/items are missing (e.g. Multiscale, Protean, priority-negating abilities)
-- more exhaustive coverage of field effects and interactive moves; screens and abilities that breaks them (e.g. Brick Break), Defog
+- more exhaustive coverage of field effects and interactive moves; screens and abilities that break them (e.g. Brick Break), Defog
 - learning from guided examples
