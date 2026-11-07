@@ -37,4 +37,4 @@ ITERATION_GOALS := $(filter-out all test build run serve brief rain sun sandstor
 .PHONY: $(ITERATION_GOALS)
 $(ITERATION_GOALS): build
 	@case "$@" in *[!0-9]*|0) echo "usage: make <positive iteration count>"; exit 1;; esac
-	$(OUT_PATH) data/player.txt data/opponent.txt --iterations $@
+	$(OUT_PATH) showdown_demo_files/player.txt showdown_demo_files/opponent.txt --iterations $@
