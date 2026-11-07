@@ -99,6 +99,19 @@ func requireConfig(input any) {
 - `web`: embedded web assets.
 - `web/templates`: HTML templates used by the web interface.
 
+## API documentation
+
+- Document every HTTP endpoint in the `Server` section of `README.md`.
+- Use one bullet per endpoint, with nested bullets for its input, headers, response, and status codes.
+- Input: give the method and path, then the JSON body fields with required/optional status, defaults, and accepted ranges. Mention fields that are rejected.
+- Headers: name every required request header (e.g. `X-Battle-ID`) and any response headers callers need.
+- Response: state the success status and body shape. For streaming endpoints, give each event type its own bullet.
+- Status codes: list every status the handler can return and the condition that triggers it. Omit `500` and other internal failure codes.
+- Errors: document the JSON error envelope, `{"error": "..."}`.
+- Include a minimal `curl` example for each endpoint or flow.
+- Describe the server and its design in prose before the endpoint list. Keep front-end details out of the API section; the web page exists only to exercise the API.
+- When behaviour changes, update the affected status codes, defaults, and examples in the same change.
+
 ## Commits
 
 - Use conventional commit-style messages: `type(scope): summary`

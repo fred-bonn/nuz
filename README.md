@@ -103,9 +103,9 @@ nuz -a 2 showdown_demo_files/player.txt showdown_demo_files/opponent.txt
 
 ## Server
 
-`make serve` runs the HTTP server in [cmd/server](cmd/server) (override the listen address with `make serve SERVE_ARGS="--addr :9000"`; default `:8080`). Visiting it in a browser shows a page to upload the two Showdown party files, pick single/double battle and weather, and play the battle through numbered choice buttons (templates live in [web/templates](web/templates)). The index is served at `/` and the battle page at `/battle?id=<id>`; an unknown battle id redirects to `/`.
+The server is a small HTTP wrapper around the battle engine for playing interactive battles over the network. Battles live in an in-memory registry keyed by a random id. The engine runs on its own goroutine and blocks whenever it needs a choice: the client starts the battle with one request, receives prompts on a long-lived newline-delimited JSON stream, and answers each prompt with a separate request. While a prompt is pending, a Monte Carlo learner runs on a copy of the battle in the background and pushes hints over the same stream. Battles are single-use: an unstarted battle expires after 2 minutes, and a started battle is aborted if its prompt goes unanswered for 2 minutes.
 
-Server flags:
+`make serve` runs the server in [cmd/server](cmd/server). Flags are passed through `SERVE_ARGS` (e.g. `make serve SERVE_ARGS="--addr :9000"`); the default listen address is `:8080`. Server flags are:
 
 | Flag | Meaning |
 | ---- | --- |
@@ -116,14 +116,30 @@ Server flags:
 
 To serve HTTPS, pass both `--tls-cert <file>` and `--tls-key <file>` (e.g. `make serve SERVE_ARGS="--tls-cert cert.pem --tls-key key.pem"`); HSTS is then sent on every response. If a reverse proxy terminates TLS instead, it must not buffer `/battles/start` (nginx: `proxy_buffering off`) and its read timeout must exceed the 2-minute input timeout.
 
-The JSON API behind the page is below. Battles are interactive: the player is driven by the guided AI over HTTP.
+### API
 
-1. `POST /battles` accepts JSON with Showdown party text and settings, initialises a battle and replies `201` with the id in the `X-Battle-ID` header (and body, along with the initial `state`). Unstarted battles expire after 2 minutes.
-2. `POST /battles/start` (header `X-Battle-ID`) starts the battle. The `200` response stays open and streams newline-delimited JSON (`Content-Type: application/x-ndjson`): `{"type":"prompt","text":...,"options":[...],"state":{...}}` whenever input is needed (`options` are the numbered choices, `state` is the full battle state), then `{"type":"end","won":bool,"state":{...}}` when the battle ends (`error`/`timeout` otherwise). Starting an already started battle returns `409`.
-3. `POST /battles/input` (header `X-Battle-ID`, body `{"choice":N}`) answers the pending prompt with `202`; the next prompt arrives on the stream. A choice outside the current prompt returns `400`, and input when no prompt is pending returns `409`. If no input arrives for 2 minutes the battle is aborted with a `timeout` event.
-4. While a prompt is pending, a Monte Carlo learner runs in the background on a copy of the battle. The stream carries `{"type":"hint","best":N}` with the number of the option it currently rates best, sent when that best option changes (omitted when nothing has been learned yet); the browser shows that choice with a green background. After each answered prompt the learner moves its starting point to the new battle state and keeps what it already learned.
+Battles are interactive: the player is driven by the guided AI over HTTP.
 
-Requests with an unknown battle id return `404`; a battle that has already ended returns `410`.
+- `POST /battles` initialises a battle and returns its id in the `X-Battle-ID` header and the JSON body (along with the initial `state`).
+  - Input: JSON body with `player` and `opponent` (Showdown party text, required), `double` (default `false`), and `weather` (`0`–`4`, default `0`); unknown fields are rejected.
+  - Headers: none required.
+  - Status codes: `201` created; `400` invalid JSON, unknown field, missing party, weather out of range, or unparsable party; `405` wrong method; `503` concurrent battle limit reached.
+- `POST /battles/start` starts the battle and streams its events.
+  - Input: none.
+  - Headers: `X-Battle-ID` required.
+  - Response: `200` with `Content-Type: application/x-ndjson`; the response stays open and streams one JSON event per line:
+    - `prompt`: `{"type":"prompt","text":...,"options":[...],"state":{...}}` when input is needed; `options` are the numbered choices and `state` is the full battle state.
+    - `hint`: `{"type":"hint","best":N}` while a prompt is pending, sent when the learner's best option changes (omitted when nothing has been learned yet).
+    - `end`: `{"type":"end","won":bool,"state":{...}}` when the battle ends.
+    - `error`: `{"type":"error","error":"..."}` when the battle fails.
+    - `timeout`: `{"type":"timeout","error":"..."}` when no input arrives within the 2-minute timeout.
+  - Status codes: `200` streaming; `400` missing `X-Battle-ID`; `404` unknown battle; `405` wrong method; `409` battle already started.
+- `POST /battles/input` answers the pending prompt.
+  - Input: JSON body with `choice`, the 1-based option number.
+  - Headers: `X-Battle-ID` required.
+  - Status codes: `202` accepted; `400` missing `X-Battle-ID`, invalid JSON, or choice outside the current prompt; `404` unknown battle; `405` wrong method; `409` no prompt pending; `410` battle no longer running.
+
+A choice is only accepted while its prompt is pending; the next prompt arrives on the start stream. After each answered prompt the learner moves its starting point to the new battle state and keeps what it already learned.
 
 ```bash
 curl -si -X POST localhost:8080/battles -d "$(jq -n --rawfile p showdown_demo_files/player.txt --rawfile o showdown_demo_files/opponent.txt '{player:$p,opponent:$o,double:false,weather:0}')" | grep -i x-battle-id
